@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -e
+
+# AgentFlow AI — Quick Dev Command
+# Usage: ./dev [command]
+#
+# Commands:
+#   dev     - Start all services (default)
+#   up      - Start all services
+#   down    - Stop all services
+#   reset   - Stop, remove volumes, and rebuild
+#   logs    - View logs from all services
+#   status  - Show service status
+#   build   - Build all services
+#   clean   - Clean up unused Docker resources
+#   help    - Show help message
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Run the Node.js dev script
+node "$SCRIPT_DIR/scripts/dev.js" "$@"

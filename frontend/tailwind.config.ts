@@ -1,12 +1,20 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
+  darkMode: ["class"],
   content: [
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
+    container: {
+      center: true,
+      padding: "2rem",
+      screens: {
+        "2xl": "1400px",
+      },
+    },
     extend: {
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
@@ -19,7 +27,14 @@ const config: Config = {
         "gradient-hero": "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
       },
       colors: {
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
         primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
           50: "#fff7ed",
           100: "#ffedd5",
           200: "#fed7aa",
@@ -32,6 +47,8 @@ const config: Config = {
           900: "#7c2d12",
         },
         secondary: {
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
           50: "#f0f9ff",
           100: "#e0f2fe",
           200: "#bae6fd",
@@ -43,7 +60,17 @@ const config: Config = {
           800: "#075985",
           900: "#0c4a6e",
         },
+        destructive: {
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
+        },
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
         accent: {
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
           50: "#faf5ff",
           100: "#f3e8ff",
           200: "#e9d5ff",
@@ -55,12 +82,25 @@ const config: Config = {
           800: "#6b21a8",
           900: "#581c87",
         },
+        popover: {
+          DEFAULT: "hsl(var(--popover))",
+          foreground: "hsl(var(--popover-foreground))",
+        },
+        card: {
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
+        },
         amber: {
           700: "#ff4f00",
         },
         slate: {
           100: "#ebe9df",
         },
+      },
+      borderRadius: {
+        lg: "var(--radius)",
+        md: "calc(var(--radius) - 2px)",
+        sm: "calc(var(--radius) - 4px)",
       },
       animation: {
         "fade-in": "fadeIn 0.5s ease-in-out",
@@ -72,6 +112,8 @@ const config: Config = {
         "bounce-slow": "bounce 2s infinite",
         "spin-slow": "spin 3s linear infinite",
         float: "float 3s ease-in-out infinite",
+        "accordion-down": "accordion-down 0.2s ease-out",
+        "accordion-up": "accordion-up 0.2s ease-out",
       },
       keyframes: {
         fadeIn: {
@@ -98,6 +140,14 @@ const config: Config = {
           "0%, 100%": { transform: "translateY(0)" },
           "50%": { transform: "translateY(-10px)" },
         },
+        "accordion-down": {
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
+        },
+        "accordion-up": {
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
+        },
       },
       boxShadow: {
         soft: "0 4px 20px -2px rgba(0, 0, 0, 0.1)",
@@ -116,6 +166,6 @@ const config: Config = {
       },
     },
   },
-  plugins: [],
+  plugins: [require("tailwindcss-animate")],
 };
 export default config;

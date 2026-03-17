@@ -1,103 +1,166 @@
-
 import { Router } from "express";
-import { authMiddleware } from "../middleware";
-import { SigninSchema, SignupSchema } from "../types";
-import { prismaClient } from "../db";
+import prisma from "../db";
 import jwt from "jsonwebtoken";
-import { JWT_PASSWORD } from "../config";
+import { authMiddleware, AuthRequest, generateToken, JWT_SECRET, DEV_USER_ID } from "../middleware";
+import { z } from "zod";
 
 const router = Router();
 
-router.post("/signup", async (req, res) => {
-    const body = req.body;
-    const parsedData = SignupSchema.safeParse(body);
+// Dev mode bootstrap — auto-creates dev user + workspace
+router.get("/dev-bootstrap", async (req, res) => {
+  try {
+    let user = await prisma.user.findUnique({ where: { id: DEV_USER_ID } });
 
-    if (!parsedData.success) {
-        console.log(parsedData.error);
-        return res.status(411).json({
-            message: "Incorrect inputs"
-        })
-    }
-
-    const userExists = await prismaClient.user.findFirst({
-        where: {
-            email: parsedData.data.username
-        }
-    });
-
-    if (userExists) {
-        return res.status(403).json({
-            message: "User already exists"
-        })
-    }
-
-    await prismaClient.user.create({
-        data: {
-            email: parsedData.data.username,
-            // TODO: Dont store passwords in plaintext, hash it
-            password: parsedData.data.password,
-            name: parsedData.data.name
-        }
-    })
-
-    // await sendEmail();
-
-    return res.json({
-        message: "Please verify your account by checking your email"
-    });
-
-})
-
-router.post("/signin", async (req, res) => {
-    const body = req.body;
-    const parsedData = SigninSchema.safeParse(body);
-
-    if (!parsedData.success) {
-        return res.status(411).json({
-            message: "Incorrect inputs"
-        })
-    }
-
-    const user = await prismaClient.user.findFirst({
-        where: {
-            email: parsedData.data.username,
-            password: parsedData.data.password
-        }
-    });
-    
     if (!user) {
-        return res.status(403).json({
-            message: "Sorry credentials are incorrect"
-        })
+      user = await prisma.user.create({
+        data: {
+          id: DEV_USER_ID,
+          email: "dev@agentflow.ai",
+          name: "Dev User",
+          password: "dev123",
+          role: "ADMIN",
+        },
+      });
+
+      await prisma.workspace.create({
+        data: {
+          name: "Dev Workspace",
+          slug: "dev-workspace",
+          description: "Auto-created dev workspace",
+          members: {
+            create: { userId: user.id, role: "ADMIN" },
+          },
+        },
+      });
     }
 
-    // sign the jwt
-    const token = jwt.sign({
-        id: user.id
-    }, JWT_PASSWORD);
+    const membership = await prisma.workspaceMember.findFirst({
+      where: { userId: DEV_USER_ID },
+      include: { workspace: true },
+    });
 
     res.json({
-        token: token,
+      token: "dev-demo-token",
+      user: { id: user.id, email: user.email, name: user.name, role: user.role },
+      workspace: membership?.workspace || null,
     });
-})
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
-router.get("/", authMiddleware, async (req, res) => {
-    // TODO: Fix the type
-    // @ts-ignore
-    const id = req.id;
-    const user = await prismaClient.user.findFirst({
-        where: {
-            id
+const signupSchema = z.object({
+  email: z.string().email(),
+  name: z.string().min(1),
+  password: z.string().min(6),
+});
+
+const loginSchema = z.object({
+  email: z.string().email(),
+  password: z.string(),
+});
+
+// Sign Up
+router.post("/signup", async (req, res) => {
+  try {
+    const body = signupSchema.parse(req.body);
+
+    const existing = await prisma.user.findUnique({ where: { email: body.email } });
+    if (existing) {
+      return res.status(400).json({ error: "Email already in use" });
+    }
+
+    const user = await prisma.user.create({
+      data: {
+        email: body.email,
+        name: body.name,
+        password: body.password, // In production: hash with bcrypt
+      },
+    });
+
+    // Create default workspace
+    const workspace = await prisma.workspace.create({
+      data: {
+        name: `${body.name}'s Workspace`,
+        slug: `${body.name.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}`,
+        members: {
+          create: {
+            userId: user.id,
+            role: "ADMIN",
+          },
         },
-        select: {
-            name: true,
-            email: true
-        }
+      },
     });
 
-    return res.json({
-        user
+    const token = generateToken(user.id);
+
+    res.json({
+      token,
+      user: { id: user.id, email: user.email, name: user.name },
+      workspace: { id: workspace.id, name: workspace.name },
     });
-})
+  } catch (err: any) {
+    res.status(400).json({ error: err.message || "Signup failed" });
+  }
+});
+
+// Login
+router.post("/login", async (req, res) => {
+  try {
+    const body = loginSchema.parse(req.body);
+
+    const user = await prisma.user.findUnique({
+      where: { email: body.email },
+      include: {
+        workspaces: {
+          include: { workspace: true },
+          take: 1,
+        },
+      },
+    });
+
+    if (!user || user.password !== body.password) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    const token = generateToken(user.id);
+
+    res.json({
+      token,
+      user: { id: user.id, email: user.email, name: user.name, role: user.role },
+      workspace: user.workspaces[0]?.workspace || null,
+    });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message || "Login failed" });
+  }
+});
+
+// Get current user
+router.get("/me", authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        avatar: true,
+        createdAt: true,
+        workspaces: {
+          include: { workspace: true },
+        },
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.json(user);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 export const userRouter = router;

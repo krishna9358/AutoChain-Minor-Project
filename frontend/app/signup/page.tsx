@@ -1,136 +1,68 @@
 "use client";
-import { Appbar } from "@/components/Appbar";
-import { Input } from "@/components/Input";
-import axios from "axios";
+
 import { useState } from "react";
-import { BACKEND_URL } from "../config";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
-import { Loader2, ArrowRight, Zap, Target, Lock } from "lucide-react";
+import { Zap, ArrowRight, Loader2 } from "lucide-react";
+import axios from "axios";
+import { BACKEND_URL } from "@/app/config";
 
-export default function Signup() {
-    const router = useRouter();
-    const [name, setName] = useState("");
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState("");
+export default function SignupPage() {
+  const router = useRouter();
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-    const handleSignup = async () => {
-        try {
-            setLoading(true);
-            setError("");
-            const res = await axios.post(`${BACKEND_URL}/api/v1/user/signup`, {
-                username: email,
-                password,
-                name
-            });
-            router.push("/login");
-        } catch (e: any) {
-            setError(e.response?.data?.message || "Something went wrong registering.");
-        } finally {
-            setLoading(false);
-        }
-    };
+  const signup = async (e: React.FormEvent) => {
+    e.preventDefault(); setLoading(true); setError("");
+    try {
+      const r = await axios.post(`${BACKEND_URL}/api/v1/user/signup`, { name, email, password });
+      localStorage.setItem("token", r.data.token); localStorage.setItem("user", JSON.stringify(r.data.user));
+      if (r.data.workspace) localStorage.setItem("workspace", JSON.stringify(r.data.workspace));
+      router.push("/dashboard");
+    } catch (err: any) { setError(err.response?.data?.error || "Signup failed"); }
+    finally { setLoading(false); }
+  };
 
-    return <div className="min-h-screen bg-slate-50 flex flex-col">
-        <Appbar />
-        <div className="flex-1 flex justify-center items-center py-12 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-6xl w-full grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-                <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    className="p-8 hidden md:block"
-                >
-                    <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 mb-8 leading-tight">
-                        Power up your workflow with <span className="text-blue-600">Autochain</span>
-                    </h1>
-
-                    <div className="space-y-8">
-                        <FeatureRow icon={<Zap className="w-6 h-6 text-amber-500" />} title="Infinite Automations" subtitle="Build complex, multi-step workflows without writing a single line of code." />
-                        <FeatureRow icon={<Target className="w-6 h-6 text-green-500" />} title="Native AI Integration" subtitle="Connect the world's best ML models directly to standard SaaS apps." />
-                        <FeatureRow icon={<Lock className="w-6 h-6 text-blue-500" />} title="Enterprise Security" subtitle="Bank-grade encryption protecting your data at rest and over the wire." />
-                    </div>
-                </motion.div>
-
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="bg-white p-10 rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 max-w-md w-full mx-auto"
-                >
-                    <div className="text-center mb-8">
-                        <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-                            Create account
-                        </h2>
-                        <p className="mt-2 text-sm text-slate-600">
-                            Start building for free forever
-                        </p>
-                    </div>
-
-                    <div className="space-y-6">
-                        {error && (
-                            <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm font-medium border border-red-100 text-center">
-                                {error}
-                            </div>
-                        )}
-
-                        <div className="space-y-4">
-                            <Input
-                                onChange={e => setName(e.target.value)}
-                                label={"Full Name"}
-                                type="text"
-                                placeholder="Steve Jobs"
-                            />
-                            <Input
-                                onChange={e => setEmail(e.target.value)}
-                                label={"Work Email"}
-                                type="email"
-                                placeholder="you@company.com"
-                            />
-                            <Input
-                                onChange={e => setPassword(e.target.value)}
-                                label={"Password"}
-                                type="password"
-                                placeholder="••••••••"
-                            />
-                        </div>
-
-                        <button
-                            onClick={handleSignup}
-                            disabled={loading || !email || !password || !name}
-                            className="w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                        >
-                            {loading ? (
-                                <><Loader2 className="w-5 h-5 animate-spin" /> Registering...</>
-                            ) : (
-                                <>Get Started <ArrowRight className="w-4 h-4" /></>
-                            )}
-                        </button>
-
-                        <div className="text-center text-sm">
-                            <span className="text-slate-500">Already have an account? </span>
-                            <span
-                                onClick={() => router.push("/login")}
-                                className="font-semibold text-blue-600 hover:text-blue-500 cursor-pointer transition-colors"
-                            >
-                                Log in
-                            </span>
-                        </div>
-                    </div>
-                </motion.div>
+  return (
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: "var(--bg-primary)" }}>
+      <div className="w-full max-w-sm">
+        <div className="text-center mb-8">
+          <div className="inline-flex w-10 h-10 rounded-lg bg-indigo-600 items-center justify-center mb-4"><Zap className="w-5 h-5 text-white" /></div>
+          <h1 className="text-xl font-semibold" style={{ color: "var(--text-primary)" }}>Create account</h1>
+          <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>Get started with AgentFlow</p>
+        </div>
+        <form onSubmit={signup} className="space-y-4">
+          <div className="p-5 rounded-xl border space-y-4" style={{ background: "var(--bg-card)", borderColor: "var(--border-subtle)" }}>
+            {error && <div className="px-3 py-2 rounded-lg text-xs bg-red-500/10 text-red-500 border border-red-500/20">{error}</div>}
+            <div>
+              <label className="block text-xs font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Name</label>
+              <input value={name} onChange={e => setName(e.target.value)} placeholder="Your name" required
+                className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+                style={{ background: "var(--input-bg)", border: "1px solid var(--input-border)", color: "var(--text-primary)" }} />
             </div>
-        </div>
+            <div>
+              <label className="block text-xs font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Email</label>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@company.com" required
+                className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+                style={{ background: "var(--input-bg)", border: "1px solid var(--input-border)", color: "var(--text-primary)" }} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Password</label>
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Min 6 chars" required
+                className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+                style={{ background: "var(--input-bg)", border: "1px solid var(--input-border)", color: "var(--text-primary)" }} />
+            </div>
+            <button type="submit" disabled={loading} className="w-full flex items-center justify-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-lg text-sm font-medium disabled:opacity-50">
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><span>Create Account</span><ArrowRight className="w-3.5 h-3.5" /></>}
+            </button>
+          </div>
+        </form>
+        <p className="text-center text-xs mt-5" style={{ color: "var(--text-muted)" }}>
+          Already have an account?{" "}<button onClick={() => router.push("/login")} className="text-indigo-500 font-medium">Sign in</button>
+        </p>
+      </div>
     </div>
-}
-
-function FeatureRow({ icon, title, subtitle }: { icon: any, title: string, subtitle: string }) {
-    return <div className="flex gap-4">
-        <div className="mt-1 w-12 h-12 flex-shrink-0 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-center">
-            {icon}
-        </div>
-        <div>
-            <h3 className="font-bold text-slate-900 text-lg">{title}</h3>
-            <p className="text-slate-500 leading-relaxed mt-1">{subtitle}</p>
-        </div>
-    </div>
+  );
 }
