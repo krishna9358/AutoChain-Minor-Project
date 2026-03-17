@@ -4,7 +4,7 @@ export const Input = ({label, placeholder, onChange, type = "text"}: {
     label: string;
     placeholder: string;
     onChange: (e: any) => void;
-    type?: "text" | "password"
+    type?: "text" | "password" | "email"
 }) => {
     return <div>
         <div className="text-sm pb-1 pt-2">

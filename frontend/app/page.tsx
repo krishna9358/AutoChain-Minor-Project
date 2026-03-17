@@ -1,15 +1,15 @@
 import { Appbar } from "@/components/Appbar";
 import { Hero } from "@/components/Hero";
-import { HeroVideo } from "@/components/HeroVideo";
+import { IntegrationsReel } from "@/components/IntegrationsReel";
+import { BentoGrid } from "@/components/BentoGrid"; 
 
 export default function Home() {
   return (
-    <main className="pb-48">
-        <Appbar />
-        <Hero />
-        <div className="pt-8">
-          <HeroVideo />
-        </div>
+    <main className="bg-[#0B0B0F] min-h-screen">
+      <Appbar />
+      <Hero />
+      <IntegrationsReel />
+      <BentoGrid />
     </main>
   );
 }
