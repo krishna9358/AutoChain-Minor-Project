@@ -1,8 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// AgentFlow AI - Enterprise Workflow Automation Platform
+// Prisma Schema
 
 generator client {
   provider = "prisma-client-js"
@@ -13,67 +10,380 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ─── USERS & WORKSPACES ───────────────────────────────────────────
+
 model User {
-  id       Int    @id @default(autoincrement())
-  name     String
-  email    String
-  password String
-  zaps     Zap[]
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  password  String
+  avatar    String?
+  role      Role     @default(EDITOR)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspaces WorkspaceMember[]
+  workflows  Workflow[]
+  approvals  Approval[]
+  auditLogs  AuditLog[]
+  secrets    Secret[]
+  apiKeys    ApiKey[]
 }
 
-model Zap {
-  id           String  @id @default(uuid())
-  triggerId    String
-  userId       Int
-  trigger      Trigger?
-  actions      Action[]
-  zapRuns      ZapRun[]
-  user         User @relation(fields: [userId], references: [id])
+enum Role {
+  ADMIN
+  EDITOR
+  VIEWER
 }
 
-model Trigger {
-  id          String  @id @default(uuid())
-  zapId       String  @unique
-  triggerId   String
-  metadata    Json  @default("{}")
-  type  AvailableTrigger @relation(fields: [triggerId], references: [id])
-  zap  Zap                @relation(fields: [zapId], references: [id])
+model Workspace {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members   WorkspaceMember[]
+  workflows Workflow[]
+  tools     Tool[]
+  templates Template[]
+  secrets   Secret[]
+  apiKeys   ApiKey[]
 }
 
-model Action {
-  id        String  @id @default(uuid())
-  zapId     String  
-  zap       Zap     @relation(fields: [zapId], references: [id])
-  actionId  String
-  metadata    Json  @default("{}")
-  type      AvailableAction @relation(fields: [actionId], references: [id])
-  sortingOrder Int    @default(0)
+model WorkspaceMember {
+  id          String   @id @default(uuid())
+  userId      String
+  workspaceId String
+  role        Role     @default(EDITOR)
+  joinedAt    DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id])
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  @@unique([userId, workspaceId])
 }
 
-model AvailableAction {
-  id       String @id @default(uuid())
-  name     String
-  image    String
-  actions  Action[]
+// ─── WORKFLOWS ────────────────────────────────────────────────────
+
+model Workflow {
+  id             String         @id @default(uuid())
+  name           String
+  description    String?
+  status         WorkflowStatus @default(DRAFT)
+  workspaceId    String
+  userId         String
+  currentVersion Int            @default(1)
+  isTemplate     Boolean        @default(false)
+  tags           String[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  workspace Workspace         @relation(fields: [workspaceId], references: [id])
+  user      User              @relation(fields: [userId], references: [id])
+  versions  WorkflowVersion[]
+  nodes     WorkflowNode[]
+  edges     WorkflowEdge[]
+  runs      WorkflowRun[]
+  auditLogs AuditLog[]
 }
 
-model AvailableTrigger {
-  id       String @id @default(uuid())
-  name     String 
-  image    String
-  triggers Trigger[]
+enum WorkflowStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
 }
 
-model ZapRun {
-  id           String @id @default(uuid())
-  zapId        String
-  metadata     Json
-  zap          Zap @relation(fields: [zapId], references: [id])
-  zapRunOutbox ZapRunOutbox?
+model WorkflowVersion {
+  id         String   @id @default(uuid())
+  workflowId String
+  version    Int
+  nodesData  Json // Snapshot of nodes
+  edgesData  Json // Snapshot of edges
+  changelog  String?
+  createdAt  DateTime @default(now())
+
+  workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@unique([workflowId, version])
 }
 
-model ZapRunOutbox {
-  id          String @id @default(uuid())
-  zapRunId    String @unique
-  zapRun      ZapRun @relation(fields: [zapRunId], references: [id])
+// ─── WORKFLOW NODES & EDGES ───────────────────────────────────────
+
+model WorkflowNode {
+  id          String       @id @default(uuid())
+  workflowId  String
+  nodeType    NodeType
+  category    NodeCategory
+  label       String
+  description String?
+  config      Json         @default("{}")
+  position    Json // { x, y }
+  metadata    Json         @default("{}")
+  retryConfig Json? // { maxRetries, delay, backoff }
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  workflow    Workflow       @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  runSteps    RunStep[]
+  sourceEdges WorkflowEdge[] @relation("SourceNode")
+  targetEdges WorkflowEdge[] @relation("TargetNode")
+}
+
+enum NodeType {
+  // Triggers
+  WEBHOOK_TRIGGER
+  SCHEDULE_TRIGGER
+  FILE_UPLOAD_TRIGGER
+  API_TRIGGER
+
+  // AI Agents
+  EXTRACTION_AGENT
+  SUMMARIZATION_AGENT
+  CLASSIFICATION_AGENT
+  REASONING_AGENT
+  DECISION_AGENT
+  RETRIEVAL_AGENT
+  ANALYSIS_AGENT
+  VERIFICATION_AGENT
+  COMPLIANCE_AGENT
+  EXECUTION_AGENT
+
+  // Logic
+  IF_CONDITION
+  SWITCH_CASE
+  LOOP
+  PARALLEL
+
+  // Actions
+  TOOL_EXECUTION
+  API_CALL
+  DB_WRITE
+  SLACK_SEND
+  EMAIL_SEND
+  HTTP_REQUEST
+
+  // Control
+  DELAY
+  APPROVAL
+  RETRY
+  ERROR_HANDLER
+  SUBFLOW
+}
+
+enum NodeCategory {
+  TRIGGER
+  AI_AGENT
+  LOGIC
+  ACTION
+  CONTROL
+}
+
+model WorkflowEdge {
+  id           String   @id @default(uuid())
+  workflowId   String
+  sourceNodeId String
+  targetNodeId String
+  sourceHandle String?
+  targetHandle String?
+  label        String?
+  condition    Json? // For conditional edges
+  animated     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  workflow   Workflow     @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  sourceNode WorkflowNode @relation("SourceNode", fields: [sourceNodeId], references: [id], onDelete: Cascade)
+  targetNode WorkflowNode @relation("TargetNode", fields: [targetNodeId], references: [id], onDelete: Cascade)
+}
+
+// ─── WORKFLOW EXECUTION ───────────────────────────────────────────
+
+model WorkflowRun {
+  id          String    @id @default(uuid())
+  workflowId  String
+  status      RunStatus @default(PENDING)
+  triggerData Json?
+  startedAt   DateTime?
+  completedAt DateTime?
+  error       String?
+  metadata    Json      @default("{}")
+  createdAt   DateTime  @default(now())
+
+  workflow  Workflow   @relation(fields: [workflowId], references: [id])
+  steps     RunStep[]
+  approvals Approval[]
+}
+
+enum RunStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+  WAITING_APPROVAL
+  PAUSED
+}
+
+model RunStep {
+  id               String     @id @default(uuid())
+  runId            String
+  nodeId           String
+  status           StepStatus @default(PENDING)
+  inputPayload     Json?
+  outputPayload    Json?
+  reasoningSummary String?
+  agentName        String?
+  executionTimeMs  Int?
+  retryCount       Int        @default(0)
+  error            String?
+  startedAt        DateTime?
+  completedAt      DateTime?
+  createdAt        DateTime   @default(now())
+
+  run  WorkflowRun  @relation(fields: [runId], references: [id], onDelete: Cascade)
+  node WorkflowNode @relation(fields: [nodeId], references: [id])
+}
+
+enum StepStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  SKIPPED
+  RETRYING
+  WAITING_APPROVAL
+}
+
+// ─── APPROVALS ────────────────────────────────────────────────────
+
+model Approval {
+  id        String         @id @default(uuid())
+  runId     String
+  nodeId    String
+  userId    String?
+  status    ApprovalStatus @default(PENDING)
+  comment   String?
+  data      Json? // Data to approve/modify
+  decidedAt DateTime?
+  createdAt DateTime       @default(now())
+
+  run  WorkflowRun @relation(fields: [runId], references: [id])
+  user User?       @relation(fields: [userId], references: [id])
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  MODIFIED
+}
+
+// ─── TOOLS ────────────────────────────────────────────────────────
+
+model Tool {
+  id              String   @id @default(uuid())
+  workspaceId     String
+  name            String
+  description     String?
+  icon            String?
+  category        String?
+  inputSchema     Json // JSON Schema for inputs
+  authConfig      Json? // Auth configuration
+  executionConfig Json // How to execute
+  isBuiltIn       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+}
+
+// ─── TEMPLATES ────────────────────────────────────────────────────
+
+model Template {
+  id          String   @id @default(uuid())
+  workspaceId String?
+  name        String
+  description String?
+  category    String?
+  icon        String?
+  tags        String[]
+  nodesData   Json
+  edgesData   Json
+  isPublic    Boolean  @default(true)
+  usageCount  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace? @relation(fields: [workspaceId], references: [id])
+}
+
+// ─── AUDIT LOGS ───────────────────────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  workflowId String?
+  userId     String
+  action     String // e.g. "workflow.created", "run.started"
+  details    Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  workflow Workflow? @relation(fields: [workflowId], references: [id])
+  user     User      @relation(fields: [userId], references: [id])
+}
+
+// ─── ENTERPRISE FEATURES ──────────────────────────────────────────
+
+model Secret {
+  id          String     @id @default(uuid())
+  workspaceId String
+  name        String
+  key         String     @unique // Secret key identifier
+  value       String // Encrypted secret value
+  type        SecretType @default(OTHER)
+  description String?
+  createdBy   String
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  creator   User      @relation(fields: [createdBy], references: [id])
+}
+
+enum SecretType {
+  API_KEY
+  PASSWORD
+  TOKEN
+  CERTIFICATE
+  DATABASE_URL
+  OTHER
+}
+
+model ApiKey {
+  id          String     @id @default(uuid())
+  userId      String
+  workspaceId String? // Null for global/user-level keys
+  name        String
+  keyHash     String     @unique // Hashed API key
+  prefix      String // First 8 characters for display
+  scopes      ApiScope[] @default([READ])
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+  isRevoked   Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  user      User       @relation(fields: [userId], references: [id])
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+enum ApiScope {
+  READ
+  WRITE
+  EXECUTE
+  ADMIN
 }

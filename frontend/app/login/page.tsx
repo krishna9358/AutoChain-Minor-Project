@@ -1,99 +1,73 @@
 "use client";
-import { Appbar } from "@/components/Appbar";
-import { Input } from "@/components/Input";
-import axios from "axios";
-import { useState } from "react";
-import { BACKEND_URL } from "../config";
+
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
-import { Loader2, ArrowRight } from "lucide-react";
+import { Zap, ArrowRight, Eye, EyeOff, Loader2 } from "lucide-react";
+import axios from "axios";
+import { BACKEND_URL } from "@/app/config";
 
-export default function Login() {
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState("");
-    const router = useRouter();
+const IS_DEV = process.env.NEXT_PUBLIC_DEV_MODE === "true";
 
-    const handleLogin = async () => {
-        try {
-            setLoading(true);
-            setError("");
-            const res = await axios.post(`${BACKEND_URL}/api/v1/user/signin`, {
-                username: email,
-                password,
-            });
-            localStorage.setItem("token", res.data.token);
-            router.push("/dashboard");
-        } catch (e: any) {
-            setError(e.response?.data?.message || "Invalid credentials. Please try again.");
-        } finally {
-            setLoading(false);
-        }
-    };
+export default function LoginPage() {
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-    return <div className="min-h-screen bg-slate-50 flex flex-col">
-        <Appbar />
-        <div className="flex-1 flex justify-center items-center py-12 px-4 sm:px-6 lg:px-8">
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="max-w-md w-full space-y-8 bg-white p-10 rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100"
-            >
-                <div className="text-center">
-                    <h2 className="mt-6 text-3xl font-extrabold text-slate-900 tracking-tight">
-                        Welcome back
-                    </h2>
-                    <p className="mt-2 text-sm text-slate-600">
-                        Sign in to your Autochain workspace
-                    </p>
-                </div>
+  useEffect(() => {
+    if (IS_DEV) { localStorage.setItem("token", "dev-demo-token"); localStorage.setItem("user", JSON.stringify({ name: "Dev User" })); router.push("/dashboard"); }
+  }, []);
 
-                <div className="mt-8 space-y-6">
-                    {error && (
-                        <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm font-medium border border-red-100 text-center">
-                            {error}
-                        </div>
-                    )}
+  const login = async (e: React.FormEvent) => {
+    e.preventDefault(); setLoading(true); setError("");
+    try {
+      const r = await axios.post(`${BACKEND_URL}/api/v1/user/login`, { email, password });
+      localStorage.setItem("token", r.data.token); localStorage.setItem("user", JSON.stringify(r.data.user));
+      if (r.data.workspace) localStorage.setItem("workspace", JSON.stringify(r.data.workspace));
+      router.push("/dashboard");
+    } catch (err: any) { setError(err.response?.data?.error || "Login failed"); }
+    finally { setLoading(false); }
+  };
 
-                    <div className="space-y-4">
-                        <Input
-                            onChange={e => setEmail(e.target.value)}
-                            label={"Work Email"}
-                            type="email"
-                            placeholder="you@company.com"
-                        />
-                        <Input
-                            onChange={e => setPassword(e.target.value)}
-                            label={"Password"}
-                            type="password"
-                            placeholder="••••••••"
-                        />
-                    </div>
-
-                    <button
-                        onClick={handleLogin}
-                        disabled={loading || !email || !password}
-                        className="w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                    >
-                        {loading ? (
-                            <><Loader2 className="w-5 h-5 animate-spin" /> Authenticating...</>
-                        ) : (
-                            <>Sign In <ArrowRight className="w-4 h-4" /></>
-                        )}
-                    </button>
-
-                    <div className="text-center text-sm">
-                        <span className="text-slate-500">Don't have an account? </span>
-                        <span
-                            onClick={() => router.push("/signup")}
-                            className="font-semibold text-blue-600 hover:text-blue-500 cursor-pointer transition-colors"
-                        >
-                            Sign up freely
-                        </span>
-                    </div>
-                </div>
-            </motion.div>
+  return (
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: "var(--bg-primary)" }}>
+      <div className="w-full max-w-sm">
+        <div className="text-center mb-8">
+          <div className="inline-flex w-10 h-10 rounded-lg bg-indigo-600 items-center justify-center mb-4"><Zap className="w-5 h-5 text-white" /></div>
+          <h1 className="text-xl font-semibold" style={{ color: "var(--text-primary)" }}>Sign in</h1>
+          <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>Welcome back to AgentFlow</p>
         </div>
+        <form onSubmit={login} className="space-y-4">
+          <div className="p-5 rounded-xl border space-y-4" style={{ background: "var(--bg-card)", borderColor: "var(--border-subtle)" }}>
+            {error && <div className="px-3 py-2 rounded-lg text-xs bg-red-500/10 text-red-500 border border-red-500/20">{error}</div>}
+            <div>
+              <label className="block text-xs font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Email</label>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@company.com" required
+                className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+                style={{ background: "var(--input-bg)", border: "1px solid var(--input-border)", color: "var(--text-primary)" }} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1" style={{ color: "var(--text-secondary)" }}>Password</label>
+              <div className="relative">
+                <input type={showPw ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••" required
+                  className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50 pr-10"
+                  style={{ background: "var(--input-bg)", border: "1px solid var(--input-border)", color: "var(--text-primary)" }} />
+                <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-2.5 top-1/2 -translate-y-1/2" style={{ color: "var(--text-muted)" }}>
+                  {showPw ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+            </div>
+            <button type="submit" disabled={loading} className="w-full flex items-center justify-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-lg text-sm font-medium disabled:opacity-50">
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><span>Sign In</span><ArrowRight className="w-3.5 h-3.5" /></>}
+            </button>
+          </div>
+        </form>
+        <p className="text-center text-xs mt-5" style={{ color: "var(--text-muted)" }}>
+          Don&apos;t have an account?{" "}<button onClick={() => router.push("/signup")} className="text-indigo-500 font-medium">Sign up</button>
+        </p>
+      </div>
     </div>
+  );
 }
