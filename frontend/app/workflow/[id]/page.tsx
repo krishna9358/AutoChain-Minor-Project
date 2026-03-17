@@ -2,6 +2,15 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { NodeConfigForm } from "@/components/workflow/forms/NodeConfigForm";
+import {
+  fetchComponentCatalog,
+  getConfigDefaults,
+  groupComponentsByCategory,
+  validateNodeConfig,
+  categoryLabel,
+  type ComponentDefinition,
+  type ComponentCategory,
+} from "@/components/workflow/config/componentCatalog";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import axios from "axios";
 import { BACKEND_URL } from "@/app/config";
@@ -74,7 +83,7 @@ const IS_DEV = process.env.NEXT_PUBLIC_DEV_MODE === "true";
 const DEV_TOKEN = process.env.NEXT_PUBLIC_DEV_TOKEN || "dev-demo-token";
 
 // ─── Node Registry ──────────────────────────────────────────
-const NODE_CFG: Record<
+const LEGACY_NODE_CFG: Record<
   string,
   { icon: any; color: string; label: string; cat: string }
 > = {
@@ -347,6 +356,13 @@ function WorkflowInner() {
   const [aiGen, setAiGen] = useState(false);
   const [apiKey, setApiKey] = useState("");
   const [webhookUrl, setWebhookUrl] = useState("");
+  const [components, setComponents] = useState<ComponentDefinition[]>([]);
+  const [componentMap, setComponentMap] = useState<
+    Record<string, ComponentDefinition>
+  >({});
+  const [validationErrors, setValidationErrors] = useState<
+    Record<string, string[]>
+  >({});
 
   const { screenToFlowPosition } = useReactFlow();
 
@@ -394,6 +410,32 @@ function WorkflowInner() {
     if (w) setWebhookUrl(w);
   }, []);
 
+  useEffect(() => {
+    const loadCatalog = async () => {
+      try {
+        const list = await fetchComponentCatalog({}, token() || undefined);
+        setComponents(list);
+        setComponentMap(
+          list.reduce<Record<string, ComponentDefinition>>((acc, c) => {
+            acc[c.id] = c;
+            return acc;
+          }, {}),
+        );
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    loadCatalog();
+  }, []);
+
+  // SSE stream cleanup - starts streaming when a run is active, cleans up on unmount/run change
+  useEffect(() => {
+    if (activeRun?.id) {
+      const cleanup = streamRunEvents(activeRun.id);
+      return cleanup;
+    }
+  }, [activeRun?.id]);
+
   // Load workflow when wfId changes
   useEffect(() => {
     if (!isNew) {
@@ -413,6 +455,10 @@ function WorkflowInner() {
               position: n.position || { x: 300, y: 0 },
               data: {
                 nodeType: n.nodeType,
+                componentId:
+                  n.metadata?.componentId ||
+                  n.componentId ||
+                  n.nodeType?.toLowerCase?.().replace(/_/g, "-"),
                 category: n.category,
                 label: n.label,
                 config: n.config,
@@ -442,20 +488,64 @@ function WorkflowInner() {
   const save = async () => {
     setSaving(true);
     try {
+      const nodeValidation: Record<string, string[]> = {};
+      const normalizedByNode: Record<string, Record<string, unknown>> = {};
+
+      for (const n of nodes) {
+        const componentId =
+          (n.data.componentId as string) ||
+          (n.data.nodeType as string)?.toLowerCase().replace(/_/g, "-");
+        if (!componentId) continue;
+        const result = await validateNodeConfig(
+          componentId,
+          (n.data.config || {}) as Record<string, unknown>,
+          token() || undefined,
+        );
+        if (!result.ok) {
+          nodeValidation[n.id] = result.errors.map(
+            (er) => `${er.path}: ${er.message}`,
+          );
+        } else {
+          normalizedByNode[n.id] = result.normalizedConfig;
+        }
+      }
+
+      setValidationErrors(nodeValidation);
+      if (Object.keys(nodeValidation).length > 0) {
+        return;
+      }
+
       const p = {
         name: wfName,
         description: wfDesc,
-        nodes: nodes.map((n) => ({
-          id: n.id,
-          nodeType: n.data.nodeType,
-          category: n.data.category || NODE_CFG[n.data.nodeType as string]?.cat,
-          label: n.data.label || NODE_CFG[n.data.nodeType as string]?.label,
-          config: n.data.config || {},
-          position: n.position,
-          metadata: {},
-        })),
+        nodes: nodes.map((n) => {
+          const componentId =
+            (n.data.componentId as string) ||
+            (n.data.nodeType as string)?.toLowerCase().replace(/_/g, "-");
+          const fallback = LEGACY_NODE_CFG[n.data.nodeType as string];
+          return {
+            id: n.id,
+            nodeType: n.data.nodeType,
+            category:
+              (n.data.category as string) ||
+              componentMap[componentId]?.category ||
+              fallback?.cat ||
+              "core",
+            label:
+              (n.data.label as string) ||
+              componentMap[componentId]?.name ||
+              fallback?.label ||
+              "Node",
+            config: normalizedByNode[n.id] || n.data.config || {},
+            position: n.position,
+            metadata: {
+              componentId,
+            },
+          };
+        }),
         edges: edges.map((e) => ({ source: e.source, target: e.target })),
       };
+
       if (isNew) {
         const r = await axios.post(`${BACKEND_URL}/api/v1/workflows`, p, {
           headers: { Authorization: token()! },
@@ -482,7 +572,8 @@ function WorkflowInner() {
         { headers: { Authorization: token()! } },
       );
       setActiveMode("runs");
-      poll(r.data.id);
+      // Start SSE streaming for real-time updates
+      streamRunEvents(r.data.id);
     } catch (e) {
       console.error(e);
     } finally {
@@ -490,7 +581,87 @@ function WorkflowInner() {
     }
   };
 
-  const poll = async (id: string) => {
+  const streamRunEvents = (runId: string) => {
+    let eventSource: EventSource | null = null;
+
+    try {
+      // Connect to SSE endpoint
+      eventSource = new EventSource(
+        `${BACKEND_URL}/api/v1/execution/events/${runId}?token=${encodeURIComponent(token()!.replace("Bearer ", ""))}`,
+      );
+
+      eventSource.onopen = () => {
+        console.log("SSE connection established for run:", runId);
+      };
+
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+
+          // Handle run status updates
+          if (data.status || data.id) {
+            setActiveRun((prev) => ({
+              ...prev,
+              ...data,
+            }));
+          }
+
+          // Handle step status updates
+          if (data.nodeId) {
+            setRunSteps((prev) => {
+              const existingIndex = prev.findIndex(
+                (s) => s.stepId === data.stepId || s.id === data.stepId,
+              );
+              if (existingIndex >= 0) {
+                const updated = [...prev];
+                updated[existingIndex] = {
+                  ...prev[existingIndex],
+                  ...data,
+                };
+                return updated;
+              }
+              return [...prev, { ...data, id: data.stepId }];
+            });
+
+            // Update node status in the graph
+            setNodes((n) =>
+              n.map((nd) => ({
+                ...nd,
+                data: {
+                  ...nd.data,
+                  runStatus:
+                    nd.id === data.nodeId ? data.status : nd.data.runStatus,
+                },
+              })),
+            );
+          }
+        } catch (error) {
+          console.error("Error parsing SSE event:", error);
+        }
+      };
+
+      eventSource.onerror = (error) => {
+        console.error("SSE error:", error);
+        // Fallback to polling if SSE fails
+        if (eventSource) {
+          eventSource.close();
+        }
+      };
+    } catch (error) {
+      console.error("Failed to establish SSE connection:", error);
+      // Fallback to polling
+      pollFallback(runId);
+    }
+
+    // Clean up SSE connection on unmount
+    return () => {
+      if (eventSource) {
+        eventSource.close();
+      }
+    };
+  };
+
+  const pollFallback = async (id: string) => {
     const go = async () => {
       try {
         const r = await axios.get(`${BACKEND_URL}/api/v1/execution/run/${id}`, {
@@ -563,17 +734,34 @@ function WorkflowInner() {
   const onDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
-      const t = e.dataTransfer.getData("nodeType");
-      if (!t) return;
+      const componentId =
+        e.dataTransfer.getData("componentId") ||
+        e.dataTransfer.getData("nodeType");
+      if (!componentId) return;
       const pos = screenToFlowPosition({ x: e.clientX, y: e.clientY });
-      const c = NODE_CFG[t];
+      const component = componentMap[componentId];
+      const fallback =
+        LEGACY_NODE_CFG[componentId] ||
+        LEGACY_NODE_CFG[
+          componentId
+            .toUpperCase()
+            .replace(/-/g, "_") as keyof typeof LEGACY_NODE_CFG
+        ];
+
       setNodes((n) => [
         ...n,
         {
-          id: `${t}-${Date.now()}`,
+          id: `${componentId}-${Date.now()}`,
           type: "workflowNode",
           position: pos,
-          data: { nodeType: t, category: c?.cat, label: c?.label, config: {} },
+          data: {
+            nodeType:
+              componentId.toUpperCase().replace(/-/g, "_") || "CUSTOM_NODE",
+            componentId,
+            category: component?.category || fallback?.cat || "core",
+            label: component?.name || fallback?.label || componentId,
+            config: component ? getConfigDefaults(component.configFields) : {},
+          },
         },
       ]);
     },
@@ -814,52 +1002,45 @@ function WorkflowInner() {
 
               {leftTab === "nodes" && (
                 <div className="p-2">
-                  {Object.entries(
-                    Object.entries(NODE_CFG).reduce(
-                      (a, [k, v]) => {
-                        if (!a[v.cat]) a[v.cat] = [];
-                        a[v.cat].push({ key: k, ...v });
-                        return a;
-                      },
-                      {} as Record<string, any[]>,
-                    ),
-                  ).map(([cat, items]) => (
-                    <div key={cat} className="mb-3">
-                      <p
-                        className="text-[10px] font-medium uppercase tracking-wider mb-1 px-1"
-                        style={{ color: "var(--text-muted)" }}
-                      >
-                        {cat.replace("_", " ")}
-                      </p>
-                      {items.map((it: any) => (
-                        <div
-                          key={it.key}
-                          draggable
-                          onDragStart={(e) => {
-                            e.dataTransfer.setData("nodeType", it.key);
-                            e.dataTransfer.effectAllowed = "move";
-                          }}
-                          className="flex items-center space-x-2 p-1.5 mb-0.5 rounded-lg cursor-grab active:cursor-grabbing transition-colors group"
+                  {Object.entries(groupComponentsByCategory(components)).map(
+                    ([cat, items]) => (
+                      <div key={cat} className="mb-3">
+                        <p
+                          className="text-[10px] font-medium uppercase tracking-wider mb-1 px-1"
+                          style={{ color: "var(--text-muted)" }}
                         >
+                          {categoryLabel(cat as ComponentCategory)}
+                        </p>
+                        {items.map((it) => (
                           <div
-                            className="w-6 h-6 rounded flex items-center justify-center shrink-0"
-                            style={{
-                              backgroundColor: `${it.color}15`,
-                              color: it.color,
+                            key={it.id}
+                            draggable
+                            onDragStart={(e) => {
+                              e.dataTransfer.setData("componentId", it.id);
+                              e.dataTransfer.effectAllowed = "move";
                             }}
+                            className="flex items-center space-x-2 p-1.5 mb-0.5 rounded-lg cursor-grab active:cursor-grabbing transition-colors group"
                           >
-                            <it.icon className="w-3 h-3" />
+                            <div
+                              className="w-6 h-6 rounded flex items-center justify-center shrink-0"
+                              style={{
+                                backgroundColor: "#6366f115",
+                                color: "#6366f1",
+                              }}
+                            >
+                              <Workflow className="w-3 h-3" />
+                            </div>
+                            <span
+                              className="text-[11px]"
+                              style={{ color: "var(--text-muted)" }}
+                            >
+                              {it.name}
+                            </span>
                           </div>
-                          <span
-                            className="text-[11px]"
-                            style={{ color: "var(--text-muted)" }}
-                          >
-                            {it.label}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  ))}
+                        ))}
+                      </div>
+                    ),
+                  )}
                 </div>
               )}
 
@@ -1184,9 +1365,24 @@ function WorkflowInner() {
                       Type
                     </label>
                     <p className="mt-1 text-xs text-indigo-500">
-                      {selNode.data.nodeType as string}
+                      {(selNode.data.componentId as string) ||
+                        (selNode.data.nodeType as string)}
                     </p>
                   </div>
+                  {validationErrors[selNode.id]?.length ? (
+                    <div
+                      className="p-2 rounded-lg border text-[10px]"
+                      style={{
+                        borderColor: "rgba(239,68,68,0.35)",
+                        background: "rgba(239,68,68,0.08)",
+                        color: "#ef4444",
+                      }}
+                    >
+                      {validationErrors[selNode.id].map((err, idx) => (
+                        <p key={idx}>{err}</p>
+                      ))}
+                    </div>
+                  ) : null}
                   <div>
                     <label
                       className="text-[10px] font-medium"
@@ -1197,6 +1393,10 @@ function WorkflowInner() {
                     <div className="mt-1">
                       <NodeConfigForm
                         nodeType={selNode.data.nodeType as string}
+                        fields={
+                          componentMap[selNode.data.componentId as string]
+                            ?.configFields || []
+                        }
                         config={selNode.data.config || {}}
                         onChange={(config) =>
                           setNodes((n) =>

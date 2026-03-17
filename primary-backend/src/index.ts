@@ -8,6 +8,9 @@ import { approvalRouter } from "./router/approval";
 import { toolRouter } from "./router/tool";
 import { auditRouter } from "./router/audit";
 import { generateRouter } from "./router/generate";
+import { componentCatalogRouter } from "./router/componentCatalog";
+import { secretsRouter } from "./router/secrets";
+import { apiKeysRouter } from "./router/apiKeys";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -17,7 +20,11 @@ app.use(express.json({ limit: "10mb" }));
 
 // Health check
 app.get("/health", (_, res) => {
-  res.json({ status: "ok", service: "agentflow-backend", timestamp: new Date().toISOString() });
+  res.json({
+    status: "ok",
+    service: "agentflow-backend",
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // API Routes
@@ -29,6 +36,9 @@ app.use("/api/v1/approvals", approvalRouter);
 app.use("/api/v1/tools", toolRouter);
 app.use("/api/v1/audit", auditRouter);
 app.use("/api/v1/generate", generateRouter);
+app.use("/api/v1/components", componentCatalogRouter);
+app.use("/api/v1/secrets", secretsRouter);
+app.use("/api/v1/api-keys", apiKeysRouter);
 
 app.listen(PORT, () => {
   console.log(`🚀 AgentFlow AI Backend running on port ${PORT}`);

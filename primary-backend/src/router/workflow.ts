@@ -2,6 +2,7 @@ import { Router } from "express";
 import prisma from "../db";
 import { authMiddleware, AuthRequest } from "../middleware";
 import { z } from "zod";
+import { validateWorkflowNodes } from "./componentCatalog";
 
 const router = Router();
 
@@ -23,23 +24,39 @@ router.post("/", authMiddleware, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: "No workspace found" });
     }
 
+    const inputNodes = Array.isArray(nodes) ? nodes : [];
+    const nodeValidation = validateWorkflowNodes(inputNodes);
+
+    if (!nodeValidation.ok) {
+      return res.status(422).json({
+        error: "Invalid workflow node configuration",
+        details: nodeValidation.errors,
+      });
+    }
+
+    const normalizedNodes = nodeValidation.normalized;
+
     const workflow = await prisma.workflow.create({
       data: {
         name: name || "Untitled Workflow",
         description,
         workspaceId: wsId,
         userId: req.userId!,
-        nodes: nodes
+        nodes: normalizedNodes.length
           ? {
-              create: nodes.map((n: any) => ({
-                nodeType: n.nodeType,
-                category: n.category,
-                label: n.label,
-                description: n.description,
+              create: normalizedNodes.map((n: any, i: number) => ({
+                id: inputNodes[i]?.id || n.id,
+                nodeType: n.componentId,
+                category: inputNodes[i]?.category,
+                label: inputNodes[i]?.label,
+                description: inputNodes[i]?.description,
                 config: n.config || {},
-                position: n.position || { x: 0, y: 0 },
-                metadata: n.metadata || {},
-                retryConfig: n.retryConfig,
+                position: inputNodes[i]?.position || { x: 0, y: 0 },
+                metadata: {
+                  ...(inputNodes[i]?.metadata || {}),
+                  componentId: n.componentId,
+                },
+                retryConfig: inputNodes[i]?.retryConfig,
               })),
             }
           : undefined,
@@ -54,8 +71,8 @@ router.post("/", authMiddleware, async (req: AuthRequest, res) => {
     if (edges && edges.length > 0 && workflow.nodes.length > 0) {
       // Map temp IDs to real IDs
       const nodeMap = new Map<string, string>();
-      if (nodes) {
-        nodes.forEach((n: any, i: number) => {
+      if (inputNodes.length) {
+        inputNodes.forEach((n: any, i: number) => {
           nodeMap.set(n.tempId || n.id || `node-${i}`, workflow.nodes[i].id);
         });
       }
@@ -83,7 +100,7 @@ router.post("/", authMiddleware, async (req: AuthRequest, res) => {
       data: {
         workflowId: workflow.id,
         version: 1,
-        nodesData: nodes || [],
+        nodesData: normalizedNodes || [],
         edgesData: edges || [],
         changelog: "Initial version",
       },
@@ -204,25 +221,43 @@ router.put("/:id", authMiddleware, async (req: AuthRequest, res) => {
 
     // Update nodes if provided
     if (nodes) {
+      const inputNodes = Array.isArray(nodes) ? nodes : [];
+      const nodeValidation = validateWorkflowNodes(inputNodes);
+
+      if (!nodeValidation.ok) {
+        return res.status(422).json({
+          error: "Invalid workflow node configuration",
+          details: nodeValidation.errors,
+        });
+      }
+
+      const normalizedNodes = nodeValidation.normalized;
+
       // Delete existing nodes (cascade deletes edges)
       await prisma.workflowNode.deleteMany({
         where: { workflowId: workflow.id },
       });
 
       // Recreate nodes
-      for (const n of nodes) {
+      for (let i = 0; i < normalizedNodes.length; i += 1) {
+        const n = normalizedNodes[i];
+        const originalNode = inputNodes[i] || {};
+
         await prisma.workflowNode.create({
           data: {
-            id: n.id,
+            id: originalNode.id || n.id,
             workflowId: workflow.id,
-            nodeType: n.nodeType,
-            category: n.category,
-            label: n.label,
-            description: n.description,
+            nodeType: n.componentId,
+            category: originalNode.category,
+            label: originalNode.label,
+            description: originalNode.description,
             config: n.config || {},
-            position: n.position || { x: 0, y: 0 },
-            metadata: n.metadata || {},
-            retryConfig: n.retryConfig,
+            position: originalNode.position || { x: 0, y: 0 },
+            metadata: {
+              ...(originalNode.metadata || {}),
+              componentId: n.componentId,
+            },
+            retryConfig: originalNode.retryConfig,
           },
         });
       }
@@ -256,7 +291,7 @@ router.put("/:id", authMiddleware, async (req: AuthRequest, res) => {
         data: {
           workflowId: workflow.id,
           version: newVersion,
-          nodesData: nodes,
+          nodesData: normalizedNodes,
           edgesData: edges || [],
           changelog: `Version ${newVersion}`,
         },
@@ -318,26 +353,35 @@ router.get("/:id/versions", authMiddleware, async (req: AuthRequest, res) => {
 });
 
 // Rollback to version
-router.post("/:id/rollback/:version", authMiddleware, async (req: AuthRequest, res) => {
-  try {
-    const version = await prisma.workflowVersion.findUnique({
-      where: {
-        workflowId_version: {
-          workflowId: req.params.id,
-          version: parseInt(req.params.version),
+router.post(
+  "/:id/rollback/:version",
+  authMiddleware,
+  async (req: AuthRequest, res) => {
+    try {
+      const version = await prisma.workflowVersion.findUnique({
+        where: {
+          workflowId_version: {
+            workflowId: req.params.id,
+            version: parseInt(req.params.version),
+          },
         },
-      },
-    });
+      });
 
-    if (!version) {
-      return res.status(404).json({ error: "Version not found" });
+      if (!version) {
+        return res.status(404).json({ error: "Version not found" });
+      }
+
+      // Restore nodes and edges from version snapshot
+      res.json({
+        success: true,
+        version: version.version,
+        nodesData: version.nodesData,
+        edgesData: version.edgesData,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
     }
-
-    // Restore nodes and edges from version snapshot
-    res.json({ success: true, version: version.version, nodesData: version.nodesData, edgesData: version.edgesData });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
+  },
+);
 
 export const workflowRouter = router;
