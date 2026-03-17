@@ -1,5 +1,5 @@
 "use client"
-import { Appbar } from "@/components/Appbar";
+// Appbar removed
 import { DarkButton } from "@/components/buttons/DarkButton";
 import axios from "axios";
 import { useEffect, useState } from "react";
@@ -67,7 +67,27 @@ export default function Dashboard() {
     const router = useRouter();
 
     return <div className="min-h-screen bg-[#f8fafc] flex flex-col">
-        <Appbar />
+        <header className="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center shadow-sm z-10">
+            <div
+                onClick={() => router.push("/")}
+                className="flex items-center gap-2 cursor-pointer text-xl font-bold tracking-tight text-slate-800 hover:opacity-80 transition-opacity"
+            >
+                <Zap className="w-6 h-6 text-blue-600" />
+                <span>Autochain</span>
+            </div>
+            <div className="flex items-center gap-4">
+                <button
+                    onClick={() => {
+                        localStorage.removeItem("token");
+                        router.push("/login");
+                    }}
+                    className="text-sm font-medium text-slate-600 hover:text-red-600 transition-colors"
+                >
+                    Log out
+                </button>
+            </div>
+        </header>
+
         <main className="flex-1 max-w-6xl w-full mx-auto p-6 lg:p-12">
             <div className="flex justify-between items-center mb-10">
                 <div>
