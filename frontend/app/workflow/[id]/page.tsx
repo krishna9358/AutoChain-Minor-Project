@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { NodeConfigForm } from "@/components/workflow/forms/NodeConfigForm";
 import {
   fetchComponentCatalog,
@@ -13,13 +13,12 @@ import {
 } from "@/components/workflow/config/componentCatalog";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { BACKEND_URL } from "@/app/config";
-import { useTheme } from "@/components/ThemeProvider";
-import { useWorkspace } from "@/components/WorkspaceProvider";
+import { useTheme } from "@/components/providers/ThemeProvider";
+import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { RunsPanel } from "@/components/workflow/runs/RunsPanel";
 import { api } from "@/lib/api";
 import { CreateWorkspaceModal } from "@/components/workspace/CreateWorkspaceModal";
 import { useToast } from "@/components/hooks/use-toast";
-import { Button } from "@/components/ui/button";
 import {
   ReactFlow,
   Controls,
@@ -50,7 +49,6 @@ import {
   Clock,
   AlertCircle,
   Activity,
-  Bot,
   Brain,
   Globe,
   Mail,
@@ -67,13 +65,15 @@ import {
   Moon,
   Key,
   Link2,
-  PanelLeftClose,
-  PanelLeft,
   Pause,
   FolderPlus,
   Building2,
   ChevronsUpDown,
   Check,
+  ChevronDown,
+  ChevronRight,
+  Tag,
+  Trash2,
 } from "lucide-react";
 import type {
   Node,
@@ -87,139 +87,39 @@ import type {
 const IS_DEV = process.env.NEXT_PUBLIC_DEV_MODE === "true";
 const DEV_TOKEN = process.env.NEXT_PUBLIC_DEV_TOKEN || "dev-demo-token";
 
-// ─── Node Registry ──────────────────────────────────────────
-const LEGACY_NODE_CFG: Record<
+// ─── Node type registry ──────────────────────────────────────────
+const NODE_CFG: Record<
   string,
   { icon: any; color: string; label: string; cat: string }
 > = {
-  WEBHOOK_TRIGGER: {
-    icon: Globe,
-    color: "#f59e0b",
-    label: "Webhook",
-    cat: "TRIGGER",
-  },
-  SCHEDULE_TRIGGER: {
-    icon: Clock,
-    color: "#f59e0b",
-    label: "Schedule",
-    cat: "TRIGGER",
-  },
-  FILE_UPLOAD_TRIGGER: {
-    icon: FileText,
-    color: "#f59e0b",
-    label: "File Upload",
-    cat: "TRIGGER",
-  },
-  API_TRIGGER: {
-    icon: Globe,
-    color: "#f59e0b",
-    label: "API Trigger",
-    cat: "TRIGGER",
-  },
-  EXTRACTION_AGENT: {
-    icon: Brain,
-    color: "#6366f1",
-    label: "Extraction",
-    cat: "AI_AGENT",
-  },
-  SUMMARIZATION_AGENT: {
-    icon: FileText,
-    color: "#6366f1",
-    label: "Summarizer",
-    cat: "AI_AGENT",
-  },
-  CLASSIFICATION_AGENT: {
-    icon: GitBranch,
-    color: "#8b5cf6",
-    label: "Classifier",
-    cat: "AI_AGENT",
-  },
-  REASONING_AGENT: {
-    icon: Brain,
-    color: "#7c3aed",
-    label: "Reasoning",
-    cat: "AI_AGENT",
-  },
-  DECISION_AGENT: {
-    icon: GitBranch,
-    color: "#6366f1",
-    label: "Decision",
-    cat: "AI_AGENT",
-  },
-  VERIFICATION_AGENT: {
-    icon: Shield,
-    color: "#10b981",
-    label: "Verification",
-    cat: "AI_AGENT",
-  },
-  COMPLIANCE_AGENT: {
-    icon: Shield,
-    color: "#3b82f6",
-    label: "Compliance",
-    cat: "AI_AGENT",
-  },
-  IF_CONDITION: {
-    icon: GitBranch,
-    color: "#06b6d4",
-    label: "If/Else",
-    cat: "LOGIC",
-  },
+  WEBHOOK_TRIGGER: { icon: Globe, color: "#f59e0b", label: "Webhook", cat: "TRIGGER" },
+  SCHEDULE_TRIGGER: { icon: Clock, color: "#f59e0b", label: "Schedule", cat: "TRIGGER" },
+  FILE_UPLOAD_TRIGGER: { icon: FileText, color: "#f59e0b", label: "File Upload", cat: "TRIGGER" },
+  API_TRIGGER: { icon: Globe, color: "#f59e0b", label: "API Trigger", cat: "TRIGGER" },
+  EXTRACTION_AGENT: { icon: Brain, color: "#6366f1", label: "Extraction", cat: "AI_AGENT" },
+  SUMMARIZATION_AGENT: { icon: FileText, color: "#6366f1", label: "Summarizer", cat: "AI_AGENT" },
+  CLASSIFICATION_AGENT: { icon: GitBranch, color: "#8b5cf6", label: "Classifier", cat: "AI_AGENT" },
+  REASONING_AGENT: { icon: Brain, color: "#7c3aed", label: "Reasoning", cat: "AI_AGENT" },
+  DECISION_AGENT: { icon: GitBranch, color: "#6366f1", label: "Decision", cat: "AI_AGENT" },
+  VERIFICATION_AGENT: { icon: Shield, color: "#10b981", label: "Verify", cat: "AI_AGENT" },
+  COMPLIANCE_AGENT: { icon: Shield, color: "#3b82f6", label: "Compliance", cat: "AI_AGENT" },
+  IF_CONDITION: { icon: GitBranch, color: "#06b6d4", label: "If / Else", cat: "LOGIC" },
   LOOP: { icon: RotateCcw, color: "#06b6d4", label: "Loop", cat: "LOGIC" },
-  PARALLEL: {
-    icon: Activity,
-    color: "#06b6d4",
-    label: "Parallel",
-    cat: "LOGIC",
-  },
-  SLACK_SEND: {
-    icon: MessageSquare,
-    color: "#10b981",
-    label: "Slack",
-    cat: "ACTION",
-  },
+  PARALLEL: { icon: Activity, color: "#06b6d4", label: "Parallel", cat: "LOGIC" },
+  SLACK_SEND: { icon: MessageSquare, color: "#10b981", label: "Slack", cat: "ACTION" },
   EMAIL_SEND: { icon: Mail, color: "#3b82f6", label: "Email", cat: "ACTION" },
-  HTTP_REQUEST: {
-    icon: Globe,
-    color: "#10b981",
-    label: "HTTP",
-    cat: "ACTION",
-  },
-  API_CALL: {
-    icon: Globe,
-    color: "#14b8a6",
-    label: "API Call",
-    cat: "ACTION",
-  },
-  DB_WRITE: {
-    icon: Database,
-    color: "#f97316",
-    label: "Database",
-    cat: "ACTION",
-  },
+  HTTP_REQUEST: { icon: Globe, color: "#10b981", label: "HTTP", cat: "ACTION" },
+  API_CALL: { icon: Globe, color: "#14b8a6", label: "API Call", cat: "ACTION" },
+  DB_WRITE: { icon: Database, color: "#f97316", label: "Database", cat: "ACTION" },
   DELAY: { icon: Timer, color: "#6b7280", label: "Delay", cat: "CONTROL" },
-  APPROVAL: {
-    icon: Pause,
-    color: "#eab308",
-    label: "Approval",
-    cat: "CONTROL",
-  },
-  RETRY: {
-    icon: RotateCcw,
-    color: "#6b7280",
-    label: "Retry",
-    cat: "CONTROL",
-  },
-  ERROR_HANDLER: {
-    icon: AlertCircle,
-    color: "#ef4444",
-    label: "Error Handler",
-    cat: "CONTROL",
-  },
+  APPROVAL: { icon: Pause, color: "#eab308", label: "Approval", cat: "CONTROL" },
+  RETRY: { icon: RotateCcw, color: "#6b7280", label: "Retry", cat: "CONTROL" },
+  ERROR_HANDLER: { icon: AlertCircle, color: "#ef4444", label: "Error Handler", cat: "CONTROL" },
 };
 
-// ─── Custom Node ─────
+// ─── Canvas Node component ─────────────────────────────────────
 function FlowNode({ data, isConnectable }: NodeProps) {
-  const cfg = LEGACY_NODE_CFG[data.nodeType as string] || {
+  const cfg = NODE_CFG[data.nodeType as string] || {
     icon: Zap,
     color: "#6b7280",
     label: "Node",
@@ -232,8 +132,9 @@ function FlowNode({ data, isConnectable }: NodeProps) {
 
   return (
     <div
-      className="rounded-xl border bg-white dark:bg-[#1a1a24] transition-all w-[200px]"
+      className="rounded-xl border transition-all w-[200px]"
       style={{
+        background: "var(--bg-card)",
         borderColor: data.selected
           ? "#6366f1"
           : isRunning
@@ -247,7 +148,7 @@ function FlowNode({ data, isConnectable }: NodeProps) {
           ? "0 0 0 2px rgba(99,102,241,0.2)"
           : isRunning
             ? "0 0 12px rgba(59,130,246,0.3)"
-            : "none",
+            : "var(--shadow-card)",
       }}
     >
       {cfg.cat !== "TRIGGER" && (
@@ -259,10 +160,10 @@ function FlowNode({ data, isConnectable }: NodeProps) {
           isConnectable={isConnectable}
         />
       )}
-      <div className="p-3 flex items-center space-x-2.5">
+      <div className="p-3 flex items-center gap-2.5">
         <div
           className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-          style={{ backgroundColor: `${cfg.color}15`, color: cfg.color }}
+          style={{ backgroundColor: `${cfg.color}18`, color: cfg.color }}
         >
           <Icon className="w-4 h-4" />
         </div>
@@ -274,16 +175,12 @@ function FlowNode({ data, isConnectable }: NodeProps) {
             {(data.label as string) || cfg.label}
           </p>
           <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>
-            {cfg.cat.replace("_", " ")}
+            {cfg.cat.replace(/_/g, " ")}
           </p>
         </div>
-        {isCompleted && (
-          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-        )}
+        {isCompleted && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />}
         {isFailed && <XCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />}
-        {isRunning && (
-          <Loader2 className="w-3.5 h-3.5 text-blue-500 animate-spin shrink-0" />
-        )}
+        {isRunning && <Loader2 className="w-3.5 h-3.5 text-blue-500 animate-spin shrink-0" />}
       </div>
       <Handle
         type="source"
@@ -298,49 +195,7 @@ function FlowNode({ data, isConnectable }: NodeProps) {
 
 const nodeTypes = { workflowNode: FlowNode };
 
-const TEMPLATES = [
-  {
-    id: "meeting",
-    name: "Meeting Intelligence",
-    icon: "🎤",
-    prompt:
-      "Process meeting transcripts, extract action items, classify priority, send to Slack",
-  },
-  {
-    id: "support",
-    name: "Support Ticket AI",
-    icon: "🎫",
-    prompt:
-      "Classify support tickets, generate AI responses, escalate to managers",
-  },
-  {
-    id: "sales",
-    name: "Lead Qualification",
-    icon: "🎯",
-    prompt: "Qualify sales leads, score them, route to reps, send outreach",
-  },
-  {
-    id: "invoice",
-    name: "Invoice Processing",
-    icon: "📄",
-    prompt: "Process invoices, extract data, validate, route for approval",
-  },
-  {
-    id: "onboarding",
-    name: "Employee Onboarding",
-    icon: "👋",
-    prompt:
-      "Automate onboarding with IT provisioning, welcome emails, Slack intros",
-  },
-  {
-    id: "incident",
-    name: "Incident Response",
-    icon: "🚨",
-    prompt: "Classify alert severity, analyze root cause, notify stakeholders",
-  },
-];
-
-// ─── Main Component ─────────────────────────────────────────
+// ─── Main Workflow Component ────────────────────────────────────
 function WorkflowInner() {
   const router = useRouter();
   const params = useParams();
@@ -358,41 +213,60 @@ function WorkflowInner() {
   const wfId = params?.id as string;
   const isNew = wfId === "new";
 
-  const [leftTab, setLeftTab] = useState<"ai" | "nodes" | "settings">(
-    isNew ? "ai" : "nodes",
-  );
+  // Mode / view state
   const [activeMode, setActiveMode] = useState<"design" | "runs" | "logs">(
     (searchParams?.get("tab") as any) || "design",
   );
+  const [leftTab, setLeftTab] = useState<"ai" | "nodes">(isNew ? "ai" : "nodes");
   const [leftOpen, setLeftOpen] = useState(true);
+
+  // Workflow data
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [wfName, setWfName] = useState("Untitled Workflow");
   const [wfDesc, setWfDesc] = useState("");
+  const [wfStatus, setWfStatus] = useState("DRAFT");
+  const [descExpanded, setDescExpanded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [executing, setExecuting] = useState(false);
   const [loading, setLoading] = useState(!isNew);
-  const [selNode, setSelNode] = useState<Node | null>(null);
+
+  // ── KEY FIX: track only the ID, derive full node from current nodes ──
+  const [selNodeId, setSelNodeId] = useState<string | null>(null);
+  const selNode = useMemo(
+    () => nodes.find((n) => n.id === selNodeId) ?? null,
+    [nodes, selNodeId],
+  );
+
+  // Runs
   const [runs, setRuns] = useState<any[]>([]);
   const [activeRun, setActiveRun] = useState<any>(null);
   const [runSteps, setRunSteps] = useState<any[]>([]);
   const [allRunsLoading, setAllRunsLoading] = useState(false);
+
+  // AI generator
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiGen, setAiGen] = useState(false);
-  const [apiKeyVal, setApiKeyVal] = useState("");
-  const [webhookUrlVal, setWebhookUrlVal] = useState("");
+
+  // Components catalog
   const [components, setComponents] = useState<ComponentDefinition[]>([]);
-  const [componentMap, setComponentMap] = useState<
-    Record<string, ComponentDefinition>
-  >({});
-  const [validationErrors, setValidationErrors] = useState<
-    Record<string, string[]>
-  >({});
+  const [componentMap, setComponentMap] = useState<Record<string, ComponentDefinition>>({});
+  const [validationErrors, setValidationErrors] = useState<Record<string, string[]>>({});
+
+  // Workspace modal
   const [showWorkspaceModal, setShowWorkspaceModal] = useState(false);
   const [wsSwitcherOpen, setWsSwitcherOpen] = useState(false);
 
   const { screenToFlowPosition } = useReactFlow();
 
+  const token = () =>
+    IS_DEV
+      ? DEV_TOKEN
+      : typeof window !== "undefined"
+        ? localStorage.getItem("token")
+        : null;
+
+  // ── ReactFlow handlers ──
   const onNC: OnNodesChange = useCallback(
     (c) => setNodes((n) => applyNodeChanges(c, n)),
     [],
@@ -412,8 +286,8 @@ function WorkflowInner() {
             markerEnd: {
               type: MarkerType.ArrowClosed,
               color: "#6366f1",
-              width: 16,
-              height: 16,
+              width: 14,
+              height: 14,
             },
           },
           e,
@@ -422,24 +296,10 @@ function WorkflowInner() {
     [],
   );
 
-  const token = () =>
-    IS_DEV
-      ? DEV_TOKEN
-      : typeof window !== "undefined"
-        ? localStorage.getItem("token")
-        : null;
-
+  // Load component catalog
   useEffect(() => {
-    const k = localStorage.getItem("agentflow-api-key");
-    if (k) setApiKeyVal(k);
-    const w = localStorage.getItem("agentflow-webhook-url");
-    if (w) setWebhookUrlVal(w);
-  }, []);
-
-  useEffect(() => {
-    const loadCatalog = async () => {
-      try {
-        const list = await fetchComponentCatalog({}, token() || undefined);
+    fetchComponentCatalog({}, token() || undefined)
+      .then((list) => {
         setComponents(list);
         setComponentMap(
           list.reduce<Record<string, ComponentDefinition>>((acc, c) => {
@@ -447,30 +307,23 @@ function WorkflowInner() {
             return acc;
           }, {}),
         );
-      } catch (e: any) {
-        toast({
-          title: "Failed to load components",
-          description: e.message,
-          variant: "destructive",
-        });
-      }
-    };
-    loadCatalog();
+      })
+      .catch(() => {});
   }, []);
 
-  // Show workspace prompt when no workspace exists
+  // Prompt if no workspace
   useEffect(() => {
     if (!wsLoading && !hasWorkspace) {
       toast({
-        title: "No Workspace Found",
-        description:
-          "You need to create a workspace to start building workflows.",
+        title: "No workspace found",
+        description: "Create a workspace to start building workflows.",
         variant: "destructive",
         duration: 8000,
       });
     }
   }, [wsLoading, hasWorkspace]);
 
+  // SSE cleanup
   useEffect(() => {
     if (activeRun?.id) {
       const cleanup = streamRunEvents(activeRun.id);
@@ -478,72 +331,85 @@ function WorkflowInner() {
     }
   }, [activeRun?.id]);
 
+  // Load existing workflow
   useEffect(() => {
-    if (!isNew) {
-      const loadWorkflow = async () => {
+    if (isNew) {
+      // Check for template import
+      const tpl = sessionStorage.getItem("template-import");
+      if (tpl) {
         try {
-          const r = await api.get(`/api/v1/workflows/${wfId}`);
-          const d = r.data;
-          setWfName(d.name);
-          setWfDesc(d.description || "");
-          setRuns(d.runs || []);
-          setNodes(
-            (d.nodes || []).map((n: any) => ({
-              id: n.id,
-              type: "workflowNode",
-              position: n.position || { x: 300, y: 0 },
-              data: {
-                nodeType: n.nodeType,
-                componentId:
-                  n.metadata?.componentId ||
-                  n.componentId ||
-                  n.nodeType?.toLowerCase?.().replace(/_/g, "-"),
-                category: n.category,
-                label: n.label,
-                config: n.config,
-              },
-            })),
-          );
-          setEdges(
-            (d.edges || []).map((e: any) => ({
-              id: e.id,
-              source: e.sourceNodeId,
-              target: e.targetNodeId,
-              animated: true,
-              style: { stroke: "#6366f1", strokeWidth: 2 },
-              markerEnd: { type: MarkerType.ArrowClosed, color: "#6366f1" },
-            })),
-          );
-        } catch (e: any) {
-          toast({
-            title: "Failed to load workflow",
-            description: e.message,
-            variant: "destructive",
-          });
-        } finally {
-          setLoading(false);
-        }
-      };
-      loadWorkflow();
+          const t = JSON.parse(tpl);
+          setWfName(t.name);
+          setWfDesc(t.description || "");
+          setNodes(t.nodes || []);
+          setEdges(t.edges || []);
+          sessionStorage.removeItem("template-import");
+        } catch {}
+      }
+      return;
     }
+    const load = async () => {
+      try {
+        const r = await api.get(`/api/v1/workflows/${wfId}`);
+        const d = r.data;
+        setWfName(d.name);
+        setWfDesc(d.description || "");
+        setWfStatus(d.status || "DRAFT");
+        setRuns(d.runs || []);
+        setNodes(
+          (d.nodes || []).map((n: any) => ({
+            id: n.id,
+            type: "workflowNode",
+            position: n.position || { x: 300, y: 0 },
+            data: {
+              nodeType: n.nodeType,
+              componentId:
+                n.metadata?.componentId ||
+                n.componentId ||
+                n.nodeType?.toLowerCase?.().replace(/_/g, "-"),
+              category: n.category,
+              label: n.label,
+              config: n.config,
+            },
+          })),
+        );
+        setEdges(
+          (d.edges || []).map((e: any) => ({
+            id: e.id,
+            source: e.sourceNodeId,
+            target: e.targetNodeId,
+            animated: true,
+            style: { stroke: "#6366f1", strokeWidth: 2 },
+            markerEnd: { type: MarkerType.ArrowClosed, color: "#6366f1" },
+          })),
+        );
+      } catch (e: any) {
+        toast({
+          title: "Failed to load workflow",
+          description: e.message,
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
   }, [wfId, isNew]);
 
   const save = async () => {
     if (!hasWorkspace) {
       toast({
         title: "Workspace required",
-        description: "Create a workspace before saving workflows.",
+        description: "Create a workspace before saving.",
         variant: "destructive",
       });
       setShowWorkspaceModal(true);
       return;
     }
-
     setSaving(true);
     try {
       const nodeValidation: Record<string, string[]> = {};
       const normalizedByNode: Record<string, Record<string, unknown>> = {};
-
       for (const n of nodes) {
         const componentId =
           (n.data.componentId as string) ||
@@ -555,32 +421,29 @@ function WorkflowInner() {
           token() || undefined,
         );
         if (!result.ok) {
-          nodeValidation[n.id] = result.errors.map(
-            (er) => `${er.path}: ${er.message}`,
-          );
+          nodeValidation[n.id] = result.errors.map((er) => `${er.path}: ${er.message}`);
         } else {
           normalizedByNode[n.id] = result.normalizedConfig;
         }
       }
-
       setValidationErrors(nodeValidation);
       if (Object.keys(nodeValidation).length > 0) {
         toast({
           title: "Validation errors",
-          description: `${Object.keys(nodeValidation).length} node(s) have configuration issues. Check the properties panel.`,
+          description: `${Object.keys(nodeValidation).length} node(s) have issues. Check the properties panel.`,
           variant: "destructive",
         });
         return;
       }
 
-      const p = {
+      const payload = {
         name: wfName,
         description: wfDesc,
         nodes: nodes.map((n) => {
           const componentId =
             (n.data.componentId as string) ||
             (n.data.nodeType as string)?.toLowerCase().replace(/_/g, "-");
-          const fallback = LEGACY_NODE_CFG[n.data.nodeType as string];
+          const fallback = NODE_CFG[n.data.nodeType as string];
           return {
             id: n.id,
             nodeType: n.data.nodeType,
@@ -603,26 +466,15 @@ function WorkflowInner() {
       };
 
       if (isNew) {
-        const r = await api.post("/api/v1/workflows", p);
-        toast({
-          title: "Workflow created",
-          description: `"${wfName}" has been saved.`,
-          variant: "success",
-        });
+        const r = await api.post("/api/v1/workflows", payload);
+        toast({ title: "Workflow saved", variant: "success" });
         router.push(`/workflow/${r.data.id}`);
       } else {
-        await api.put(`/api/v1/workflows/${wfId}`, p);
-        toast({
-          title: "Workflow saved",
-          description: "Changes have been saved.",
-          variant: "success",
-        });
+        await api.put(`/api/v1/workflows/${wfId}`, payload);
+        toast({ title: "Workflow saved", variant: "success" });
       }
     } catch (e: any) {
-      if (
-        e.message?.includes("No workspace") ||
-        e.message?.includes("workspace")
-      ) {
+      if (e.message?.toLowerCase().includes("workspace")) {
         setShowWorkspaceModal(true);
       }
       toast({
@@ -636,59 +488,41 @@ function WorkflowInner() {
   };
 
   const exec = async () => {
-    if (isNew) return;
-    if (!hasWorkspace) {
-      toast({
-        title: "Workspace required",
-        description: "Create a workspace to run workflows.",
-        variant: "destructive",
-      });
-      return;
-    }
+    if (isNew || !hasWorkspace) return;
     setExecuting(true);
     try {
       const r = await api.post(`/api/v1/execution/run/${wfId}`, {});
-      toast({
-        title: "Run started",
-        description: "Workflow execution has been initiated.",
-        variant: "success",
-      });
+      toast({ title: "Run started", variant: "success" });
       setActiveMode("runs");
       streamRunEvents(r.data.id);
     } catch (e: any) {
-      toast({
-        title: "Execution failed",
-        description: e.message || "Failed to start workflow run",
-        variant: "destructive",
-      });
+      toast({ title: "Run failed", description: e.message, variant: "destructive" });
     } finally {
       setExecuting(false);
     }
   };
 
   const streamRunEvents = (runId: string) => {
-    let eventSource: EventSource | null = null;
-
+    let es: EventSource | null = null;
     try {
-      eventSource = new EventSource(
-        `${BACKEND_URL}/api/v1/execution/events/${runId}?token=${encodeURIComponent(token()!.replace("Bearer ", ""))}`,
+      es = new EventSource(
+        `${BACKEND_URL}/api/v1/execution/events/${runId}?token=${encodeURIComponent(
+          (token() || "").replace("Bearer ", ""),
+        )}`,
       );
-
-      eventSource.onmessage = (event) => {
+      es.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          if (data.status || data.id) {
-            setActiveRun((prev: any) => ({ ...prev, ...data }));
-          }
+          if (data.status || data.id) setActiveRun((p: any) => ({ ...p, ...data }));
           if (data.nodeId) {
             setRunSteps((prev) => {
-              const existingIndex = prev.findIndex(
+              const idx = prev.findIndex(
                 (s) => s.stepId === data.stepId || s.id === data.stepId,
               );
-              if (existingIndex >= 0) {
-                const updated = [...prev];
-                updated[existingIndex] = { ...prev[existingIndex], ...data };
-                return updated;
+              if (idx >= 0) {
+                const u = [...prev];
+                u[idx] = { ...prev[idx], ...data };
+                return u;
               }
               return [...prev, { ...data, id: data.stepId }];
             });
@@ -697,25 +531,18 @@ function WorkflowInner() {
                 ...nd,
                 data: {
                   ...nd.data,
-                  runStatus:
-                    nd.id === data.nodeId ? data.status : nd.data.runStatus,
+                  runStatus: nd.id === data.nodeId ? data.status : nd.data.runStatus,
                 },
               })),
             );
           }
         } catch {}
       };
-
-      eventSource.onerror = () => {
-        if (eventSource) eventSource.close();
-      };
+      es.onerror = () => es?.close();
     } catch {
       pollFallback(runId);
     }
-
-    return () => {
-      if (eventSource) eventSource.close();
-    };
+    return () => es?.close();
   };
 
   const pollFallback = async (id: string) => {
@@ -752,12 +579,7 @@ function WorkflowInner() {
           id: n.tempId,
           type: "workflowNode",
           position: n.position,
-          data: {
-            nodeType: n.nodeType,
-            category: n.category,
-            label: n.label,
-            config: n.config,
-          },
+          data: { nodeType: n.nodeType, category: n.category, label: n.label, config: n.config },
         })),
       );
       setEdges(
@@ -773,15 +595,11 @@ function WorkflowInner() {
       setLeftTab("nodes");
       toast({
         title: "Workflow generated",
-        description: `"${g.name}" with ${g.nodes.length} nodes.`,
+        description: `"${g.name}" with ${g.nodes.length} nodes`,
         variant: "success",
       });
     } catch (e: any) {
-      toast({
-        title: "Generation failed",
-        description: e.message || "Failed to generate workflow",
-        variant: "destructive",
-      });
+      toast({ title: "Generation failed", description: e.message, variant: "destructive" });
     } finally {
       setAiGen(false);
     }
@@ -791,6 +609,7 @@ function WorkflowInner() {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
   }, []);
+
   const onDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
@@ -801,13 +620,8 @@ function WorkflowInner() {
       const pos = screenToFlowPosition({ x: e.clientX, y: e.clientY });
       const component = componentMap[componentId];
       const fallback =
-        LEGACY_NODE_CFG[componentId] ||
-        LEGACY_NODE_CFG[
-          componentId
-            .toUpperCase()
-            .replace(/-/g, "_") as keyof typeof LEGACY_NODE_CFG
-        ];
-
+        NODE_CFG[componentId] ||
+        NODE_CFG[componentId.toUpperCase().replace(/-/g, "_") as keyof typeof NODE_CFG];
       setNodes((n) => [
         ...n,
         {
@@ -815,8 +629,7 @@ function WorkflowInner() {
           type: "workflowNode",
           position: pos,
           data: {
-            nodeType:
-              componentId.toUpperCase().replace(/-/g, "_") || "CUSTOM_NODE",
+            nodeType: componentId.toUpperCase().replace(/-/g, "_") || "CUSTOM_NODE",
             componentId,
             category: component?.category || fallback?.cat || "core",
             label: component?.name || fallback?.label || componentId,
@@ -828,38 +641,36 @@ function WorkflowInner() {
     [screenToFlowPosition, componentMap],
   );
 
-  const featureDisabled = !hasWorkspace;
-
   if (loading || wsLoading)
     return (
       <div
         className="h-screen flex items-center justify-center"
         style={{ background: "var(--bg-primary)" }}
       >
-        <Loader2
-          className="w-5 h-5 animate-spin"
-          style={{ color: "var(--text-muted)" }}
-        />
+        <Loader2 className="w-5 h-5 animate-spin" style={{ color: "var(--text-muted)" }} />
       </div>
     );
 
+  const statusColors: Record<string, { bg: string; text: string; dot: string }> = {
+    DRAFT: { bg: "bg-zinc-500/10", text: "text-zinc-500", dot: "bg-zinc-400" },
+    ACTIVE: { bg: "bg-emerald-500/10", text: "text-emerald-500", dot: "bg-emerald-500" },
+    PAUSED: { bg: "bg-amber-500/10", text: "text-amber-500", dot: "bg-amber-500" },
+    ARCHIVED: { bg: "bg-zinc-500/10", text: "text-zinc-500", dot: "bg-zinc-500" },
+  };
+  const sc = statusColors[wfStatus] || statusColors.DRAFT;
+
   return (
-    <div
-      className="h-screen flex flex-col"
-      style={{ background: "var(--bg-primary)" }}
-    >
+    <div className="h-screen flex flex-col" style={{ background: "var(--bg-primary)" }}>
       {/* ─── Top Bar ──── */}
       <header
-        className="flex items-center justify-between px-3 py-2 border-b z-30"
-        style={{
-          background: "var(--bg-secondary)",
-          borderColor: "var(--border-subtle)",
-        }}
+        className="flex items-center justify-between px-3 py-0 h-12 border-b z-30 shrink-0"
+        style={{ background: "var(--bg-secondary)", borderColor: "var(--border-subtle)" }}
       >
-        <div className="flex items-center space-x-3">
+        {/* Left: back + workspace breadcrumb + workflow name */}
+        <div className="flex items-center gap-2 min-w-0">
           <button
             onClick={() => router.push("/dashboard")}
-            className="p-1.5 rounded-lg hover:opacity-70"
+            className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"
             style={{ color: "var(--text-muted)" }}
           >
             <ArrowLeft className="w-4 h-4" />
@@ -869,30 +680,19 @@ function WorkflowInner() {
           <div className="relative">
             <button
               onClick={() => setWsSwitcherOpen(!wsSwitcherOpen)}
-              className="flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors hover:bg-white/5"
+              className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium transition-colors hover:bg-white/5"
+              style={{ color: "var(--text-secondary)" }}
             >
               <div
-                className="w-5 h-5 rounded flex items-center justify-center shrink-0"
-                style={{ background: "rgba(99,102,241,0.15)" }}
+                className="w-4 h-4 rounded flex items-center justify-center text-[9px] font-bold text-white"
+                style={{ background: "rgba(99,102,241,0.7)" }}
               >
-                {activeWorkspace ? (
-                  <span className="text-[9px] font-bold text-indigo-400">
-                    {activeWorkspace.name.charAt(0).toUpperCase()}
-                  </span>
-                ) : (
-                  <Building2 className="w-3 h-3 text-indigo-400" />
-                )}
+                {activeWorkspace?.name.charAt(0).toUpperCase() || "?"}
               </div>
-              <span
-                className="text-xs truncate max-w-[100px]"
-                style={{ color: "var(--text-secondary)" }}
-              >
+              <span className="hidden sm:block max-w-[80px] truncate">
                 {activeWorkspace?.name || "No Workspace"}
               </span>
-              <ChevronsUpDown
-                className="w-3 h-3"
-                style={{ color: "var(--text-muted)" }}
-              />
+              <ChevronsUpDown className="w-2.5 h-2.5 opacity-40" />
             </button>
 
             <AnimatePresence>
@@ -901,34 +701,24 @@ function WorkflowInner() {
                   initial={{ opacity: 0, y: -4 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -4 }}
-                  className="absolute top-full left-0 mt-1 w-56 rounded-lg border shadow-xl z-50 overflow-hidden"
-                  style={{
-                    background: "var(--bg-card)",
-                    borderColor: "var(--border-subtle)",
-                  }}
+                  className="absolute top-full left-0 mt-1 w-48 rounded-xl border shadow-xl z-50 overflow-hidden"
+                  style={{ background: "var(--bg-card)", borderColor: "var(--border-subtle)" }}
                 >
-                  <div className="p-1 max-h-48 overflow-y-auto">
+                  <div className="p-1">
                     {workspaces.map((ws) => (
                       <button
                         key={ws.id}
                         onClick={() => {
                           setActiveWorkspace(ws);
                           setWsSwitcherOpen(false);
-                          toast({
-                            title: "Workspace switched",
-                            description: `Now using "${ws.name}"`,
-                            variant: "success",
-                          });
                         }}
-                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left transition-colors hover:bg-white/5"
+                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left hover:bg-white/5 transition-colors"
                       >
                         <div
-                          className="w-5 h-5 rounded flex items-center justify-center shrink-0"
-                          style={{ background: "rgba(99,102,241,0.1)" }}
+                          className="w-5 h-5 rounded flex items-center justify-center text-[9px] font-bold text-white"
+                          style={{ background: "rgba(99,102,241,0.7)" }}
                         >
-                          <span className="text-[9px] font-bold text-indigo-500">
-                            {ws.name.charAt(0).toUpperCase()}
-                          </span>
+                          {ws.name.charAt(0).toUpperCase()}
                         </div>
                         <span
                           className="text-xs truncate flex-1"
@@ -937,21 +727,15 @@ function WorkflowInner() {
                           {ws.name}
                         </span>
                         {activeWorkspace?.id === ws.id && (
-                          <Check className="w-3 h-3 text-indigo-500 shrink-0" />
+                          <Check className="w-3 h-3 text-indigo-500" />
                         )}
                       </button>
                     ))}
                   </div>
-                  <div
-                    className="border-t p-1"
-                    style={{ borderColor: "var(--border-subtle)" }}
-                  >
+                  <div className="border-t p-1" style={{ borderColor: "var(--border-subtle)" }}>
                     <button
-                      onClick={() => {
-                        setWsSwitcherOpen(false);
-                        setShowWorkspaceModal(true);
-                      }}
-                      className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left transition-colors hover:bg-white/5"
+                      onClick={() => { setWsSwitcherOpen(false); setShowWorkspaceModal(true); }}
+                      className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left hover:bg-white/5 transition-colors"
                       style={{ color: "var(--text-muted)" }}
                     >
                       <FolderPlus className="w-3.5 h-3.5" />
@@ -963,38 +747,31 @@ function WorkflowInner() {
             </AnimatePresence>
           </div>
 
-          <div
-            className="w-px h-5"
-            style={{ background: "var(--border-subtle)" }}
-          />
+          <span style={{ color: "var(--border-medium)" }}>/</span>
+
           <input
             value={wfName}
             onChange={(e) => setWfName(e.target.value)}
-            className="text-sm font-medium bg-transparent border-none outline-none w-48"
+            onKeyDown={(e) => e.stopPropagation()}
+            className="text-sm font-semibold bg-transparent border-none outline-none w-44 truncate"
             style={{ color: "var(--text-primary)" }}
-            disabled={featureDisabled}
+            disabled={!hasWorkspace}
           />
         </div>
 
+        {/* Center: mode tabs */}
         <div
-          className="flex items-center space-x-0.5 rounded-lg p-0.5 border"
-          style={{
-            background: "var(--bg-hover)",
-            borderColor: "var(--border-subtle)",
-          }}
+          className="flex items-center gap-0.5 rounded-lg p-0.5 border"
+          style={{ background: "var(--bg-hover)", borderColor: "var(--border-subtle)" }}
         >
           {(["design", "runs", "logs"] as const).map((t) => (
             <button
               key={t}
               onClick={() => setActiveMode(t)}
-              className="px-3 py-1 rounded-md text-xs font-medium transition-all capitalize"
+              className="px-3.5 py-1.5 rounded-md text-xs font-medium transition-all capitalize"
               style={{
-                background:
-                  activeMode === t ? "var(--bg-active)" : "transparent",
-                color:
-                  activeMode === t
-                    ? "var(--text-primary)"
-                    : "var(--text-muted)",
+                background: activeMode === t ? "var(--bg-active)" : "transparent",
+                color: activeMode === t ? "var(--text-primary)" : "var(--text-muted)",
               }}
             >
               {t}
@@ -1002,204 +779,158 @@ function WorkflowInner() {
           ))}
         </div>
 
-        <div className="flex items-center space-x-1.5">
+        {/* Right: actions */}
+        <div className="flex items-center gap-1.5">
           <button
             onClick={toggleTheme}
-            className="p-1.5 rounded-lg"
+            className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"
             style={{ color: "var(--text-muted)" }}
           >
-            {theme === "dark" ? (
-              <Sun className="w-3.5 h-3.5" />
-            ) : (
-              <Moon className="w-3.5 h-3.5" />
-            )}
+            {theme === "dark" ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
           </button>
           <button
             onClick={save}
-            disabled={saving || featureDisabled}
-            className="flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xs font-medium border disabled:opacity-50"
-            style={{
-              borderColor: "var(--border-subtle)",
-              color: "var(--text-secondary)",
-            }}
+            disabled={saving || !hasWorkspace}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors disabled:opacity-50 hover:bg-white/5"
+            style={{ borderColor: "var(--border-subtle)", color: "var(--text-secondary)" }}
           >
-            {saving ? (
-              <Loader2 className="w-3 h-3 animate-spin" />
-            ) : (
-              <Save className="w-3 h-3" />
-            )}
-            <span>Save</span>
+            {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+            Save
           </button>
           <button
             onClick={exec}
-            disabled={executing || isNew || featureDisabled}
-            className="flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50"
+            disabled={executing || isNew || !hasWorkspace}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50 transition-colors"
           >
-            {executing ? (
-              <Loader2 className="w-3 h-3 animate-spin" />
-            ) : (
-              <Play className="w-3 h-3" />
-            )}
-            <span>Run</span>
+            {executing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
+            Run
           </button>
         </div>
       </header>
 
-      {/* No workspace overlay */}
-      {featureDisabled && (
+      {/* ─── No workspace state ──── */}
+      {!hasWorkspace && (
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-center max-w-md">
-            <Building2
-              className="w-12 h-12 mx-auto mb-4"
-              style={{ color: "var(--text-muted)" }}
-            />
-            <h2
-              className="text-lg font-semibold mb-2"
-              style={{ color: "var(--text-primary)" }}
+          <div className="text-center max-w-md px-4">
+            <div
+              className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5"
+              style={{ background: "rgba(99,102,241,0.08)" }}
             >
-              Create a Workspace to Get Started
+              <Building2 className="w-8 h-8 text-indigo-500" />
+            </div>
+            <h2 className="text-lg font-semibold mb-2" style={{ color: "var(--text-primary)" }}>
+              Create a Workspace First
             </h2>
-            <p
-              className="text-sm mb-5"
-              style={{ color: "var(--text-muted)" }}
-            >
-              Workspaces organize your workflows, secrets, and team members. You
-              need one to build and run workflows.
+            <p className="text-sm mb-5 leading-relaxed" style={{ color: "var(--text-muted)" }}>
+              Workspaces organize your workflows and team. You need one to start building.
             </p>
             <button
               onClick={() => setShowWorkspaceModal(true)}
-              className="inline-flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-colors"
+              className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors"
             >
               <FolderPlus className="w-4 h-4" />
-              <span>Create Workspace</span>
+              Create Workspace
             </button>
           </div>
         </div>
       )}
 
-      {/* Main editor area (only when workspace exists) */}
-      {!featureDisabled && (
+      {/* ─── Editor area ──── */}
+      {hasWorkspace && (
         <div className="flex-1 flex overflow-hidden">
-          {/* ─── Left Panel ──── */}
+          {/* ── Left Panel ── */}
           {activeMode === "design" && leftOpen && (
             <div
-              className="flex border-r"
-              style={{ borderColor: "var(--border-subtle)" }}
+              className="w-[220px] shrink-0 border-r flex flex-col"
+              style={{ background: "var(--bg-secondary)", borderColor: "var(--border-subtle)" }}
             >
+              {/* Left panel tabs */}
               <div
-                className="w-10 flex flex-col items-center py-2 space-y-0.5 border-r"
-                style={{
-                  background: "var(--bg-secondary)",
-                  borderColor: "var(--border-subtle)",
-                }}
+                className="flex items-center gap-0 border-b px-2 py-1.5"
+                style={{ borderColor: "var(--border-subtle)" }}
               >
-                {[
-                  { id: "ai" as const, icon: Sparkles, tip: "AI" },
-                  { id: "nodes" as const, icon: Plus, tip: "Nodes" },
-                  { id: "settings" as const, icon: Settings, tip: "Settings" },
-                ].map((t) => (
+                {([
+                  { id: "ai" as const, icon: Sparkles, label: "AI" },
+                  { id: "nodes" as const, icon: Plus, label: "Nodes" },
+                ] as const).map((t) => (
                   <button
                     key={t.id}
                     onClick={() => setLeftTab(t.id)}
-                    title={t.tip}
-                    className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
                     style={{
-                      background:
-                        leftTab === t.id
-                          ? "rgba(99,102,241,0.1)"
-                          : "transparent",
-                      color:
-                        leftTab === t.id ? "#6366f1" : "var(--text-muted)",
+                      background: leftTab === t.id ? "rgba(99,102,241,0.08)" : "transparent",
+                      color: leftTab === t.id ? "#6366f1" : "var(--text-muted)",
                     }}
                   >
                     <t.icon className="w-3.5 h-3.5" />
+                    {t.label}
                   </button>
                 ))}
-                <div className="flex-1" />
-                <button
-                  onClick={() => setLeftOpen(false)}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center"
-                  style={{ color: "var(--text-muted)" }}
-                >
-                  <PanelLeftClose className="w-3.5 h-3.5" />
-                </button>
               </div>
 
-              <div
-                className="w-60 overflow-y-auto"
-                style={{ background: "var(--bg-secondary)" }}
-              >
-                {leftTab === "ai" && (
-                  <div className="p-3 space-y-3">
-                    <p
-                      className="text-xs font-medium"
-                      style={{ color: "var(--text-primary)" }}
-                    >
-                      AI Generator
+              {/* AI Generator */}
+              {leftTab === "ai" && (
+                <div className="flex-1 overflow-y-auto p-3 space-y-3">
+                  <textarea
+                    value={aiPrompt}
+                    onChange={(e) => setAiPrompt(e.target.value)}
+                    onKeyDown={(e) => e.stopPropagation()}
+                    placeholder="Describe your workflow in plain English..."
+                    rows={4}
+                    className="w-full p-2.5 rounded-xl text-xs resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                    style={{
+                      background: "var(--input-bg)",
+                      border: "1px solid var(--input-border)",
+                      color: "var(--text-primary)",
+                    }}
+                  />
+                  <button
+                    onClick={() => aiGenerate()}
+                    disabled={aiGen || !aiPrompt.trim()}
+                    className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold disabled:opacity-50 transition-colors"
+                  >
+                    {aiGen ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <Sparkles className="w-3 h-3" />
+                    )}
+                    {aiGen ? "Generating..." : "Generate Workflow"}
+                  </button>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider px-1" style={{ color: "var(--text-muted)" }}>
+                      Quick prompts
                     </p>
-                    <textarea
-                      value={aiPrompt}
-                      onChange={(e) => setAiPrompt(e.target.value)}
-                      placeholder="Describe your workflow..."
-                      rows={3}
-                      className="w-full p-2.5 rounded-lg text-xs resize-none focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
-                      style={{
-                        background: "var(--input-bg)",
-                        border: "1px solid var(--input-border)",
-                        color: "var(--text-primary)",
-                      }}
-                    />
-                    <button
-                      onClick={() => aiGenerate()}
-                      disabled={aiGen || !aiPrompt.trim()}
-                      className="w-full flex items-center justify-center space-x-1.5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium disabled:opacity-50"
-                    >
-                      {aiGen ? (
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                      ) : (
-                        <Sparkles className="w-3 h-3" />
-                      )}
-                      <span>{aiGen ? "Generating..." : "Generate"}</span>
-                    </button>
-                    <div className="pt-1 space-y-1">
-                      <p
-                        className="text-[10px] font-medium"
+                    {[
+                      "Process meeting transcripts and extract tasks",
+                      "Classify support tickets and auto-respond",
+                      "Process invoices and route for approval",
+                    ].map((p, i) => (
+                      <button
+                        key={i}
+                        onClick={() => { setAiPrompt(p); aiGenerate(p); }}
+                        className="w-full text-left text-[11px] p-2 rounded-lg transition-colors hover:bg-white/5"
                         style={{ color: "var(--text-muted)" }}
                       >
-                        Quick
-                      </p>
-                      {[
-                        "Process meeting transcripts and extract tasks",
-                        "Classify support tickets and auto-respond",
-                        "Process invoices and route for approval",
-                      ].map((p, i) => (
-                        <button
-                          key={i}
-                          onClick={() => {
-                            setAiPrompt(p);
-                            aiGenerate(p);
-                          }}
-                          className="w-full text-left text-[11px] p-1.5 rounded-lg transition-colors"
+                        "{p}"
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Node palette — 2-column grid matching screenshot 1 */}
+              {leftTab === "nodes" && (
+                <div className="flex-1 overflow-y-auto p-2">
+                  {components.length > 0 ? (
+                    Object.entries(groupComponentsByCategory(components)).map(([cat, items]) => (
+                      <div key={cat} className="mb-4">
+                        <p
+                          className="text-[10px] font-semibold uppercase tracking-wider px-1 mb-1.5"
                           style={{ color: "var(--text-muted)" }}
                         >
-                          &ldquo;{p}&rdquo;
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {leftTab === "nodes" && (
-                  <div className="p-2">
-                    {Object.entries(groupComponentsByCategory(components)).map(
-                      ([cat, items]) => (
-                        <div key={cat} className="mb-3">
-                          <p
-                            className="text-[10px] font-medium uppercase tracking-wider mb-1 px-1"
-                            style={{ color: "var(--text-muted)" }}
-                          >
-                            {categoryLabel(cat as ComponentCategory)}
-                          </p>
+                          {categoryLabel(cat as ComponentCategory)}
+                        </p>
+                        <div className="grid grid-cols-2 gap-1">
                           {items.map((it) => (
                             <div
                               key={it.id}
@@ -1208,105 +939,84 @@ function WorkflowInner() {
                                 e.dataTransfer.setData("componentId", it.id);
                                 e.dataTransfer.effectAllowed = "move";
                               }}
-                              className="flex items-center space-x-2 p-1.5 mb-0.5 rounded-lg cursor-grab active:cursor-grabbing transition-colors group"
+                              className="flex flex-col items-center p-2.5 rounded-xl cursor-grab active:cursor-grabbing transition-all hover:bg-white/5 border border-transparent hover:border-white/5"
                             >
                               <div
-                                className="w-6 h-6 rounded flex items-center justify-center shrink-0"
-                                style={{
-                                  backgroundColor: "#6366f115",
-                                  color: "#6366f1",
-                                }}
+                                className="w-9 h-9 rounded-xl flex items-center justify-center mb-1.5"
+                                style={{ background: "rgba(99,102,241,0.12)", color: "#6366f1" }}
                               >
-                                <Workflow className="w-3 h-3" />
+                                <Workflow className="w-4 h-4" />
                               </div>
                               <span
-                                className="text-[11px]"
-                                style={{ color: "var(--text-muted)" }}
+                                className="text-[10px] font-medium text-center leading-tight"
+                                style={{ color: "var(--text-secondary)" }}
                               >
                                 {it.name}
                               </span>
                             </div>
                           ))}
                         </div>
+                      </div>
+                    ))
+                  ) : (
+                    /* Fallback static grid from NODE_CFG */
+                    Object.entries(
+                      Object.entries(NODE_CFG).reduce<Record<string, typeof NODE_CFG[string][]>>(
+                        (acc, [key, val]) => {
+                          (acc[val.cat] = acc[val.cat] || []).push({ ...val, _key: key } as any);
+                          return acc;
+                        },
+                        {},
                       ),
-                    )}
-                  </div>
-                )}
-
-                {leftTab === "settings" && (
-                  <div className="p-3 space-y-4">
-                    <p
-                      className="text-xs font-medium"
-                      style={{ color: "var(--text-primary)" }}
-                    >
-                      Settings
-                    </p>
-                    <div>
-                      <label
-                        className="text-[10px] font-medium flex items-center space-x-1 mb-1"
-                        style={{ color: "var(--text-muted)" }}
-                      >
-                        <Key className="w-3 h-3" />
-                        <span>API Key</span>
-                      </label>
-                      <input
-                        type="password"
-                        value={apiKeyVal}
-                        onChange={(e) => setApiKeyVal(e.target.value)}
-                        placeholder="sk-..."
-                        className="w-full px-2.5 py-1.5 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
-                        style={{
-                          background: "var(--input-bg)",
-                          border: "1px solid var(--input-border)",
-                          color: "var(--text-primary)",
-                        }}
-                      />
-                    </div>
-                    <div>
-                      <label
-                        className="text-[10px] font-medium flex items-center space-x-1 mb-1"
-                        style={{ color: "var(--text-muted)" }}
-                      >
-                        <Link2 className="w-3 h-3" />
-                        <span>Webhook URL</span>
-                      </label>
-                      <input
-                        value={webhookUrlVal}
-                        onChange={(e) => setWebhookUrlVal(e.target.value)}
-                        placeholder="https://..."
-                        className="w-full px-2.5 py-1.5 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
-                        style={{
-                          background: "var(--input-bg)",
-                          border: "1px solid var(--input-border)",
-                          color: "var(--text-primary)",
-                        }}
-                      />
-                    </div>
-                    <button
-                      onClick={() => {
-                        localStorage.setItem(
-                          "agentflow-api-key",
-                          apiKeyVal,
-                        );
-                        localStorage.setItem(
-                          "agentflow-webhook-url",
-                          webhookUrlVal,
-                        );
-                        toast({
-                          title: "Settings saved",
-                          variant: "success",
-                        });
-                      }}
-                      className="w-full py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-medium"
-                    >
-                      Save
-                    </button>
-                  </div>
-                )}
-              </div>
+                    ).map(([cat, items]) => (
+                      <div key={cat} className="mb-4">
+                        <p
+                          className="text-[10px] font-semibold uppercase tracking-wider px-1 mb-1.5"
+                          style={{ color: "var(--text-muted)" }}
+                        >
+                          {cat.replace(/_/g, " ")}
+                        </p>
+                        <div className="grid grid-cols-2 gap-1">
+                          {items.map((item: any) => {
+                            const Icon = item.icon;
+                            return (
+                              <div
+                                key={item._key}
+                                draggable
+                                onDragStart={(e) => {
+                                  e.dataTransfer.setData("componentId", item._key);
+                                  e.dataTransfer.effectAllowed = "move";
+                                }}
+                                className="flex flex-col items-center p-2.5 rounded-xl cursor-grab active:cursor-grabbing transition-all hover:bg-white/5 border border-transparent hover:border-white/5"
+                              >
+                                <div
+                                  className="w-9 h-9 rounded-xl flex items-center justify-center mb-1.5"
+                                  style={{
+                                    backgroundColor: `${item.color}18`,
+                                    color: item.color,
+                                  }}
+                                >
+                                  <Icon className="w-4 h-4" />
+                                </div>
+                                <span
+                                  className="text-[10px] font-medium text-center leading-tight"
+                                  style={{ color: "var(--text-secondary)" }}
+                                >
+                                  {item.label}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
           )}
 
+          {/* Left panel toggle when closed */}
           {activeMode === "design" && !leftOpen && (
             <button
               onClick={() => setLeftOpen(true)}
@@ -1317,12 +1027,12 @@ function WorkflowInner() {
                 color: "var(--text-muted)",
               }}
             >
-              <PanelLeft className="w-3.5 h-3.5" />
+              <Plus className="w-3.5 h-3.5" />
             </button>
           )}
 
-          {/* ─── Main Area ──── */}
-          <div className="flex-1 relative">
+          {/* ── Canvas ── */}
+          <div className="flex-1 relative overflow-hidden">
             {activeMode === "design" && (
               <ReactFlow
                 nodes={nodes}
@@ -1333,12 +1043,13 @@ function WorkflowInner() {
                 onDrop={onDrop}
                 onDragOver={onDragOver}
                 nodeTypes={nodeTypes}
-                onNodeClick={(_, n) => setSelNode(n)}
-                onPaneClick={() => setSelNode(null)}
+                onNodeClick={(_, n) => setSelNodeId(n.id)}
+                onPaneClick={() => setSelNodeId(null)}
                 fitView
                 fitViewOptions={{ padding: 0.3 }}
                 minZoom={0.2}
                 maxZoom={2.5}
+                deleteKeyCode={null}
                 connectionLineStyle={{ stroke: "#6366f1", strokeWidth: 2 }}
                 defaultEdgeOptions={{
                   animated: true,
@@ -1346,17 +1057,15 @@ function WorkflowInner() {
                 }}
               >
                 <Background
-                  color={theme === "dark" ? "#222" : "#e2e8f0"}
-                  gap={24}
+                  color={theme === "dark" ? "#27272a" : "#e4e4e7"}
+                  gap={20}
                   size={1}
                 />
                 <Controls showInteractive={false} />
                 <MiniMap
                   nodeColor={() => "#6366f1"}
                   maskColor={
-                    theme === "dark"
-                      ? "rgba(0,0,0,0.85)"
-                      : "rgba(255,255,255,0.85)"
+                    theme === "dark" ? "rgba(9,9,11,0.8)" : "rgba(250,250,250,0.8)"
                   }
                 />
               </ReactFlow>
@@ -1370,9 +1079,7 @@ function WorkflowInner() {
                   steps: activeRun?.id === r.id ? runSteps : [],
                 }))}
                 activeRun={
-                  activeRun
-                    ? { ...activeRun, workflowName: wfName, steps: runSteps }
-                    : undefined
+                  activeRun ? { ...activeRun, workflowName: wfName, steps: runSteps } : undefined
                 }
                 onRunSelect={(run) => {
                   setActiveRun(run);
@@ -1385,11 +1092,7 @@ function WorkflowInner() {
                       const r = await api.get(`/api/v1/workflows/${wfId}`);
                       setRuns(r.data.runs || []);
                     } catch (e: any) {
-                      toast({
-                        title: "Failed to refresh runs",
-                        description: e.message,
-                        variant: "destructive",
-                      });
+                      toast({ title: "Refresh failed", description: e.message, variant: "destructive" });
                     } finally {
                       setAllRunsLoading(false);
                     }
@@ -1403,15 +1106,9 @@ function WorkflowInner() {
               <div className="h-full overflow-y-auto p-5">
                 {!activeRun ? (
                   <div className="flex flex-col items-center justify-center h-full">
-                    <FileText
-                      className="w-8 h-8 mb-2"
-                      style={{ color: "var(--text-muted)" }}
-                    />
-                    <p
-                      className="text-xs"
-                      style={{ color: "var(--text-muted)" }}
-                    >
-                      No logs yet
+                    <FileText className="w-8 h-8 mb-2" style={{ color: "var(--text-muted)" }} />
+                    <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                      No logs yet. Run a workflow first.
                     </p>
                   </div>
                 ) : (
@@ -1419,75 +1116,52 @@ function WorkflowInner() {
                     {runSteps.map((s: any, i: number) => (
                       <div
                         key={s.id}
-                        className="p-3 rounded-lg border"
-                        style={{
-                          background: "var(--bg-card)",
-                          borderColor: "var(--border-subtle)",
-                        }}
+                        className="p-3 rounded-xl border"
+                        style={{ background: "var(--bg-card)", borderColor: "var(--border-subtle)" }}
                       >
                         <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center space-x-2">
-                            <span
-                              className="text-[10px] font-mono"
-                              style={{ color: "var(--text-muted)" }}
-                            >
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-mono" style={{ color: "var(--text-muted)" }}>
                               #{i + 1}
                             </span>
-                            <span
-                              className="text-xs font-medium"
-                              style={{ color: "var(--text-primary)" }}
-                            >
+                            <span className="text-xs font-medium" style={{ color: "var(--text-primary)" }}>
                               {s.node?.label}
                             </span>
                             <span
-                              className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${s.status === "COMPLETED" ? "bg-emerald-500/10 text-emerald-500" : s.status === "FAILED" ? "bg-red-500/10 text-red-500" : "bg-zinc-500/10 text-zinc-500"}`}
+                              className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                s.status === "COMPLETED"
+                                  ? "bg-emerald-500/10 text-emerald-500"
+                                  : s.status === "FAILED"
+                                    ? "bg-red-500/10 text-red-500"
+                                    : "bg-zinc-500/10 text-zinc-400"
+                              }`}
                             >
                               {s.status}
                             </span>
                           </div>
                           {s.executionTimeMs && (
-                            <span
-                              className="text-[10px]"
-                              style={{ color: "var(--text-muted)" }}
-                            >
+                            <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>
                               {s.executionTimeMs}ms
                             </span>
                           )}
                         </div>
                         <div className="grid grid-cols-2 gap-2">
                           <div>
-                            <p
-                              className="text-[10px] mb-0.5"
-                              style={{ color: "var(--text-muted)" }}
-                            >
-                              In
-                            </p>
+                            <p className="text-[10px] mb-1" style={{ color: "var(--text-muted)" }}>Input</p>
                             <pre
-                              className="p-1.5 rounded text-[10px] font-mono max-h-20 overflow-auto"
-                              style={{
-                                background: "var(--code-bg)",
-                                color: "var(--text-secondary)",
-                              }}
+                              className="p-1.5 rounded-lg text-[10px] font-mono max-h-20 overflow-auto"
+                              style={{ background: "var(--code-bg)", color: "var(--text-secondary)" }}
                             >
-                              {s.inputPayload
-                                ? JSON.stringify(s.inputPayload, null, 2)
-                                : "—"}
+                              {s.inputPayload ? JSON.stringify(s.inputPayload, null, 2) : "—"}
                             </pre>
                           </div>
                           <div>
-                            <p
-                              className="text-[10px] mb-0.5"
-                              style={{ color: "var(--text-muted)" }}
-                            >
-                              Out
-                            </p>
+                            <p className="text-[10px] mb-1" style={{ color: "var(--text-muted)" }}>Output</p>
                             <pre
-                              className="p-1.5 rounded text-[10px] font-mono max-h-20 overflow-auto text-emerald-500"
+                              className="p-1.5 rounded-lg text-[10px] font-mono max-h-20 overflow-auto text-emerald-500"
                               style={{ background: "var(--code-bg)" }}
                             >
-                              {s.outputPayload
-                                ? JSON.stringify(s.outputPayload, null, 2)
-                                : "—"}
+                              {s.outputPayload ? JSON.stringify(s.outputPayload, null, 2) : "—"}
                             </pre>
                           </div>
                         </div>
@@ -1499,40 +1173,60 @@ function WorkflowInner() {
             )}
           </div>
 
-          {/* ─── Right Config ──── */}
-          <AnimatePresence>
-            {selNode && activeMode === "design" && (
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: 260 }}
-                exit={{ width: 0 }}
-                className="border-l overflow-hidden"
-                style={{
-                  background: "var(--bg-secondary)",
-                  borderColor: "var(--border-subtle)",
-                }}
-              >
-                <div className="w-[260px] p-3 h-full overflow-y-auto">
-                  <div className="flex items-center justify-between mb-3">
-                    <p
-                      className="text-xs font-medium"
-                      style={{ color: "var(--text-primary)" }}
-                    >
-                      Properties
-                    </p>
+          {/* ── Right Panel (always visible in design mode) ── */}
+          {activeMode === "design" && (
+            <div
+              className="w-[272px] shrink-0 border-l flex flex-col overflow-hidden"
+              style={{ background: "var(--bg-secondary)", borderColor: "var(--border-subtle)" }}
+            >
+              {selNode ? (
+                /* ── Node Properties ── */
+                <div className="flex flex-col h-full">
+                  {/* Header */}
+                  <div
+                    className="flex items-center gap-2 px-4 py-3 border-b shrink-0"
+                    style={{ borderColor: "var(--border-subtle)" }}
+                  >
                     <button
-                      onClick={() => setSelNode(null)}
+                      onClick={() => setSelNodeId(null)}
+                      className="p-1 rounded-lg hover:bg-white/5 transition-colors"
                       style={{ color: "var(--text-muted)" }}
                     >
-                      <X className="w-3.5 h-3.5" />
+                      <ArrowLeft className="w-3.5 h-3.5" />
                     </button>
+                    {(() => {
+                      const cfg = NODE_CFG[selNode.data.nodeType as string] || {
+                        icon: Zap,
+                        color: "#6b7280",
+                        label: "Node",
+                        cat: "ACTION",
+                      };
+                      const Icon = cfg.icon;
+                      return (
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <div
+                            className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                            style={{ backgroundColor: `${cfg.color}18`, color: cfg.color }}
+                          >
+                            <Icon className="w-3.5 h-3.5" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold truncate" style={{ color: "var(--text-primary)" }}>
+                              {(selNode.data.label as string) || cfg.label}
+                            </p>
+                            <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+                              {cfg.cat.replace(/_/g, " ")}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
-                  <div className="space-y-3">
-                    <div>
-                      <label
-                        className="text-[10px] font-medium"
-                        style={{ color: "var(--text-muted)" }}
-                      >
+
+                  <div className="flex-1 overflow-y-auto">
+                    {/* Label */}
+                    <div className="p-4 border-b" style={{ borderColor: "var(--border-subtle)" }}>
+                      <label className="text-[11px] font-semibold block mb-1.5" style={{ color: "var(--text-muted)" }}>
                         Label
                       </label>
                       <input
@@ -1540,19 +1234,15 @@ function WorkflowInner() {
                         onChange={(e) =>
                           setNodes((n) =>
                             n.map((nd) =>
-                              nd.id === selNode.id
-                                ? {
-                                    ...nd,
-                                    data: {
-                                      ...nd.data,
-                                      label: e.target.value,
-                                    },
-                                  }
+                              nd.id === selNodeId
+                                ? { ...nd, data: { ...nd.data, label: e.target.value } }
                                 : nd,
                             ),
                           )
                         }
-                        className="w-full mt-1 px-2.5 py-1.5 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+                        onKeyDown={(e) => e.stopPropagation()}
+                        placeholder="Node label..."
+                        className="w-full px-3 py-2 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
                         style={{
                           background: "var(--input-bg)",
                           border: "1px solid var(--input-border)",
@@ -1560,90 +1250,207 @@ function WorkflowInner() {
                         }}
                       />
                     </div>
-                    <div>
-                      <label
-                        className="text-[10px] font-medium"
-                        style={{ color: "var(--text-muted)" }}
-                      >
-                        Type
-                      </label>
-                      <p className="mt-1 text-xs text-indigo-500">
-                        {(selNode.data.componentId as string) ||
-                          (selNode.data.nodeType as string)}
-                      </p>
-                    </div>
+
+                    {/* Validation errors */}
                     {validationErrors[selNode.id]?.length ? (
                       <div
-                        className="p-2 rounded-lg border text-[10px]"
+                        className="mx-4 mt-3 p-2.5 rounded-lg text-[10px] leading-relaxed"
                         style={{
-                          borderColor: "rgba(239,68,68,0.35)",
-                          background: "rgba(239,68,68,0.08)",
+                          borderColor: "rgba(239,68,68,0.3)",
+                          background: "rgba(239,68,68,0.06)",
                           color: "#ef4444",
+                          border: "1px solid rgba(239,68,68,0.3)",
                         }}
                       >
-                        {validationErrors[selNode.id].map((err, idx) => (
-                          <p key={idx}>{err}</p>
+                        {validationErrors[selNode.id].map((err, i) => (
+                          <p key={i}>{err}</p>
                         ))}
                       </div>
                     ) : null}
-                    <div>
-                      <label
-                        className="text-[10px] font-medium"
-                        style={{ color: "var(--text-muted)" }}
-                      >
+
+                    {/* Configuration */}
+                    <div className="p-4">
+                      <label className="text-[11px] font-semibold block mb-2" style={{ color: "var(--text-muted)" }}>
                         Configuration
                       </label>
-                      <div className="mt-1">
-                        <NodeConfigForm
-                          nodeType={selNode.data.nodeType as string}
-                          fields={
-                            componentMap[selNode.data.componentId as string]
-                              ?.configFields || []
-                          }
-                          config={selNode.data.config || {}}
-                          onChange={(config) =>
-                            setNodes((n) =>
-                              n.map((nd) =>
-                                nd.id === selNode.id
-                                  ? { ...nd, data: { ...nd.data, config } }
-                                  : nd,
-                              ),
-                            )
-                          }
-                        />
-                      </div>
+                      <NodeConfigForm
+                        nodeType={selNode.data.nodeType as string}
+                        fields={componentMap[selNode.data.componentId as string]?.configFields || []}
+                        config={(selNode.data.config as Record<string, any>) || {}}
+                        onChange={(config) =>
+                          setNodes((n) =>
+                            n.map((nd) =>
+                              nd.id === selNodeId
+                                ? { ...nd, data: { ...nd.data, config } }
+                                : nd,
+                            ),
+                          )
+                        }
+                      />
                     </div>
+                  </div>
+
+                  {/* Delete node */}
+                  <div className="p-4 border-t shrink-0" style={{ borderColor: "var(--border-subtle)" }}>
                     <button
                       onClick={() => {
-                        setNodes((n) =>
-                          n.filter((nd) => nd.id !== selNode.id),
-                        );
+                        setNodes((n) => n.filter((nd) => nd.id !== selNodeId));
                         setEdges((e) =>
                           e.filter(
-                            (ed) =>
-                              ed.source !== selNode.id &&
-                              ed.target !== selNode.id,
+                            (ed) => ed.source !== selNodeId && ed.target !== selNodeId,
                           ),
                         );
-                        setSelNode(null);
+                        setSelNodeId(null);
                       }}
-                      className="w-full py-2 rounded-lg text-xs font-medium border hover:bg-red-500/10 transition-all"
-                      style={{
-                        borderColor: "var(--border-subtle)",
-                        color: "var(--text-muted)",
-                      }}
+                      className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border text-xs font-medium transition-colors hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-400"
+                      style={{ borderColor: "var(--border-subtle)", color: "var(--text-muted)" }}
                     >
+                      <Trash2 className="w-3.5 h-3.5" />
                       Delete Node
                     </button>
                   </div>
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+              ) : (
+                /* ── Workflow Properties (default when no node selected) ── */
+                <div className="flex flex-col h-full overflow-y-auto">
+                  {/* Status section */}
+                  <div className="px-4 py-4 border-b" style={{ borderColor: "var(--border-subtle)" }}>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-muted)" }}>
+                      Status
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${sc.bg} ${sc.text}`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${sc.dot}`} />
+                        {wfStatus.charAt(0) + wfStatus.slice(1).toLowerCase()}
+                      </span>
+                      {wfStatus === "ACTIVE" ? (
+                        <button
+                          className="px-3 py-1.5 rounded-full text-xs font-medium border transition-colors hover:bg-amber-500/10 hover:border-amber-500/30 hover:text-amber-500"
+                          style={{ borderColor: "var(--border-subtle)", color: "var(--text-muted)" }}
+                        >
+                          Pause
+                        </button>
+                      ) : (
+                        <button
+                          className="px-3 py-1.5 rounded-full text-xs font-medium border transition-colors hover:bg-emerald-500/10 hover:border-emerald-500/30 hover:text-emerald-500"
+                          style={{ borderColor: "var(--border-subtle)", color: "var(--text-muted)" }}
+                        >
+                          Activate
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Workflow name */}
+                  <div className="px-4 py-4 border-b" style={{ borderColor: "var(--border-subtle)" }}>
+                    <label className="text-[11px] font-semibold uppercase tracking-wider block mb-2" style={{ color: "var(--text-muted)" }}>
+                      Workflow name
+                    </label>
+                    <input
+                      value={wfName}
+                      onChange={(e) => setWfName(e.target.value)}
+                      onKeyDown={(e) => e.stopPropagation()}
+                      className="w-full px-3 py-2.5 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                      style={{
+                        background: "var(--input-bg)",
+                        border: "1px solid var(--input-border)",
+                        color: "var(--text-primary)",
+                      }}
+                    />
+                  </div>
+
+                  {/* Description (collapsible) */}
+                  <div className="border-b" style={{ borderColor: "var(--border-subtle)" }}>
+                    <button
+                      onClick={() => setDescExpanded(!descExpanded)}
+                      className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/3 transition-colors"
+                    >
+                      <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                        Description
+                      </span>
+                      <ChevronDown
+                        className="w-4 h-4 transition-transform"
+                        style={{
+                          color: "var(--text-muted)",
+                          transform: descExpanded ? "rotate(180deg)" : "rotate(0deg)",
+                        }}
+                      />
+                    </button>
+                    <AnimatePresence>
+                      {descExpanded && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="px-4 pb-4">
+                            <textarea
+                              value={wfDesc}
+                              onChange={(e) => setWfDesc(e.target.value)}
+                              onKeyDown={(e) => e.stopPropagation()}
+                              placeholder="Describe what this workflow does..."
+                              rows={3}
+                              className="w-full px-3 py-2 rounded-xl text-xs resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                              style={{
+                                background: "var(--input-bg)",
+                                border: "1px solid var(--input-border)",
+                                color: "var(--text-primary)",
+                              }}
+                            />
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  {/* Tags */}
+                  <div className="border-b" style={{ borderColor: "var(--border-subtle)" }}>
+                    <button className="w-full flex items-center gap-2 px-4 py-3 hover:bg-white/3 transition-colors">
+                      <Tag className="w-3.5 h-3.5" style={{ color: "var(--text-muted)" }} />
+                      <span className="text-sm" style={{ color: "var(--text-muted)" }}>
+                        + Add tags
+                      </span>
+                    </button>
+                  </div>
+
+                  {/* Stats */}
+                  <div className="px-4 py-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-muted)" }}>
+                      Overview
+                    </p>
+                    <div className="space-y-2">
+                      {[
+                        { label: "Nodes", value: nodes.length },
+                        { label: "Connections", value: edges.length },
+                        { label: "Runs", value: runs.length },
+                      ].map((stat) => (
+                        <div key={stat.label} className="flex items-center justify-between">
+                          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                            {stat.label}
+                          </span>
+                          <span className="text-xs font-semibold" style={{ color: "var(--text-primary)" }}>
+                            {stat.value}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="mt-auto px-4 pb-4">
+                    <p className="text-[10px] leading-relaxed" style={{ color: "var(--text-muted)" }}>
+                      Click any node on the canvas to edit its configuration.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
-      {/* Create Workspace Modal */}
       {showWorkspaceModal && (
         <CreateWorkspaceModal
           open={showWorkspaceModal}

@@ -48,42 +48,50 @@ router.post("/", authMiddleware, async (req: AuthRequest, res) => {
     });
 
     if (existing) {
-      return res.status(400).json({
-        error: "Workspace with this slug already exists",
+      const isOrphan = await prisma.workspaceMember.findFirst({
+        where: { workspaceId: existing.id },
       });
+      if (!isOrphan) {
+        await prisma.workspace.delete({ where: { id: existing.id } });
+      } else {
+        return res.status(400).json({
+          error: "Workspace with this slug already exists",
+        });
+      }
     }
 
-    const workspace = await prisma.workspace.create({
-      data: {
-        name: body.name,
-        description: body.description,
-        slug,
-      },
-    });
+    const fullWorkspace = await prisma.$transaction(async (tx) => {
+      const workspace = await tx.workspace.create({
+        data: {
+          name: body.name,
+          description: body.description,
+          slug,
+        },
+      });
 
-    // Add creator as ADMIN member
-    await prisma.workspaceMember.create({
-      data: {
-        userId: req.userId!,
-        workspaceId: workspace.id,
-        role: "ADMIN",
-      },
-    });
+      await tx.workspaceMember.create({
+        data: {
+          userId: req.userId!,
+          workspaceId: workspace.id,
+          role: "ADMIN",
+        },
+      });
 
-    const fullWorkspace = await prisma.workspace.findUnique({
-      where: { id: workspace.id },
-      include: {
-        members: {
-          include: {
-            user: {
-              select: { id: true, name: true, email: true, avatar: true },
+      return tx.workspace.findUnique({
+        where: { id: workspace.id },
+        include: {
+          members: {
+            include: {
+              user: {
+                select: { id: true, name: true, email: true, avatar: true },
+              },
             },
           },
+          _count: {
+            select: { workflows: true, members: true },
+          },
         },
-        _count: {
-          select: { workflows: true, members: true },
-        },
-      },
+      });
     });
 
     res.status(201).json(fullWorkspace);

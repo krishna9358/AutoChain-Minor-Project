@@ -113,72 +113,23 @@ model WorkflowVersion {
 // ─── WORKFLOW NODES & EDGES ───────────────────────────────────────
 
 model WorkflowNode {
-  id          String       @id @default(uuid())
+  id          String   @id @default(uuid())
   workflowId  String
-  nodeType    NodeType
-  category    NodeCategory
+  nodeType    String
+  category    String
   label       String
   description String?
-  config      Json         @default("{}")
+  config      Json     @default("{}")
   position    Json // { x, y }
-  metadata    Json         @default("{}")
+  metadata    Json     @default("{}")
   retryConfig Json? // { maxRetries, delay, backoff }
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   workflow    Workflow       @relation(fields: [workflowId], references: [id], onDelete: Cascade)
   runSteps    RunStep[]
   sourceEdges WorkflowEdge[] @relation("SourceNode")
   targetEdges WorkflowEdge[] @relation("TargetNode")
-}
-
-enum NodeType {
-  // Triggers
-  WEBHOOK_TRIGGER
-  SCHEDULE_TRIGGER
-  FILE_UPLOAD_TRIGGER
-  API_TRIGGER
-
-  // AI Agents
-  EXTRACTION_AGENT
-  SUMMARIZATION_AGENT
-  CLASSIFICATION_AGENT
-  REASONING_AGENT
-  DECISION_AGENT
-  RETRIEVAL_AGENT
-  ANALYSIS_AGENT
-  VERIFICATION_AGENT
-  COMPLIANCE_AGENT
-  EXECUTION_AGENT
-
-  // Logic
-  IF_CONDITION
-  SWITCH_CASE
-  LOOP
-  PARALLEL
-
-  // Actions
-  TOOL_EXECUTION
-  API_CALL
-  DB_WRITE
-  SLACK_SEND
-  EMAIL_SEND
-  HTTP_REQUEST
-
-  // Control
-  DELAY
-  APPROVAL
-  RETRY
-  ERROR_HANDLER
-  SUBFLOW
-}
-
-enum NodeCategory {
-  TRIGGER
-  AI_AGENT
-  LOGIC
-  ACTION
-  CONTROL
 }
 
 model WorkflowEdge {

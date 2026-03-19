@@ -6,7 +6,7 @@ import { z } from "zod";
 
 const router = Router();
 
-// Dev mode bootstrap — auto-creates dev user + workspace
+// Dev mode bootstrap — idempotently creates dev user + Personal workspace
 router.get("/dev-bootstrap", async (req, res) => {
   try {
     let user = await prisma.user.findUnique({ where: { id: DEV_USER_ID } });
@@ -21,12 +21,19 @@ router.get("/dev-bootstrap", async (req, res) => {
           role: "ADMIN",
         },
       });
+    }
 
+    // Always ensure user has a Personal workspace (idempotent)
+    const existingMembership = await prisma.workspaceMember.findFirst({
+      where: { userId: DEV_USER_ID },
+    });
+
+    if (!existingMembership) {
       await prisma.workspace.create({
         data: {
-          name: "Dev Workspace",
-          slug: "dev-workspace",
-          description: "Auto-created dev workspace",
+          name: "Personal",
+          slug: "personal",
+          description: "My personal workspace",
           members: {
             create: { userId: user.id, role: "ADMIN" },
           },

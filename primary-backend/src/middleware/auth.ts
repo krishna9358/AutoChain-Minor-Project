@@ -9,7 +9,11 @@ export interface AuthRequest extends Request {
 
 export const DEV_USER_ID = "dev-user-00000000";
 
-export const authMiddleware = (req: AuthRequest, res: Response, next: NextFunction) => {
+export const authMiddleware = (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   const raw = req.headers.authorization;
 
   if (!raw) {

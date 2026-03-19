@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { useTheme } from "@/components/ThemeProvider";
-import { useWorkspace } from "@/components/WorkspaceProvider";
+import { useTheme } from "@/components/providers/ThemeProvider";
+import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { useToast } from "@/components/hooks/use-toast";
 import { workflowApi } from "@/lib/api";
 import { CreateWorkspaceModal } from "@/components/workspace/CreateWorkspaceModal";
@@ -14,14 +14,11 @@ import {
   ChevronRight,
   Loader2,
   Workflow,
-  LayoutGrid,
   Settings,
   LogOut,
   Search,
   Sun,
   Moon,
-  PanelLeftClose,
-  PanelLeft,
   LayoutTemplate,
   Key,
   ArrowRight,
@@ -29,11 +26,17 @@ import {
   ChevronsUpDown,
   Check,
   Building2,
-  Lock,
   FolderPlus,
+  ChevronDown,
+  Bell,
+  MoreHorizontal,
+  Trash2,
+  Edit2,
+  Copy,
+  Filter,
+  SlidersHorizontal,
+  Tag,
 } from "lucide-react";
-
-const IS_DEV = process.env.NEXT_PUBLIC_DEV_MODE === "true";
 
 interface WorkflowItem {
   id: string;
@@ -47,17 +50,30 @@ interface WorkflowItem {
   _count?: { runs: number; versions: number };
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  DRAFT: "text-zinc-400",
-  ACTIVE: "text-emerald-500",
-  PAUSED: "text-amber-500",
-  ARCHIVED: "text-zinc-500",
-};
-const STATUS_DOT: Record<string, string> = {
-  DRAFT: "bg-zinc-400",
-  ACTIVE: "bg-emerald-500",
-  PAUSED: "bg-amber-500",
-  ARCHIVED: "bg-zinc-500",
+const STATUS_CONFIG: Record<
+  string,
+  { color: string; dot: string; bg: string }
+> = {
+  DRAFT: {
+    color: "text-zinc-500",
+    dot: "bg-zinc-400",
+    bg: "bg-zinc-400/10",
+  },
+  ACTIVE: {
+    color: "text-emerald-600 dark:text-emerald-400",
+    dot: "bg-emerald-500",
+    bg: "bg-emerald-500/10",
+  },
+  PAUSED: {
+    color: "text-amber-600 dark:text-amber-400",
+    dot: "bg-amber-500",
+    bg: "bg-amber-500/10",
+  },
+  ARCHIVED: {
+    color: "text-zinc-500",
+    dot: "bg-zinc-500",
+    bg: "bg-zinc-500/10",
+  },
 };
 
 const TEMPLATES = [
@@ -72,32 +88,19 @@ const TEMPLATES = [
         nodeType: "WEBHOOK_TRIGGER",
         label: "Meeting Webhook",
         category: "TRIGGER",
-        config: { webhookPath: "/meetings", method: "POST" },
+        config: {},
       },
       {
         nodeType: "EXTRACTION_AGENT",
-        label: "Extract Action Items",
+        label: "Extract Actions",
         category: "AI_AGENT",
-        config: {
-          model: "gpt-4",
-          prompt:
-            "Extract action items with assignees from the meeting transcript",
-        },
-      },
-      {
-        nodeType: "CLASSIFICATION_AGENT",
-        label: "Prioritize Tasks",
-        category: "AI_AGENT",
-        config: { model: "gpt-4", categories: "high,medium,low" },
+        config: {},
       },
       {
         nodeType: "SLACK_SEND",
         label: "Notify Team",
         category: "ACTION",
-        config: {
-          channel: "#team-updates",
-          messageTemplate: "New action items from meeting",
-        },
+        config: {},
       },
     ],
   },
@@ -112,37 +115,19 @@ const TEMPLATES = [
         nodeType: "WEBHOOK_TRIGGER",
         label: "New Ticket",
         category: "TRIGGER",
-        config: { webhookPath: "/tickets", method: "POST" },
+        config: {},
       },
       {
         nodeType: "CLASSIFICATION_AGENT",
         label: "Classify Issue",
         category: "AI_AGENT",
-        config: {
-          model: "gpt-4",
-          categories: "billing,technical,general,urgent",
-        },
-      },
-      {
-        nodeType: "REASONING_AGENT",
-        label: "Draft Response",
-        category: "AI_AGENT",
-        config: { model: "gpt-4", prompt: "Draft a helpful support response" },
-      },
-      {
-        nodeType: "APPROVAL",
-        label: "Manager Review",
-        category: "CONTROL",
-        config: { approver: "support-lead", timeoutMinutes: 30 },
+        config: {},
       },
       {
         nodeType: "EMAIL_SEND",
         label: "Send Reply",
         category: "ACTION",
-        config: {
-          from: "support@company.com",
-          subject: "Re: Your support request",
-        },
+        config: {},
       },
     ],
   },
@@ -156,38 +141,19 @@ const TEMPLATES = [
         nodeType: "API_TRIGGER",
         label: "New Lead",
         category: "TRIGGER",
-        config: { endpoint: "/api/leads", method: "POST" },
-      },
-      {
-        nodeType: "EXTRACTION_AGENT",
-        label: "Enrich Lead",
-        category: "AI_AGENT",
-        config: {
-          model: "gpt-4",
-          prompt: "Extract company info, role, and intent from lead data",
-        },
+        config: {},
       },
       {
         nodeType: "DECISION_AGENT",
         label: "Score Lead",
         category: "AI_AGENT",
-        config: { model: "gpt-4", prompt: "Score lead quality from 1-100" },
-      },
-      {
-        nodeType: "IF_CONDITION",
-        label: "High Score?",
-        category: "LOGIC",
-        config: {
-          condition: "score > 70",
-          trueLabel: "Qualified",
-          falseLabel: "Nurture",
-        },
+        config: {},
       },
       {
         nodeType: "EMAIL_SEND",
         label: "Notify Rep",
         category: "ACTION",
-        config: { to: "sales@company.com", subject: "New qualified lead" },
+        config: {},
       },
     ],
   },
@@ -201,37 +167,19 @@ const TEMPLATES = [
         nodeType: "FILE_UPLOAD_TRIGGER",
         label: "Invoice Upload",
         category: "TRIGGER",
-        config: { allowedTypes: "pdf,png,jpg", maxSizeMB: 10 },
+        config: {},
       },
       {
         nodeType: "EXTRACTION_AGENT",
         label: "Extract Data",
         category: "AI_AGENT",
-        config: {
-          model: "gpt-4",
-          prompt: "Extract vendor, amount, date, line items from invoice",
-        },
-      },
-      {
-        nodeType: "VERIFICATION_AGENT",
-        label: "Validate",
-        category: "AI_AGENT",
-        config: {
-          model: "gpt-4",
-          prompt: "Verify extracted data is complete and amounts are correct",
-        },
+        config: {},
       },
       {
         nodeType: "APPROVAL",
         label: "Manager Approval",
         category: "CONTROL",
-        config: { approver: "finance-lead", timeoutMinutes: 60 },
-      },
-      {
-        nodeType: "DB_WRITE",
-        label: "Save to DB",
-        category: "ACTION",
-        config: { table: "invoices", operation: "insert" },
+        config: {},
       },
     ],
   },
@@ -239,35 +187,25 @@ const TEMPLATES = [
     id: "onboarding",
     name: "Employee Onboarding",
     icon: "👋",
-    description:
-      "Automate new hire setup with IT provisioning and welcome messages",
+    description: "Automate new hire setup with IT provisioning",
     nodes: [
       {
         nodeType: "WEBHOOK_TRIGGER",
         label: "New Hire Event",
         category: "TRIGGER",
-        config: { webhookPath: "/hr/newhire", method: "POST" },
+        config: {},
       },
       {
         nodeType: "HTTP_REQUEST",
         label: "Create Accounts",
         category: "ACTION",
-        config: { url: "https://it-api.internal/provision", method: "POST" },
+        config: {},
       },
       {
         nodeType: "EMAIL_SEND",
         label: "Welcome Email",
         category: "ACTION",
-        config: { subject: "Welcome aboard!", from: "hr@company.com" },
-      },
-      {
-        nodeType: "SLACK_SEND",
-        label: "Intro on Slack",
-        category: "ACTION",
-        config: {
-          channel: "#general",
-          messageTemplate: "Please welcome our new team member!",
-        },
+        config: {},
       },
     ],
   },
@@ -281,50 +219,39 @@ const TEMPLATES = [
         nodeType: "WEBHOOK_TRIGGER",
         label: "Alert Received",
         category: "TRIGGER",
-        config: { webhookPath: "/alerts", method: "POST" },
+        config: {},
       },
       {
         nodeType: "CLASSIFICATION_AGENT",
         label: "Classify Severity",
         category: "AI_AGENT",
-        config: { model: "gpt-4", categories: "critical,high,medium,low" },
-      },
-      {
-        nodeType: "REASONING_AGENT",
-        label: "Root Cause Analysis",
-        category: "AI_AGENT",
-        config: {
-          model: "gpt-4",
-          prompt: "Analyze logs and determine probable root cause",
-        },
-      },
-      {
-        nodeType: "IF_CONDITION",
-        label: "Is Critical?",
-        category: "LOGIC",
-        config: {
-          condition: "severity === 'critical'",
-          trueLabel: "Escalate",
-          falseLabel: "Log",
-        },
+        config: {},
       },
       {
         nodeType: "SLACK_SEND",
         label: "Notify On-Call",
         category: "ACTION",
-        config: { channel: "#incidents", messageTemplate: "Incident alert" },
+        config: {},
       },
     ],
   },
 ];
 
-type TabId =
-  | "workflows"
-  | "templates"
-  | "secrets"
-  | "api-keys"
-  | "audit-logs"
-  | "settings";
+type TabId = "workflows" | "templates" | "settings";
+type StatusFilter = "all" | "ACTIVE" | "DRAFT" | "PAUSED" | "ARCHIVED";
+type SortBy = "updatedAt" | "createdAt" | "name";
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(dateStr).toLocaleDateString();
+}
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -340,35 +267,30 @@ export default function DashboardPage() {
   const { toast } = useToast();
 
   const [workflows, setWorkflows] = useState<WorkflowItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [cmdOpen, setCmdOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>("workflows");
-  const [apiKey, setApiKey] = useState("");
-  const [webhookUrl, setWebhookUrl] = useState("");
-  const [settingsSaved, setSettingsSaved] = useState(false);
-  const [wsSwitcherOpen, setWsSwitcherOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [sortBy, setSortBy] = useState<SortBy>("updatedAt");
   const [showCreateWs, setShowCreateWs] = useState(false);
+  const [wsSwitcherOpen, setWsSwitcherOpen] = useState(false);
+  const [rowMenuOpen, setRowMenuOpen] = useState<string | null>(null);
+  const wsSwitcherRef = useRef<HTMLDivElement>(null);
 
+  // Close dropdowns on outside click
   useEffect(() => {
-    const k = localStorage.getItem("agentflow-api-key");
-    if (k) setApiKey(k);
-    const w = localStorage.getItem("agentflow-webhook-url");
-    if (w) setWebhookUrl(w);
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        setCmdOpen(true);
-      }
-      if (e.key === "Escape") {
-        setCmdOpen(false);
+    const handler = (e: MouseEvent) => {
+      if (
+        wsSwitcherRef.current &&
+        !wsSwitcherRef.current.contains(e.target as Node)
+      ) {
         setWsSwitcherOpen(false);
       }
+      if (rowMenuOpen) setRowMenuOpen(null);
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, []);
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [rowMenuOpen]);
 
   useEffect(() => {
     if (!hasWorkspace || !activeWorkspace) {
@@ -376,7 +298,7 @@ export default function DashboardPage() {
       setLoading(false);
       return;
     }
-    const loadWorkflows = async () => {
+    const load = async () => {
       setLoading(true);
       try {
         const data = await workflowApi.list();
@@ -391,14 +313,14 @@ export default function DashboardPage() {
         setLoading(false);
       }
     };
-    loadWorkflows();
+    load();
   }, [activeWorkspace?.id, hasWorkspace]);
 
   const importTemplate = (template: (typeof TEMPLATES)[0]) => {
     if (!hasWorkspace) {
       toast({
-        title: "No workspace",
-        description: "Create a workspace first to use templates.",
+        title: "Workspace required",
+        description: "Create a workspace first.",
         variant: "destructive",
       });
       setShowCreateWs(true);
@@ -408,12 +330,7 @@ export default function DashboardPage() {
       id: `${n.nodeType}-${Date.now()}-${i}`,
       type: "workflowNode",
       position: { x: 300, y: i * 140 },
-      data: {
-        nodeType: n.nodeType,
-        category: n.category,
-        label: n.label,
-        config: n.config,
-      },
+      data: n,
     }));
     const edges = nodes.slice(0, -1).map((n, i) => ({
       id: `e-${i}`,
@@ -432,53 +349,44 @@ export default function DashboardPage() {
     router.push("/workflow/new?from=template");
   };
 
-  const saveSettings = () => {
-    localStorage.setItem("agentflow-api-key", apiKey);
-    localStorage.setItem("agentflow-webhook-url", webhookUrl);
-    setSettingsSaved(true);
-    toast({
-      title: "Settings saved",
-      description: "Your API configuration has been updated.",
-      variant: "success",
-    });
-    setTimeout(() => setSettingsSaved(false), 2000);
+  const deleteWorkflow = async (id: string, name: string) => {
+    try {
+      await workflowApi.delete(id);
+      setWorkflows((prev) => prev.filter((w) => w.id !== id));
+      toast({
+        title: "Workflow deleted",
+        description: `"${name}" has been removed.`,
+        variant: "default",
+      });
+    } catch (err: any) {
+      toast({
+        title: "Delete failed",
+        description: err.message,
+        variant: "destructive",
+      });
+    }
   };
+
+  const filtered = workflows
+    .filter((w) => {
+      const matchSearch =
+        w.name.toLowerCase().includes(search.toLowerCase()) ||
+        w.description?.toLowerCase().includes(search.toLowerCase());
+      const matchStatus =
+        statusFilter === "all" || w.status === statusFilter;
+      return matchSearch && matchStatus;
+    })
+    .sort((a, b) => {
+      if (sortBy === "name") return a.name.localeCompare(b.name);
+      return (
+        new Date(b[sortBy]).getTime() - new Date(a[sortBy]).getTime()
+      );
+    });
 
   const userName =
     typeof window !== "undefined"
       ? JSON.parse(localStorage.getItem("user") || '{"name":"Dev User"}').name
-      : "User";
-  const filtered = workflows.filter(
-    (w) =>
-      w.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      w.description?.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
-
-  const navItems: {
-    icon: typeof LayoutGrid;
-    label: string;
-    id: TabId;
-    path?: string;
-  }[] = [
-    { icon: Workflow, label: "Workflows", id: "workflows" },
-    { icon: LayoutTemplate, label: "Templates", id: "templates" },
-    { icon: Key, label: "Secrets", id: "secrets", path: "/dashboard/secrets" },
-    {
-      icon: Key as any,
-      label: "API Keys",
-      id: "api-keys",
-      path: "/dashboard/api-keys",
-    },
-    {
-      icon: ScrollText,
-      label: "Audit Logs",
-      id: "audit-logs",
-      path: "/dashboard/audit-logs",
-    },
-    { icon: Settings, label: "Settings", id: "settings" },
-  ];
-
-  const featureDisabled = !hasWorkspace;
+      : "Dev User";
 
   if (wsLoading)
     return (
@@ -495,611 +403,632 @@ export default function DashboardPage() {
 
   return (
     <div
-      className="min-h-screen flex"
+      className="min-h-screen flex flex-col"
       style={{ background: "var(--bg-primary)" }}
     >
-      {/* ─── Command Palette ──── */}
-      <AnimatePresence>
-        {cmdOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-start justify-center pt-[20vh]"
-            onClick={() => setCmdOpen(false)}
-          >
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: -10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: -10 }}
-              onClick={(e) => e.stopPropagation()}
-              className="relative w-full max-w-lg rounded-xl border shadow-2xl overflow-hidden"
-              style={{
-                background: "var(--bg-card)",
-                borderColor: "var(--border-subtle)",
-              }}
-            >
-              <div
-                className="flex items-center px-4 border-b"
-                style={{ borderColor: "var(--border-subtle)" }}
-              >
-                <Search
-                  className="w-4 h-4 shrink-0"
-                  style={{ color: "var(--text-muted)" }}
-                />
-                <input
-                  autoFocus
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search workflows..."
-                  className="flex-1 px-3 py-3 text-sm bg-transparent border-none outline-none"
-                  style={{ color: "var(--text-primary)" }}
-                />
-                <kbd
-                  className="px-1.5 py-0.5 rounded text-[10px] font-mono border"
-                  style={{
-                    borderColor: "var(--border-subtle)",
-                    color: "var(--text-muted)",
-                  }}
-                >
-                  ESC
-                </kbd>
-              </div>
-              <div className="max-h-64 overflow-y-auto p-2">
-                {filtered.length === 0 ? (
-                  <p
-                    className="p-4 text-sm text-center"
-                    style={{ color: "var(--text-muted)" }}
-                  >
-                    No results
-                  </p>
-                ) : (
-                  filtered.map((wf) => (
-                    <button
-                      key={wf.id}
-                      onClick={() => {
-                        setCmdOpen(false);
-                        setSearchQuery("");
-                        router.push(`/workflow/${wf.id}`);
-                      }}
-                      className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-white/5"
-                      style={{ color: "var(--text-primary)" }}
-                    >
-                      <Workflow
-                        className="w-4 h-4 shrink-0"
-                        style={{ color: "var(--text-muted)" }}
-                      />
-                      <span className="text-sm truncate">{wf.name}</span>
-                      <span
-                        className={`ml-auto text-[10px] ${STATUS_COLORS[wf.status]}`}
-                      >
-                        {wf.status}
-                      </span>
-                    </button>
-                  ))
-                )}
-                <button
-                  onClick={() => {
-                    setCmdOpen(false);
-                    setSearchQuery("");
-                    router.push("/workflow/new");
-                  }}
-                  className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left hover:bg-white/5 border-t mt-1 pt-3"
-                  style={{
-                    borderColor: "var(--border-subtle)",
-                    color: "var(--text-secondary)",
-                  }}
-                >
-                  <Plus className="w-4 h-4" />
-                  <span className="text-sm">Create new workflow</span>
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ─── Sidebar ──── */}
-      <aside
-        className={`${sidebarOpen ? "w-56" : "w-14"} border-r fixed h-full z-30 flex flex-col transition-all duration-200`}
+      {/* ─── Top Navigation Bar ──── */}
+      <nav
+        className="sticky top-0 z-40 h-12 flex items-center border-b px-4 gap-0"
         style={{
           background: "var(--bg-secondary)",
           borderColor: "var(--border-subtle)",
         }}
       >
-        {/* Workspace Switcher */}
-        <div
-          className="px-2 pt-3 pb-2 border-b"
-          style={{ borderColor: "var(--border-subtle)" }}
-        >
-          {sidebarOpen ? (
-            <div className="relative">
-              <button
-                onClick={() => setWsSwitcherOpen(!wsSwitcherOpen)}
-                className="w-full flex items-center gap-2 px-2 py-2 rounded-lg transition-colors hover:bg-white/5"
-              >
-                <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center shrink-0">
-                  {activeWorkspace ? (
-                    <span className="text-[10px] font-bold text-white">
-                      {activeWorkspace.name.charAt(0).toUpperCase()}
-                    </span>
-                  ) : (
-                    <Building2 className="w-3.5 h-3.5 text-white" />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0 text-left">
-                  <p
-                    className="text-xs font-semibold truncate"
-                    style={{ color: "var(--text-primary)" }}
-                  >
-                    {activeWorkspace?.name || "No Workspace"}
-                  </p>
-                  {activeWorkspace?.slug && (
-                    <p
-                      className="text-[10px] truncate"
-                      style={{ color: "var(--text-muted)" }}
-                    >
-                      {activeWorkspace.slug}
-                    </p>
-                  )}
-                </div>
-                <ChevronsUpDown
-                  className="w-3.5 h-3.5 shrink-0"
-                  style={{ color: "var(--text-muted)" }}
-                />
-              </button>
-
-              <AnimatePresence>
-                {wsSwitcherOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -4 }}
-                    className="absolute top-full left-0 right-0 mt-1 rounded-lg border shadow-xl z-50 overflow-hidden"
-                    style={{
-                      background: "var(--bg-card)",
-                      borderColor: "var(--border-subtle)",
-                    }}
-                  >
-                    <div className="p-1 max-h-48 overflow-y-auto">
-                      {workspaces.map((ws) => (
-                        <button
-                          key={ws.id}
-                          onClick={() => {
-                            setActiveWorkspace(ws);
-                            setWsSwitcherOpen(false);
-                            toast({
-                              title: "Workspace switched",
-                              description: `Now using "${ws.name}"`,
-                              variant: "success",
-                            });
-                          }}
-                          className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left transition-colors hover:bg-white/5"
-                        >
-                          <div
-                            className="w-5 h-5 rounded flex items-center justify-center shrink-0"
-                            style={{ background: "rgba(99,102,241,0.1)" }}
-                          >
-                            <span className="text-[9px] font-bold text-indigo-500">
-                              {ws.name.charAt(0).toUpperCase()}
-                            </span>
-                          </div>
-                          <span
-                            className="text-xs truncate flex-1"
-                            style={{ color: "var(--text-primary)" }}
-                          >
-                            {ws.name}
-                          </span>
-                          {activeWorkspace?.id === ws.id && (
-                            <Check className="w-3 h-3 text-indigo-500 shrink-0" />
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                    <div
-                      className="border-t p-1"
-                      style={{ borderColor: "var(--border-subtle)" }}
-                    >
-                      <button
-                        onClick={() => {
-                          setWsSwitcherOpen(false);
-                          setShowCreateWs(true);
-                        }}
-                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left transition-colors hover:bg-white/5"
-                        style={{ color: "var(--text-muted)" }}
-                      >
-                        <FolderPlus className="w-3.5 h-3.5" />
-                        <span className="text-xs">New Workspace</span>
-                      </button>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+        {/* Left: Logo + Workspace Switcher */}
+        <div className="flex items-center gap-3 min-w-0 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-lg bg-indigo-600 flex items-center justify-center">
+              <Zap className="w-3.5 h-3.5 text-white" />
             </div>
-          ) : (
-            <button
-              onClick={() => {
-                setSidebarOpen(true);
-                setWsSwitcherOpen(true);
-              }}
-              className="w-full flex items-center justify-center py-2"
-              title={activeWorkspace?.name || "No Workspace"}
-            >
-              <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center">
-                {activeWorkspace ? (
-                  <span className="text-[10px] font-bold text-white">
-                    {activeWorkspace.name.charAt(0).toUpperCase()}
-                  </span>
-                ) : (
-                  <Building2 className="w-3.5 h-3.5 text-white" />
-                )}
-              </div>
-            </button>
-          )}
-        </div>
-
-        {/* Collapse toggle */}
-        <div
-          className="flex items-center justify-end px-2 py-1.5"
-          style={{ borderColor: "var(--border-subtle)" }}
-        >
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-1 rounded hover:opacity-70"
-            style={{ color: "var(--text-muted)" }}
-          >
-            {sidebarOpen ? (
-              <PanelLeftClose className="w-4 h-4" />
-            ) : (
-              <PanelLeft className="w-4 h-4" />
-            )}
-          </button>
-        </div>
-
-        {/* Nav items */}
-        <nav className="flex-1 p-2 space-y-0.5">
-          {navItems.map((item) => {
-            const disabled = featureDisabled && item.id !== "settings";
-            return (
-              <button
-                key={item.id}
-                onClick={() => {
-                  if (disabled) {
-                    toast({
-                      title: "Workspace required",
-                      description:
-                        "Create a workspace to access this feature.",
-                      variant: "destructive",
-                    });
-                    setShowCreateWs(true);
-                    return;
-                  }
-                  item.path ? router.push(item.path) : setActiveTab(item.id);
-                }}
-                className={`w-full flex items-center ${sidebarOpen ? "space-x-3 px-3" : "justify-center px-0"} py-2 rounded-lg text-sm transition-all ${disabled ? "opacity-40 cursor-not-allowed" : ""}`}
-                style={{
-                  background:
-                    !disabled && (item.path ? false : activeTab === item.id)
-                      ? "rgba(99,102,241,0.08)"
-                      : "transparent",
-                  color: disabled
-                    ? "var(--text-muted)"
-                    : item.path
-                      ? "var(--text-muted)"
-                      : activeTab === item.id
-                        ? "#6366f1"
-                        : "var(--text-muted)",
-                }}
-                title={
-                  !sidebarOpen
-                    ? disabled
-                      ? `${item.label} (workspace required)`
-                      : item.label
-                    : undefined
-                }
-              >
-                {disabled ? (
-                  <Lock className="w-4 h-4 shrink-0" />
-                ) : (
-                  <item.icon className="w-4 h-4 shrink-0" />
-                )}
-                {sidebarOpen && (
-                  <span className="font-medium truncate">{item.label}</span>
-                )}
-              </button>
-            );
-          })}
-        </nav>
-
-        {/* Bottom */}
-        <div
-          className="p-2 border-t space-y-1"
-          style={{ borderColor: "var(--border-subtle)" }}
-        >
-          <button
-            onClick={toggleTheme}
-            className={`w-full flex items-center ${sidebarOpen ? "space-x-3 px-3" : "justify-center"} py-2 rounded-lg text-sm transition-all`}
-            style={{ color: "var(--text-muted)" }}
-          >
-            {theme === "dark" ? (
-              <Sun className="w-4 h-4 shrink-0" />
-            ) : (
-              <Moon className="w-4 h-4 shrink-0" />
-            )}
-            {sidebarOpen && <span>{theme === "dark" ? "Light" : "Dark"}</span>}
-          </button>
-          <div
-            className={`flex items-center ${sidebarOpen ? "justify-between px-3" : "justify-center"} py-2`}
-          >
-            <div className="flex items-center space-x-2 overflow-hidden">
-              <div className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-[10px] font-bold text-white shrink-0">
-                {userName.charAt(0).toUpperCase()}
-              </div>
-              {sidebarOpen && (
-                <span
-                  className="text-sm truncate max-w-[100px]"
-                  style={{ color: "var(--text-secondary)" }}
-                >
-                  {userName}
-                </span>
-              )}
-            </div>
-            {sidebarOpen && (
-              <button
-                onClick={() => {
-                  localStorage.clear();
-                  router.push("/login");
-                }}
-                style={{ color: "var(--text-muted)" }}
-                className="hover:opacity-70"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-        </div>
-      </aside>
-
-      {/* ─── Main Content ──── */}
-      <main
-        className={`flex-1 ${sidebarOpen ? "ml-56" : "ml-14"} transition-all duration-200`}
-      >
-        {/* Header */}
-        <header
-          className="sticky top-0 z-20 border-b px-6 py-4 backdrop-blur-xl"
-          style={{
-            background:
-              "color-mix(in srgb, var(--bg-primary) 85%, transparent)",
-            borderColor: "var(--border-subtle)",
-          }}
-        >
-          <div className="flex items-center justify-between">
-            <h1
-              className="text-lg font-semibold capitalize"
+            <span
+              className="text-sm font-semibold hidden sm:block"
               style={{ color: "var(--text-primary)" }}
             >
-              {activeTab}
-            </h1>
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={() => setCmdOpen(true)}
-                className="flex items-center space-x-3 px-3 py-2 w-60 rounded-lg border text-sm"
-                style={{
-                  background: "var(--input-bg)",
-                  borderColor: "var(--input-border)",
-                  color: "var(--text-muted)",
-                }}
-              >
-                <Search className="w-3.5 h-3.5" />
-                <span>Search...</span>
-                <kbd
-                  className="ml-auto px-1.5 py-0.5 rounded text-[10px] font-mono border"
-                  style={{ borderColor: "var(--border-subtle)" }}
-                >
-                  ⌘K
-                </kbd>
-              </button>
-              {activeTab === "workflows" && (
-                <button
-                  onClick={() => {
-                    if (featureDisabled) {
-                      toast({
-                        title: "Workspace required",
-                        description:
-                          "Create a workspace first to create workflows.",
-                        variant: "destructive",
-                      });
-                      setShowCreateWs(true);
-                      return;
-                    }
-                    router.push("/workflow/new");
-                  }}
-                  className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>New</span>
-                </button>
-              )}
-            </div>
+              AgentFlow
+            </span>
           </div>
-        </header>
 
-        <div className="p-6">
-          {/* ──── No workspace banner ──── */}
-          {!hasWorkspace && activeTab !== "settings" && (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mb-6 p-6 rounded-xl border-2 border-dashed text-center"
-              style={{ borderColor: "rgba(99,102,241,0.3)" }}
+          <div
+            className="w-px h-5"
+            style={{ background: "var(--border-subtle)" }}
+          />
+
+          {/* Workspace selector */}
+          <div className="relative" ref={wsSwitcherRef}>
+            <button
+              onClick={() => setWsSwitcherOpen(!wsSwitcherOpen)}
+              className="flex items-center gap-1.5 pl-2 pr-2.5 py-1 rounded-lg text-sm font-medium transition-colors hover:bg-white/5"
+              style={{
+                background: wsSwitcherOpen
+                  ? "rgba(99,102,241,0.08)"
+                  : "transparent",
+                color: "var(--text-primary)",
+              }}
             >
-              <Building2
-                className="w-10 h-10 mx-auto mb-3"
-                style={{ color: "var(--text-muted)" }}
-              />
-              <h3
-                className="text-base font-semibold mb-1"
-                style={{ color: "var(--text-primary)" }}
+              <div
+                className="w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold text-white shrink-0"
+                style={{ background: "rgba(99,102,241,0.8)" }}
               >
-                Create your first workspace
-              </h3>
-              <p
-                className="text-sm mb-4 max-w-md mx-auto"
-                style={{ color: "var(--text-muted)" }}
-              >
-                Workspaces organize your workflows, secrets, and team members.
-                Create one to get started.
-              </p>
-              <button
-                onClick={() => setShowCreateWs(true)}
-                className="inline-flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-colors"
-              >
-                <FolderPlus className="w-4 h-4" />
-                <span>Create Workspace</span>
-              </button>
-            </motion.div>
-          )}
+                {activeWorkspace
+                  ? activeWorkspace.name.charAt(0).toUpperCase()
+                  : "?"}
+              </div>
+              <span className="max-w-[120px] truncate">
+                {activeWorkspace?.name || "No Workspace"}
+              </span>
+              <ChevronsUpDown className="w-3 h-3 opacity-50" />
+            </button>
 
-          {/* ──── Workflows Tab ──── */}
-          {activeTab === "workflows" && hasWorkspace && (
-            <>
-              {loading ? (
-                <div className="flex items-center justify-center py-24">
-                  <Loader2
-                    className="w-5 h-5 animate-spin"
-                    style={{ color: "var(--text-muted)" }}
-                  />
-                </div>
-              ) : filtered.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-24 text-center">
-                  <div
-                    className="w-12 h-12 rounded-xl border flex items-center justify-center mb-4"
-                    style={{
-                      borderColor: "var(--border-subtle)",
-                      background: "var(--bg-hover)",
-                    }}
-                  >
-                    <Workflow
-                      className="w-6 h-6"
-                      style={{ color: "var(--text-muted)" }}
-                    />
-                  </div>
-                  <h3
-                    className="text-base font-medium mb-1"
-                    style={{ color: "var(--text-primary)" }}
-                  >
-                    No workflows yet
-                  </h3>
-                  <p
-                    className="text-sm mb-5"
-                    style={{ color: "var(--text-muted)" }}
-                  >
-                    Create your first workflow or start from a template.
-                  </p>
-                  <div className="flex items-center space-x-3">
-                    <button
-                      onClick={() => router.push("/workflow/new")}
-                      className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg text-sm font-medium"
-                    >
-                      <Plus className="w-4 h-4" />
-                      <span>Create Workflow</span>
-                    </button>
-                    <button
-                      onClick={() => setActiveTab("templates")}
-                      className="flex items-center space-x-2 px-5 py-2.5 rounded-lg text-sm font-medium border"
-                      style={{
-                        borderColor: "var(--border-medium)",
-                        color: "var(--text-secondary)",
-                      }}
-                    >
-                      <LayoutTemplate className="w-4 h-4" />
-                      <span>Browse Templates</span>
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-1">
-                  {filtered.map((wf, i) => (
-                    <motion.button
-                      key={wf.id}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: i * 0.03 }}
-                      onClick={() => router.push(`/workflow/${wf.id}`)}
-                      className="w-full flex items-center px-4 py-3 rounded-lg border transition-all text-left group hover:border-indigo-500/20"
-                      style={{
-                        background: "var(--bg-card)",
-                        borderColor: "var(--border-subtle)",
-                      }}
-                    >
-                      <div
-                        className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mr-3"
-                        style={{ background: "rgba(99,102,241,0.08)" }}
-                      >
-                        <Workflow className="w-4 h-4 text-indigo-500" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-2">
-                          <span
-                            className="text-sm font-medium truncate"
-                            style={{ color: "var(--text-primary)" }}
-                          >
-                            {wf.name}
-                          </span>
-                          <span className="flex items-center space-x-1">
-                            <span
-                              className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[wf.status] || "bg-zinc-400"}`}
-                            />
-                            <span
-                              className={`text-[10px] ${STATUS_COLORS[wf.status] || "text-zinc-400"}`}
-                            >
-                              {wf.status}
-                            </span>
-                          </span>
-                        </div>
-                        <p
-                          className="text-xs truncate"
-                          style={{ color: "var(--text-muted)" }}
-                        >
-                          {wf.description ||
-                            `${wf.nodes?.length || 0} nodes · ${wf._count?.runs || 0} runs`}
-                        </p>
-                      </div>
-                      <div className="flex items-center space-x-3">
-                        <span
-                          className="text-[10px]"
-                          style={{ color: "var(--text-muted)" }}
-                        >
-                          {new Date(wf.updatedAt).toLocaleDateString()}
-                        </span>
-                        <ChevronRight
-                          className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity"
-                          style={{ color: "var(--text-muted)" }}
-                        />
-                      </div>
-                    </motion.button>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-
-          {/* ──── Templates Tab ──── */}
-          {activeTab === "templates" && hasWorkspace && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {TEMPLATES.map((t) => (
+            <AnimatePresence>
+              {wsSwitcherOpen && (
                 <motion.div
-                  key={t.id}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="rounded-xl border p-5 transition-all hover:border-indigo-500/30"
+                  initial={{ opacity: 0, y: -4, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -4, scale: 0.97 }}
+                  className="absolute top-full left-0 mt-1.5 w-56 rounded-xl border shadow-2xl overflow-hidden z-50"
                   style={{
                     background: "var(--bg-card)",
                     borderColor: "var(--border-subtle)",
                   }}
                 >
-                  <div className="flex items-center space-x-3 mb-3">
+                  <div className="p-1.5">
+                    <p
+                      className="px-2 py-1 text-[10px] font-semibold uppercase tracking-widest"
+                      style={{ color: "var(--text-muted)" }}
+                    >
+                      Workspaces
+                    </p>
+                    {workspaces.map((ws) => (
+                      <button
+                        key={ws.id}
+                        onClick={() => {
+                          setActiveWorkspace(ws);
+                          setWsSwitcherOpen(false);
+                          toast({
+                            title: "Switched workspace",
+                            description: `Now using "${ws.name}"`,
+                            variant: "success",
+                          });
+                        }}
+                        className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg transition-colors hover:bg-white/5"
+                        style={{
+                          background:
+                            activeWorkspace?.id === ws.id
+                              ? "rgba(99,102,241,0.06)"
+                              : "transparent",
+                        }}
+                      >
+                        <div
+                          className="w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-bold text-white shrink-0"
+                          style={{ background: "rgba(99,102,241,0.7)" }}
+                        >
+                          {ws.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0 text-left">
+                          <p
+                            className="text-xs font-medium truncate"
+                            style={{ color: "var(--text-primary)" }}
+                          >
+                            {ws.name}
+                          </p>
+                          {ws.slug && (
+                            <p
+                              className="text-[10px] truncate"
+                              style={{ color: "var(--text-muted)" }}
+                            >
+                              {ws.slug}
+                            </p>
+                          )}
+                        </div>
+                        {activeWorkspace?.id === ws.id && (
+                          <Check className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                  <div
+                    className="border-t p-1.5"
+                    style={{ borderColor: "var(--border-subtle)" }}
+                  >
+                    <button
+                      onClick={() => {
+                        setWsSwitcherOpen(false);
+                        setShowCreateWs(true);
+                      }}
+                      className="w-full flex items-center gap-2 px-2 py-2 rounded-lg transition-colors hover:bg-white/5"
+                      style={{ color: "var(--text-muted)" }}
+                    >
+                      <FolderPlus className="w-3.5 h-3.5" />
+                      <span className="text-xs font-medium">
+                        New Workspace
+                      </span>
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+
+        {/* Center: Tab navigation */}
+        <div className="flex-1 flex items-center justify-center gap-1">
+          {(["workflows", "templates", "settings"] as TabId[]).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className="relative px-4 h-12 text-sm font-medium transition-colors capitalize"
+              style={{
+                color:
+                  activeTab === tab
+                    ? "var(--text-primary)"
+                    : "var(--text-muted)",
+              }}
+            >
+              {tab}
+              {activeTab === tab && (
+                <motion.div
+                  layoutId="tab-indicator"
+                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500"
+                />
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Right: Actions */}
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <button
+            onClick={toggleTheme}
+            className="p-2 rounded-lg transition-colors hover:bg-white/5"
+            style={{ color: "var(--text-muted)" }}
+            title="Toggle theme"
+          >
+            {theme === "dark" ? (
+              <Sun className="w-4 h-4" />
+            ) : (
+              <Moon className="w-4 h-4" />
+            )}
+          </button>
+          <button
+            className="p-2 rounded-lg transition-colors hover:bg-white/5"
+            style={{ color: "var(--text-muted)" }}
+          >
+            <Bell className="w-4 h-4" />
+          </button>
+          <button
+            className="p-2 rounded-lg transition-colors hover:bg-white/5"
+            style={{ color: "var(--text-muted)" }}
+            onClick={() => setActiveTab("settings")}
+          >
+            <Settings className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => {
+              localStorage.clear();
+              router.push("/login");
+            }}
+            className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-[11px] font-bold text-white ml-1"
+            title="Sign out"
+          >
+            {userName.charAt(0).toUpperCase()}
+          </button>
+        </div>
+      </nav>
+
+      {/* ─── Main Content ──── */}
+      <main className="flex-1 px-6 py-6 max-w-[1200px] w-full mx-auto">
+        {/* No workspace banner */}
+        {!hasWorkspace && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 p-8 rounded-2xl border-2 border-dashed text-center"
+            style={{ borderColor: "rgba(99,102,241,0.25)" }}
+          >
+            <div
+              className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
+              style={{ background: "rgba(99,102,241,0.08)" }}
+            >
+              <Building2 className="w-7 h-7 text-indigo-500" />
+            </div>
+            <h3
+              className="text-base font-semibold mb-2"
+              style={{ color: "var(--text-primary)" }}
+            >
+              Create your first workspace
+            </h3>
+            <p
+              className="text-sm mb-5 max-w-sm mx-auto leading-relaxed"
+              style={{ color: "var(--text-muted)" }}
+            >
+              Workspaces organize your workflows, secrets, and team members.
+              Create one to get started.
+            </p>
+            <button
+              onClick={() => setShowCreateWs(true)}
+              className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors"
+            >
+              <FolderPlus className="w-4 h-4" />
+              Create Workspace
+            </button>
+          </motion.div>
+        )}
+
+        {/* ──── Workflows Tab ──── */}
+        {activeTab === "workflows" && (
+          <div>
+            {/* Header */}
+            <div className="flex items-center justify-between mb-5">
+              <h1
+                className="text-xl font-semibold"
+                style={{ color: "var(--text-primary)" }}
+              >
+                Workflows
+              </h1>
+              {hasWorkspace && (
+                <button
+                  onClick={() => router.push("/workflow/new")}
+                  className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  New Workflow
+                </button>
+              )}
+            </div>
+
+            {hasWorkspace && (
+              <>
+                {/* Filter bar */}
+                <div className="flex items-center gap-3 mb-4 flex-wrap">
+                  <div className="flex items-center gap-1">
+                    {(
+                      ["all", "ACTIVE", "DRAFT", "PAUSED"] as StatusFilter[]
+                    ).map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => setStatusFilter(s)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all"
+                        style={{
+                          background:
+                            statusFilter === s
+                              ? "rgba(99,102,241,0.08)"
+                              : "transparent",
+                          borderColor:
+                            statusFilter === s
+                              ? "rgba(99,102,241,0.3)"
+                              : "var(--border-subtle)",
+                          color:
+                            statusFilter === s
+                              ? "#6366f1"
+                              : "var(--text-muted)",
+                        }}
+                      >
+                        {s === "all" ? "All workflows" : s.charAt(0) + s.slice(1).toLowerCase()}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="flex-1" />
+
+                  {/* Sort */}
+                  <div className="flex items-center gap-1.5">
+                    <SlidersHorizontal
+                      className="w-3.5 h-3.5"
+                      style={{ color: "var(--text-muted)" }}
+                    />
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value as SortBy)}
+                      className="text-xs rounded-lg px-2 py-1.5 border bg-transparent focus:outline-none focus:ring-1 focus:ring-indigo-500/30"
+                      style={{
+                        borderColor: "var(--border-subtle)",
+                        color: "var(--text-secondary)",
+                        background: "var(--input-bg)",
+                      }}
+                    >
+                      <option value="updatedAt">Recently edited</option>
+                      <option value="createdAt">Recently created</option>
+                      <option value="name">Name</option>
+                    </select>
+                  </div>
+
+                  {/* Search */}
+                  <div
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg border"
+                    style={{
+                      background: "var(--input-bg)",
+                      borderColor: "var(--border-subtle)",
+                    }}
+                  >
+                    <Search
+                      className="w-3.5 h-3.5"
+                      style={{ color: "var(--text-muted)" }}
+                    />
+                    <input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Search workflows..."
+                      className="bg-transparent text-xs border-none outline-none w-44"
+                      style={{ color: "var(--text-primary)" }}
+                    />
+                  </div>
+                </div>
+
+                {/* Table */}
+                {loading ? (
+                  <div className="flex items-center justify-center py-24">
+                    <Loader2
+                      className="w-5 h-5 animate-spin"
+                      style={{ color: "var(--text-muted)" }}
+                    />
+                  </div>
+                ) : filtered.length === 0 ? (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="text-center py-20"
+                  >
+                    <div
+                      className="w-12 h-12 rounded-2xl border flex items-center justify-center mx-auto mb-4"
+                      style={{
+                        borderColor: "var(--border-subtle)",
+                        background: "var(--bg-elevated)",
+                      }}
+                    >
+                      <Workflow
+                        className="w-6 h-6"
+                        style={{ color: "var(--text-muted)" }}
+                      />
+                    </div>
+                    <p
+                      className="text-sm font-medium mb-1"
+                      style={{ color: "var(--text-primary)" }}
+                    >
+                      {search ? "No matching workflows" : "No workflows yet"}
+                    </p>
+                    <p
+                      className="text-xs mb-5"
+                      style={{ color: "var(--text-muted)" }}
+                    >
+                      {search
+                        ? "Try a different search term"
+                        : "Create your first workflow or start from a template."}
+                    </p>
+                    {!search && (
+                      <div className="flex items-center justify-center gap-3">
+                        <button
+                          onClick={() => router.push("/workflow/new")}
+                          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-medium"
+                        >
+                          <Plus className="w-4 h-4" />
+                          Create Workflow
+                        </button>
+                        <button
+                          onClick={() => setActiveTab("templates")}
+                          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border"
+                          style={{
+                            borderColor: "var(--border-subtle)",
+                            color: "var(--text-secondary)",
+                          }}
+                        >
+                          <LayoutTemplate className="w-4 h-4" />
+                          Browse Templates
+                        </button>
+                      </div>
+                    )}
+                  </motion.div>
+                ) : (
+                  <div
+                    className="rounded-xl border overflow-hidden"
+                    style={{ borderColor: "var(--border-subtle)" }}
+                  >
+                    {/* Table header */}
+                    <div
+                      className="grid border-b px-4 py-2.5"
+                      style={{
+                        gridTemplateColumns: "1fr 110px 70px 60px 120px 110px 40px",
+                        borderColor: "var(--border-subtle)",
+                        background: "var(--bg-elevated)",
+                      }}
+                    >
+                      {["Name", "Status", "Nodes", "Runs", "Last edited", "Created", ""].map(
+                        (h) => (
+                          <span
+                            key={h}
+                            className="text-[11px] font-semibold uppercase tracking-wider"
+                            style={{ color: "var(--text-muted)" }}
+                          >
+                            {h}
+                          </span>
+                        ),
+                      )}
+                    </div>
+
+                    {/* Table rows */}
+                    {filtered.map((wf, i) => {
+                      const sc = STATUS_CONFIG[wf.status] || STATUS_CONFIG.DRAFT;
+                      return (
+                        <motion.div
+                          key={wf.id}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ delay: i * 0.02 }}
+                          className="grid items-center px-4 py-3 border-b transition-colors cursor-pointer group"
+                          style={{
+                            gridTemplateColumns:
+                              "1fr 110px 70px 60px 120px 110px 40px",
+                            borderColor: "var(--border-subtle)",
+                            background: "var(--bg-card)",
+                          }}
+                          onClick={() => router.push(`/workflow/${wf.id}`)}
+                          onMouseEnter={(e) => {
+                            (e.currentTarget as HTMLElement).style.background =
+                              "var(--bg-hover)";
+                          }}
+                          onMouseLeave={(e) => {
+                            (e.currentTarget as HTMLElement).style.background =
+                              "var(--bg-card)";
+                          }}
+                        >
+                          {/* Name */}
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div
+                              className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                              style={{ background: "rgba(99,102,241,0.08)" }}
+                            >
+                              <Workflow className="w-3.5 h-3.5 text-indigo-500" />
+                            </div>
+                            <div className="min-w-0">
+                              <p
+                                className="text-sm font-medium truncate"
+                                style={{ color: "var(--text-primary)" }}
+                              >
+                                {wf.name}
+                              </p>
+                              {wf.description && (
+                                <p
+                                  className="text-[11px] truncate"
+                                  style={{ color: "var(--text-muted)" }}
+                                >
+                                  {wf.description}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Status */}
+                          <div>
+                            <span
+                              className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium ${sc.bg} ${sc.color}`}
+                            >
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full ${sc.dot}`}
+                              />
+                              {wf.status.charAt(0) +
+                                wf.status.slice(1).toLowerCase()}
+                            </span>
+                          </div>
+
+                          {/* Nodes */}
+                          <span
+                            className="text-xs"
+                            style={{ color: "var(--text-secondary)" }}
+                          >
+                            {wf.nodes?.length || 0}
+                          </span>
+
+                          {/* Runs */}
+                          <span
+                            className="text-xs"
+                            style={{ color: "var(--text-secondary)" }}
+                          >
+                            {wf._count?.runs || 0}
+                          </span>
+
+                          {/* Last edited */}
+                          <span
+                            className="text-xs"
+                            style={{ color: "var(--text-muted)" }}
+                          >
+                            {timeAgo(wf.updatedAt)}
+                          </span>
+
+                          {/* Created */}
+                          <span
+                            className="text-xs"
+                            style={{ color: "var(--text-muted)" }}
+                          >
+                            {timeAgo(wf.createdAt)}
+                          </span>
+
+                          {/* Actions */}
+                          <div
+                            className="relative"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button
+                              onClick={() =>
+                                setRowMenuOpen(
+                                  rowMenuOpen === wf.id ? null : wf.id,
+                                )
+                              }
+                              className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white/10"
+                              style={{ color: "var(--text-muted)" }}
+                            >
+                              <MoreHorizontal className="w-3.5 h-3.5" />
+                            </button>
+                            <AnimatePresence>
+                              {rowMenuOpen === wf.id && (
+                                <motion.div
+                                  initial={{ opacity: 0, scale: 0.95 }}
+                                  animate={{ opacity: 1, scale: 1 }}
+                                  exit={{ opacity: 0, scale: 0.95 }}
+                                  className="absolute right-0 top-full mt-1 w-40 rounded-xl border shadow-xl z-10 overflow-hidden"
+                                  style={{
+                                    background: "var(--bg-card)",
+                                    borderColor: "var(--border-subtle)",
+                                  }}
+                                >
+                                  <button
+                                    onClick={() =>
+                                      router.push(`/workflow/${wf.id}`)
+                                    }
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left hover:bg-white/5 transition-colors"
+                                    style={{ color: "var(--text-primary)" }}
+                                  >
+                                    <Edit2 className="w-3.5 h-3.5" />
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={() =>
+                                      deleteWorkflow(wf.id, wf.name)
+                                    }
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left hover:bg-red-500/10 transition-colors text-red-400"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                    Delete
+                                  </button>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ──── Templates Tab ──── */}
+        {activeTab === "templates" && (
+          <div>
+            <div className="flex items-center justify-between mb-5">
+              <h1
+                className="text-xl font-semibold"
+                style={{ color: "var(--text-primary)" }}
+              >
+                Templates
+              </h1>
+              <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+                Start from a pre-built workflow
+              </p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {TEMPLATES.map((t) => (
+                <motion.div
+                  key={t.id}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="rounded-2xl border p-5 transition-all hover:border-indigo-500/30 group"
+                  style={{
+                    background: "var(--bg-card)",
+                    borderColor: "var(--border-subtle)",
+                  }}
+                >
+                  <div className="flex items-center gap-3 mb-3">
                     <span className="text-2xl">{t.icon}</span>
                     <div>
                       <h3
@@ -1126,7 +1055,7 @@ export default function DashboardPage() {
                     {t.nodes.map((n, i) => (
                       <span
                         key={i}
-                        className="px-2 py-0.5 rounded text-[10px] font-medium"
+                        className="px-2 py-0.5 rounded-full text-[10px] font-medium"
                         style={{
                           background: "var(--bg-elevated)",
                           color: "var(--text-muted)",
@@ -1138,21 +1067,29 @@ export default function DashboardPage() {
                   </div>
                   <button
                     onClick={() => importTemplate(t)}
-                    className="w-full flex items-center justify-center space-x-1.5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium transition-colors"
+                    className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition-colors"
                   >
-                    <span>Use Template</span>
+                    Use Template
                     <ArrowRight className="w-3 h-3" />
                   </button>
                 </motion.div>
               ))}
             </div>
-          )}
+          </div>
+        )}
 
-          {/* ──── Settings Tab ──── */}
-          {activeTab === "settings" && (
-            <div className="max-w-lg space-y-6">
+        {/* ──── Settings Tab ──── */}
+        {activeTab === "settings" && (
+          <div className="max-w-lg">
+            <h1
+              className="text-xl font-semibold mb-6"
+              style={{ color: "var(--text-primary)" }}
+            >
+              Settings
+            </h1>
+            <div className="space-y-4">
               <div
-                className="rounded-xl border p-5"
+                className="rounded-2xl border p-5"
                 style={{
                   background: "var(--bg-card)",
                   borderColor: "var(--border-subtle)",
@@ -1162,124 +1099,94 @@ export default function DashboardPage() {
                   className="text-sm font-semibold mb-4"
                   style={{ color: "var(--text-primary)" }}
                 >
-                  API Configuration
+                  Appearance
                 </h3>
-                <div className="space-y-4">
-                  <div>
-                    <label
-                      className="text-xs font-medium flex items-center space-x-1.5 mb-1.5"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      <Key className="w-3.5 h-3.5" />
-                      <span>OpenAI API Key</span>
-                    </label>
-                    <input
-                      type="password"
-                      value={apiKey}
-                      onChange={(e) => setApiKey(e.target.value)}
-                      placeholder="sk-..."
-                      className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
-                      style={{
-                        background: "var(--input-bg)",
-                        border: "1px solid var(--input-border)",
-                        color: "var(--text-primary)",
-                      }}
-                    />
-                    <p
-                      className="text-[10px] mt-1"
-                      style={{ color: "var(--text-muted)" }}
-                    >
-                      Used for AI workflow generation and agent execution
-                    </p>
-                  </div>
-                  <div>
-                    <label
-                      className="text-xs font-medium flex items-center space-x-1.5 mb-1.5"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      <Zap className="w-3.5 h-3.5" />
-                      <span>Webhook Base URL</span>
-                    </label>
-                    <input
-                      value={webhookUrl}
-                      onChange={(e) => setWebhookUrl(e.target.value)}
-                      placeholder="https://hooks.your-domain.com"
-                      className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
-                      style={{
-                        background: "var(--input-bg)",
-                        border: "1px solid var(--input-border)",
-                        color: "var(--text-primary)",
-                      }}
-                    />
-                    <p
-                      className="text-[10px] mt-1"
-                      style={{ color: "var(--text-muted)" }}
-                    >
-                      Base URL for webhook triggers
-                    </p>
-                  </div>
+                <div className="flex items-center gap-3">
                   <button
-                    onClick={saveSettings}
-                    className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                    onClick={() => theme !== "light" && toggleTheme()}
+                    className="flex-1 flex flex-col items-center py-4 rounded-xl border text-sm font-medium transition-all"
+                    style={{
+                      borderColor:
+                        theme === "light"
+                          ? "#6366f1"
+                          : "var(--border-subtle)",
+                      background:
+                        theme === "light"
+                          ? "rgba(99,102,241,0.05)"
+                          : "transparent",
+                      color: "var(--text-primary)",
+                    }}
                   >
-                    <span>{settingsSaved ? "Saved" : "Save Settings"}</span>
+                    <Sun className="w-5 h-5 mb-2" />
+                    Light
+                  </button>
+                  <button
+                    onClick={() => theme !== "dark" && toggleTheme()}
+                    className="flex-1 flex flex-col items-center py-4 rounded-xl border text-sm font-medium transition-all"
+                    style={{
+                      borderColor:
+                        theme === "dark" ? "#6366f1" : "var(--border-subtle)",
+                      background:
+                        theme === "dark"
+                          ? "rgba(99,102,241,0.05)"
+                          : "transparent",
+                      color: "var(--text-primary)",
+                    }}
+                  >
+                    <Moon className="w-5 h-5 mb-2" />
+                    Dark
                   </button>
                 </div>
               </div>
 
               <div
-                className="rounded-xl border p-5"
+                className="rounded-2xl border p-5"
                 style={{
                   background: "var(--bg-card)",
                   borderColor: "var(--border-subtle)",
                 }}
               >
                 <h3
-                  className="text-sm font-semibold mb-3"
+                  className="text-sm font-semibold mb-1"
                   style={{ color: "var(--text-primary)" }}
                 >
-                  Appearance
+                  Account
                 </h3>
-                <div className="flex items-center space-x-3">
-                  <button
-                    onClick={() => theme !== "light" && toggleTheme()}
-                    className={`flex-1 py-3 rounded-lg border text-sm font-medium transition-all ${theme === "light" ? "border-indigo-500 bg-indigo-500/5" : ""}`}
-                    style={{
-                      borderColor:
-                        theme === "light" ? "#6366f1" : "var(--border-subtle)",
-                      color: "var(--text-primary)",
-                    }}
-                  >
-                    <Sun className="w-4 h-4 mx-auto mb-1" />
-                    Light
-                  </button>
-                  <button
-                    onClick={() => theme !== "dark" && toggleTheme()}
-                    className={`flex-1 py-3 rounded-lg border text-sm font-medium transition-all ${theme === "dark" ? "border-indigo-500 bg-indigo-500/5" : ""}`}
-                    style={{
-                      borderColor:
-                        theme === "dark" ? "#6366f1" : "var(--border-subtle)",
-                      color: "var(--text-primary)",
-                    }}
-                  >
-                    <Moon className="w-4 h-4 mx-auto mb-1" />
-                    Dark
-                  </button>
-                </div>
+                <p
+                  className="text-xs mb-4"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  {typeof window !== "undefined"
+                    ? JSON.parse(
+                        localStorage.getItem("user") || '{"email":"dev@agentflow.ai"}',
+                      ).email
+                    : "dev@agentflow.ai"}
+                </p>
+                <button
+                  onClick={() => {
+                    localStorage.clear();
+                    router.push("/login");
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium transition-colors hover:border-red-500/30 hover:text-red-400"
+                  style={{
+                    borderColor: "var(--border-subtle)",
+                    color: "var(--text-secondary)",
+                  }}
+                >
+                  <LogOut className="w-4 h-4" />
+                  Sign Out
+                </button>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </main>
 
-      {/* Create Workspace Modal */}
       {showCreateWs && (
         <CreateWorkspaceModal
           open={showCreateWs}
           onOpenChange={setShowCreateWs}
-          onSuccess={() => {
-            refreshWorkspaces();
-          }}
+          onSuccess={() => refreshWorkspaces()}
         />
       )}
     </div>

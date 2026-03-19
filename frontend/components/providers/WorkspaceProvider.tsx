@@ -8,7 +8,11 @@ import {
   useCallback,
   type ReactNode,
 } from "react";
+import axios from "axios";
+import { BACKEND_URL } from "@/app/config";
 import { workspaceApi, type Workspace, ensureDevToken } from "@/lib/api";
+
+const IS_DEV = process.env.NEXT_PUBLIC_DEV_MODE === "true";
 
 interface WorkspaceContextType {
   workspaces: Workspace[];
@@ -42,7 +46,19 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     try {
       setError(null);
       ensureDevToken();
-      const list = await workspaceApi.listWorkspaces();
+
+      let list = await workspaceApi.listWorkspaces();
+
+      // In dev mode, if no workspaces exist, trigger bootstrap to create Personal workspace
+      if (list.length === 0 && IS_DEV) {
+        try {
+          await axios.get(`${BACKEND_URL}/api/v1/user/dev-bootstrap`);
+          list = await workspaceApi.listWorkspaces();
+        } catch {
+          // bootstrap failed, continue with empty list
+        }
+      }
+
       setWorkspaces(list);
 
       if (list.length > 0) {

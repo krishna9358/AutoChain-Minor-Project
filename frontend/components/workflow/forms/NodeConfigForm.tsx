@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   Type,
   AlignLeft as TextareaIcon,
@@ -11,11 +11,14 @@ import {
   HelpCircle,
   Plus,
   X,
+  Eye,
+  EyeOff,
+  Code,
+  List,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ComponentConfigField } from "../config/componentCatalog";
 
-// NodeConfigForm component for rendering node-specific configuration fields
 interface NodeConfigFormProps {
   nodeType: string;
   config: Record<string, any>;
@@ -50,17 +53,18 @@ export const NodeConfigForm: React.FC<NodeConfigFormProps> = ({
   const FieldIcon: Record<string, React.ElementType> = {
     text: Type,
     textarea: TextareaIcon,
-    select: Hash,
-    number: Type,
+    select: List,
+    number: Hash,
     boolean: ToggleLeft,
     password: Lock,
-    json: Type,
-    "api-key": Lock,
+    json: Code,
     email: Mail,
     url: Globe,
     "multi-select": Hash,
-    code: Type,
   };
+
+  const inputBaseClass =
+    "w-full px-3 py-2 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/40 transition-all";
 
   return (
     <div className="space-y-4">
@@ -73,22 +77,17 @@ export const NodeConfigForm: React.FC<NodeConfigFormProps> = ({
           <div key={field.key} className="space-y-1.5">
             <label className="flex items-center justify-between">
               <span
-                className="text-xs font-medium flex items-center space-x-1.5"
+                className="text-[11px] font-semibold flex items-center gap-1.5"
                 style={{ color: "var(--text-secondary)" }}
               >
-                <Icon className="w-3 h-3" />
+                <Icon className="w-3 h-3 opacity-60" />
                 <span>
                   {field.label}
                   {field.required && (
-                    <span className="text-red-500 ml-1">*</span>
+                    <span className="text-red-400 ml-0.5">*</span>
                   )}
                 </span>
               </span>
-              {field.description && (
-                <span title={field.description}>
-                  <HelpCircle className="w-3 h-3 opacity-50 cursor-help" />
-                </span>
-              )}
             </label>
 
             {field.type === "text" && (
@@ -96,13 +95,11 @@ export const NodeConfigForm: React.FC<NodeConfigFormProps> = ({
                 type="text"
                 value={value}
                 onChange={(e) => updateConfig(field.key, e.target.value)}
+                onKeyDown={(e) => e.stopPropagation()}
                 placeholder={field.placeholder}
-                className={cn(
-                  "w-full px-2.5 py-1.5 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all",
-                  isEmpty && "placeholder:opacity-40",
-                )}
+                className={cn(inputBaseClass, isEmpty && "placeholder:opacity-40")}
                 style={{
-                  background: "var(--input-bg)",
+                  background: "var(--input-bg, rgba(0,0,0,0.15))",
                   border: `1px solid ${isEmpty ? "var(--border-subtle)" : "var(--border-medium)"}`,
                   color: "var(--text-primary)",
                 }}
@@ -113,14 +110,16 @@ export const NodeConfigForm: React.FC<NodeConfigFormProps> = ({
               <textarea
                 value={value}
                 onChange={(e) => updateConfig(field.key, e.target.value)}
+                onKeyDown={(e) => e.stopPropagation()}
                 placeholder={field.placeholder}
                 rows={field.rows || 3}
                 className={cn(
-                  "w-full px-2.5 py-1.5 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500/50 resize-none transition-all",
+                  inputBaseClass,
+                  "resize-none leading-relaxed",
                   isEmpty && "placeholder:opacity-40",
                 )}
                 style={{
-                  background: "var(--input-bg)",
+                  background: "var(--input-bg, rgba(0,0,0,0.15))",
                   border: `1px solid ${isEmpty ? "var(--border-subtle)" : "var(--border-medium)"}`,
                   color: "var(--text-primary)",
                 }}
@@ -130,64 +129,50 @@ export const NodeConfigForm: React.FC<NodeConfigFormProps> = ({
             {field.type === "number" && (
               <input
                 type="number"
-                value={value}
-                onChange={(e) =>
-                  updateConfig(field.key, parseFloat(e.target.value))
-                }
+                value={value === "" || value === undefined ? "" : value}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  if (raw === "") {
+                    updateConfig(field.key, "");
+                  } else {
+                    const num = parseFloat(raw);
+                    if (!isNaN(num)) updateConfig(field.key, num);
+                  }
+                }}
+                onKeyDown={(e) => e.stopPropagation()}
                 placeholder={field.placeholder}
                 min={field.min}
                 max={field.max}
-                className={cn(
-                  "w-full px-2.5 py-1.5 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all",
-                  isEmpty && "placeholder:opacity-40",
-                )}
+                step={field.max && field.max <= 2 ? 0.1 : 1}
+                className={cn(inputBaseClass, isEmpty && "placeholder:opacity-40")}
                 style={{
-                  background: "var(--input-bg)",
+                  background: "var(--input-bg, rgba(0,0,0,0.15))",
                   border: `1px solid ${isEmpty ? "var(--border-subtle)" : "var(--border-medium)"}`,
                   color: "var(--text-primary)",
                 }}
               />
             )}
 
-            {field.type === "password" ||
-              ((field.type as string) === "api-key" && (
-                <div className="relative">
-                  <input
-                    type="password"
-                    value={value}
-                    onChange={(e) => updateConfig(field.key, e.target.value)}
-                    placeholder={field.placeholder}
-                    className={cn(
-                      "w-full px-2.5 py-1.5 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all pr-8",
-                      isEmpty && "placeholder:opacity-40",
-                    )}
-                    style={{
-                      background: "var(--input-bg)",
-                      border: `1px solid ${isEmpty ? "var(--border-subtle)" : "var(--border-medium)"}`,
-                      color: "var(--text-primary)",
-                    }}
-                  />
-                  {!isEmpty && (
-                    <Lock
-                      className="w-3 h-3 absolute right-2.5 top-1/2 -translate-y-1/2"
-                      style={{ color: "var(--text-muted)" }}
-                    />
-                  )}
-                </div>
-              ))}
+            {(field.type === "password") && (
+              <PasswordField
+                value={value}
+                onChange={(v) => updateConfig(field.key, v)}
+                placeholder={field.placeholder}
+                inputBaseClass={inputBaseClass}
+                isEmpty={isEmpty}
+              />
+            )}
 
             {field.type === "email" && (
               <input
                 type="email"
                 value={value}
                 onChange={(e) => updateConfig(field.key, e.target.value)}
+                onKeyDown={(e) => e.stopPropagation()}
                 placeholder={field.placeholder}
-                className={cn(
-                  "w-full px-2.5 py-1.5 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all",
-                  isEmpty && "placeholder:opacity-40",
-                )}
+                className={cn(inputBaseClass, isEmpty && "placeholder:opacity-40")}
                 style={{
-                  background: "var(--input-bg)",
+                  background: "var(--input-bg, rgba(0,0,0,0.15))",
                   border: `1px solid ${isEmpty ? "var(--border-subtle)" : "var(--border-medium)"}`,
                   color: "var(--text-primary)",
                 }}
@@ -199,13 +184,11 @@ export const NodeConfigForm: React.FC<NodeConfigFormProps> = ({
                 type="url"
                 value={value}
                 onChange={(e) => updateConfig(field.key, e.target.value)}
+                onKeyDown={(e) => e.stopPropagation()}
                 placeholder={field.placeholder}
-                className={cn(
-                  "w-full px-2.5 py-1.5 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all",
-                  isEmpty && "placeholder:opacity-40",
-                )}
+                className={cn(inputBaseClass, isEmpty && "placeholder:opacity-40")}
                 style={{
-                  background: "var(--input-bg)",
+                  background: "var(--input-bg, rgba(0,0,0,0.15))",
                   border: `1px solid ${isEmpty ? "var(--border-subtle)" : "var(--border-medium)"}`,
                   color: "var(--text-primary)",
                 }}
@@ -217,9 +200,9 @@ export const NodeConfigForm: React.FC<NodeConfigFormProps> = ({
                 <select
                   value={value}
                   onChange={(e) => updateConfig(field.key, e.target.value)}
-                  className="w-full px-2.5 py-1.5 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500/50 appearance-none cursor-pointer transition-all"
+                  className={cn(inputBaseClass, "appearance-none cursor-pointer pr-8")}
                   style={{
-                    background: "var(--input-bg)",
+                    background: "var(--input-bg, rgba(0,0,0,0.15))",
                     border: "1px solid var(--border-medium)",
                     color: "var(--text-primary)",
                   }}
@@ -239,47 +222,38 @@ export const NodeConfigForm: React.FC<NodeConfigFormProps> = ({
 
             {field.type === "boolean" && (
               <button
+                type="button"
                 onClick={() => updateConfig(field.key, !value)}
                 className={cn(
-                  "w-full px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center justify-center space-x-2 border",
+                  "w-full px-3 py-2 rounded-lg text-xs font-medium transition-all flex items-center justify-between border",
                   value
-                    ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
-                    : "bg-transparent border-gray-300 text-gray-500 hover:border-gray-400",
+                    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                    : "border-gray-600 text-gray-400 hover:border-gray-500",
                 )}
               >
+                <span>{value ? "Enabled" : "Disabled"}</span>
                 <div
                   className={cn(
-                    "w-2 h-2 rounded-full",
-                    value ? "bg-emerald-500" : "bg-gray-300",
+                    "w-8 h-4 rounded-full relative transition-colors",
+                    value ? "bg-emerald-500" : "bg-gray-600",
                   )}
-                />
-                <span>{value ? "Enabled" : "Disabled"}</span>
+                >
+                  <div
+                    className={cn(
+                      "w-3 h-3 rounded-full bg-white absolute top-0.5 transition-all",
+                      value ? "left-[18px]" : "left-[2px]",
+                    )}
+                  />
+                </div>
               </button>
             )}
 
             {field.type === "json" && (
-              <textarea
-                value={
-                  typeof value === "object"
-                    ? JSON.stringify(value, null, 2)
-                    : value
-                }
-                onChange={(e) => {
-                  try {
-                    const parsed = JSON.parse(e.target.value);
-                    updateConfig(field.key, parsed);
-                  } catch {
-                    updateConfig(field.key, e.target.value);
-                  }
-                }}
+              <JsonEditor
+                value={value}
+                onChange={(v) => updateConfig(field.key, v)}
                 placeholder={field.placeholder}
                 rows={field.rows || 4}
-                className="w-full px-2.5 py-1.5 rounded-lg text-xs font-mono focus:outline-none focus:ring-1 focus:ring-indigo-500/50 resize-none transition-all"
-                style={{
-                  background: "var(--code-bg)",
-                  border: "1px solid var(--border-subtle)",
-                  color: "var(--text-secondary)",
-                }}
               />
             )}
 
@@ -294,11 +268,10 @@ export const NodeConfigForm: React.FC<NodeConfigFormProps> = ({
 
             {field.description && (
               <p
-                className="text-[10px] mt-1 flex items-start space-x-1"
+                className="text-[10px] leading-relaxed"
                 style={{ color: "var(--text-muted)" }}
               >
-                <HelpCircle className="w-3 h-3 mt-0.5 shrink-0 opacity-50" />
-                <span>{field.description}</span>
+                {field.description}
               </p>
             )}
           </div>
@@ -308,7 +281,130 @@ export const NodeConfigForm: React.FC<NodeConfigFormProps> = ({
   );
 };
 
-// MultiSelect component for selecting multiple options
+function PasswordField({
+  value,
+  onChange,
+  placeholder,
+  inputBaseClass,
+  isEmpty,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  inputBaseClass: string;
+  isEmpty: boolean;
+}) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <div className="relative">
+      <input
+        type={visible ? "text" : "password"}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => e.stopPropagation()}
+        placeholder={placeholder}
+        className={cn(inputBaseClass, "pr-9", isEmpty && "placeholder:opacity-40")}
+        style={{
+          background: "var(--input-bg, rgba(0,0,0,0.15))",
+          border: `1px solid ${isEmpty ? "var(--border-subtle)" : "var(--border-medium)"}`,
+          color: "var(--text-primary)",
+        }}
+      />
+      <button
+        type="button"
+        onClick={() => setVisible(!visible)}
+        className="absolute right-2.5 top-1/2 -translate-y-1/2 opacity-50 hover:opacity-100 transition-opacity"
+      >
+        {visible ? (
+          <EyeOff className="w-3.5 h-3.5" style={{ color: "var(--text-muted)" }} />
+        ) : (
+          <Eye className="w-3.5 h-3.5" style={{ color: "var(--text-muted)" }} />
+        )}
+      </button>
+    </div>
+  );
+}
+
+function JsonEditor({
+  value,
+  onChange,
+  placeholder,
+  rows,
+}: {
+  value: any;
+  onChange: (v: any) => void;
+  placeholder?: string;
+  rows: number;
+}) {
+  const [raw, setRaw] = useState(() =>
+    typeof value === "object" ? JSON.stringify(value, null, 2) : String(value ?? ""),
+  );
+  const [hasError, setHasError] = useState(false);
+  const commitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const serialized = typeof value === "object" ? JSON.stringify(value, null, 2) : String(value ?? "");
+    if (serialized !== raw && !document.activeElement?.closest("[data-json-editor]")) {
+      setRaw(serialized);
+      setHasError(false);
+    }
+  }, [value]);
+
+  const handleChange = (text: string) => {
+    setRaw(text);
+    if (commitTimer.current) clearTimeout(commitTimer.current);
+    commitTimer.current = setTimeout(() => {
+      try {
+        const parsed = JSON.parse(text);
+        onChange(parsed);
+        setHasError(false);
+      } catch {
+        setHasError(true);
+      }
+    }, 600);
+  };
+
+  const handleBlur = () => {
+    if (commitTimer.current) clearTimeout(commitTimer.current);
+    try {
+      const parsed = JSON.parse(raw);
+      onChange(parsed);
+      setRaw(JSON.stringify(parsed, null, 2));
+      setHasError(false);
+    } catch {
+      setHasError(true);
+    }
+  };
+
+  return (
+    <div data-json-editor>
+      <textarea
+        value={raw}
+        onChange={(e) => handleChange(e.target.value)}
+        onBlur={handleBlur}
+        onKeyDown={(e) => e.stopPropagation()}
+        placeholder={placeholder}
+        rows={rows}
+        spellCheck={false}
+        className={cn(
+          "w-full px-3 py-2 rounded-lg text-xs font-mono focus:outline-none focus:ring-2 transition-all resize-none leading-relaxed",
+          hasError
+            ? "focus:ring-red-500/40 border-red-500/50"
+            : "focus:ring-indigo-500/40",
+        )}
+        style={{
+          background: "var(--code-bg, rgba(0,0,0,0.2))",
+          border: `1px solid ${hasError ? "rgba(239,68,68,0.4)" : "var(--border-subtle)"}`,
+          color: "var(--text-secondary)",
+        }}
+      />
+      {hasError && (
+        <p className="text-[10px] text-red-400 mt-1">Invalid JSON — will be saved on valid edit</p>
+      )}
+    </div>
+  );
+}
+
 interface MultiSelectProps {
   value: string[];
   onChange: (value: string[]) => void;
@@ -324,6 +420,17 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const filteredOptions = options.filter(
     (option) =>
@@ -349,12 +456,12 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
   };
 
   return (
-    <div className="relative">
+    <div className="relative" ref={ref}>
       <div
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-2.5 py-1.5 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500/50 cursor-pointer min-h-[36px] transition-all flex flex-wrap gap-1.5 items-center"
+        className="w-full px-3 py-2 rounded-lg text-xs cursor-pointer min-h-[36px] transition-all flex flex-wrap gap-1.5 items-center"
         style={{
-          background: "var(--input-bg)",
+          background: "var(--input-bg, rgba(0,0,0,0.15))",
           border:
             value.length > 0
               ? "1px solid var(--border-medium)"
@@ -368,7 +475,7 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
           selectedOptions.map((option) => (
             <span
               key={option.value}
-              className="flex items-center space-x-1 px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors hover:bg-opacity-80"
+              className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium"
               style={{
                 background: "var(--bg-elevated)",
                 color: "var(--text-secondary)",
@@ -377,7 +484,7 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
               onClick={(e) => handleRemove(option.value, e)}
             >
               <span>{option.label}</span>
-              <X className="w-3 h-3 hover:text-red-500" />
+              <X className="w-2.5 h-2.5 hover:text-red-400" />
             </span>
           ))
         )}
@@ -392,7 +499,7 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
 
       {isOpen && (
         <div
-          className="absolute z-10 w-full mt-1 rounded-lg border shadow-xl overflow-hidden max-h-48 overflow-y-auto"
+          className="absolute z-50 w-full mt-1 rounded-lg border shadow-xl overflow-hidden max-h-48 overflow-y-auto"
           style={{
             background: "var(--bg-card)",
             borderColor: "var(--border-subtle)",
@@ -400,11 +507,11 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
         >
           <input
             type="text"
-            placeholder="Search options..."
+            placeholder="Search..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             onClick={(e) => e.stopPropagation()}
-            className="w-full px-2.5 py-1.5 text-xs border-b focus:outline-none"
+            className="w-full px-3 py-2 text-xs border-b focus:outline-none"
             style={{
               background: "var(--bg-hover)",
               borderColor: "var(--border-subtle)",
@@ -417,25 +524,20 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
               return (
                 <button
                   key={option.value}
+                  type="button"
                   onClick={() => handleSelect(option.value)}
-                  className={cn(
-                    "w-full px-2.5 py-1.5 text-left text-xs flex items-center justify-between transition-colors",
-                    "hover:bg-opacity-50",
-                  )}
+                  className="w-full px-3 py-2 text-left text-xs flex items-center justify-between transition-colors hover:bg-white/5"
                   style={{
                     color: "var(--text-primary)",
                     background: isSelected
-                      ? "rgba(99,102,241,0.05)"
+                      ? "rgba(99,102,241,0.08)"
                       : "transparent",
                   }}
                 >
                   <span>{option.label}</span>
                   {isSelected && (
-                    <div
-                      className="w-4 h-4 rounded flex items-center justify-center"
-                      style={{ background: "rgba(16,185,129,0.1)" }}
-                    >
-                      <Plus className="w-3 h-3 text-emerald-500" />
+                    <div className="w-4 h-4 rounded bg-indigo-500/20 flex items-center justify-center">
+                      <Plus className="w-2.5 h-2.5 text-indigo-400 rotate-45" />
                     </div>
                   )}
                 </button>
@@ -443,7 +545,7 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
             })}
             {filteredOptions.length === 0 && (
               <div
-                className="px-2.5 py-3 text-xs text-center"
+                className="px-3 py-3 text-xs text-center"
                 style={{ color: "var(--text-muted)" }}
               >
                 No options found
