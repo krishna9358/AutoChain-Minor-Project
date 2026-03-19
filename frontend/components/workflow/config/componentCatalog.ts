@@ -40,6 +40,8 @@ export interface ComponentConfigField {
   max?: number;
   rows?: number;
   options?: ComponentOption[];
+  /** Show this field only when another field has a specific value */
+  showWhen?: { field: string; value: string | string[] };
 }
 
 export interface ComponentDefinition {

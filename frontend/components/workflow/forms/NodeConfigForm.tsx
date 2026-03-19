@@ -69,9 +69,19 @@ export const NodeConfigForm: React.FC<NodeConfigFormProps> = ({
   const inputBaseClass =
     "w-full px-3 py-2 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/40 transition-all";
 
+  // Filter fields based on showWhen conditions
+  const visibleFields = fields.filter((field) => {
+    if (!field.showWhen) return true;
+    const depValue = config[field.showWhen.field] ?? "";
+    if (Array.isArray(field.showWhen.value)) {
+      return field.showWhen.value.includes(depValue);
+    }
+    return depValue === field.showWhen.value;
+  });
+
   return (
     <div className="space-y-4">
-      {fields.map((field) => {
+      {visibleFields.map((field) => {
         const Icon = FieldIcon[field.type] || Type;
         const value = config[field.key] ?? field.defaultValue ?? "";
         const isEmpty = value === "" || value === undefined || value === null;
