@@ -17,9 +17,11 @@ export type ConfigFieldType =
   | "select"
   | "json"
   | "password"
+  | "api-key"
   | "url"
   | "email"
-  | "multi-select";
+  | "multi-select"
+  | "code";
 
 export interface ComponentOption {
   label: string;

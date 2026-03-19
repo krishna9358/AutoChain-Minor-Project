@@ -3,7 +3,6 @@ import {
   ValidationNode,
   NodeExecutionContext,
 } from "../../types/nodes";
-import { getConnectionManager } from "../../connections/manager";
 import OpenAI from "openai";
 
 /**
@@ -40,7 +39,7 @@ export class ValidationNodeExecutor extends BaseNodeExecutor {
 
     // Handle validation failure based on configuration
     if (!validationPassed) {
-      await this.handleValidationFailure(node, context, result);
+      await this.handleValidationFailure(node, context, validationResult);
     }
 
     return {
@@ -48,14 +47,14 @@ export class ValidationNodeExecutor extends BaseNodeExecutor {
       passed: validationPassed,
       confidence: confidence,
       meets_threshold: meetsThreshold,
-      validation_result: result,
+      validation_result: validationResult,
       rules: resolvedRules,
       on_fail: node.on_fail,
       fallback_node: node.fallback_node,
       error_message: node.error_message,
       metadata: {
         threshold: node.confidence_threshold,
-        validation_time_ms: result.duration_ms || 0,
+        validation_time_ms: validationResult.duration_ms || 0,
         strategy: node.validation_type,
       },
     };
@@ -65,18 +64,20 @@ export class ValidationNodeExecutor extends BaseNodeExecutor {
    * Perform validation based on type
    */
   private async performValidation(
-    node: ValidationNode,
-      private async validateWithCustom(
-      rules: any,
-      context: NodeExecutionContext
-    ): Promise<{
-      passed: boolean;
-      confidence: number;
-      duration_ms: number;
-      details: any;
-      errors: string[];
-    }> {
-      const startTime = Date.now();
+    validationType: string,
+    rules: any,
+    schema: any,
+    aiConfig: any,
+    context: NodeExecutionContext,
+    confidenceThreshold: number
+  ): Promise<{
+    passed: boolean;
+    confidence: number;
+    duration_ms: number;
+    details: any;
+    errors: string[];
+  }> {
+    const startTime = Date.now();
 
     try {
       switch (validationType) {
@@ -145,7 +146,7 @@ export class ValidationNodeExecutor extends BaseNodeExecutor {
           );
 
           if (!typeValidation.valid) {
-            errors.push(typeValidation.error);
+            errors.push(typeValidation.error!);
           }
         } else if (
           schemaToValidate.required &&
@@ -423,7 +424,6 @@ ${JSON.stringify(data, null, 2)}`;
     const errors: string[] = [];
 
     // Custom validation can be implemented as JavaScript functions
-    // For now, we'll support expression-based validation
     if (typeof rules === 'string') {
       try {
         const scope = {
@@ -499,7 +499,7 @@ ${JSON.stringify(data, null, 2)}`;
   private async handleValidationFailure(
     node: ValidationNode,
     context: NodeExecutionContext,
-    result: any
+    validationResult: any
   ): Promise<void> {
     const errorMessage = node.error_message ||
       `Validation failed for ${node.validation_type}. Errors: ${validationResult.errors.join(', ')}`;
@@ -513,19 +513,15 @@ ${JSON.stringify(data, null, 2)}`;
         throw new Error(errorMessage);
 
       case 'retry':
-        // Retry logic should be handled by the retry policy in BaseNodeExecutor
         throw new Error(errorMessage);
 
       case 'continue':
-        // Allow workflow to continue but log the failure
         console.warn(`Validation failed but continuing: ${errorMessage}`);
         break;
 
       case 'fallback':
-        // Execute fallback node if specified
         if (node.fallback_node) {
           console.log(`Executing fallback node: ${node.fallback_node}`);
-          // In a real implementation, this would trigger the fallback node
         }
         break;
     }

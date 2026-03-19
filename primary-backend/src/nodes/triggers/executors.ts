@@ -150,7 +150,7 @@ export class EventTriggerExecutor extends BaseNodeExecutor {
     const connection = await connectionManager.getConnectionForExecution(
       node.connection_id,
       context.user_context?.user_id || "system",
-      context.user_context?.role || "admin",
+      context.user_context?.role as any || "admin",
     );
 
     if (!connection) {
@@ -362,7 +362,7 @@ export class EventTriggerExecutor extends BaseNodeExecutor {
  * Handles time-based triggers using cron expressions
  */
 export class ScheduleTriggerExecutor extends BaseNodeExecutor {
-  private scheduledTasks: Map<string, cron.ScheduledTask> = new Map();
+  private scheduledTasks: Map<string, any> = new Map();
 
   protected async executeNode(
     node: ScheduleTrigger,

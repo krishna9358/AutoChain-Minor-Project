@@ -1,0 +1,200 @@
+// Real brand SVG logo components for workflow node icons
+
+export function SlackLogo({ className, style }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 54 54"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      {/* Slack hashtag-style logo with 4 colored bars */}
+      {/* Top-left: green bar going right, red bar going down */}
+      <rect x="0" y="20" width="16" height="7" rx="3.5" fill="#36C5F0" />
+      <rect x="0" y="7" width="7" height="16" rx="3.5" fill="#36C5F0" />
+      <rect x="7" y="0" width="7" height="16" rx="3.5" fill="#2EB67D" />
+
+      {/* Top-right: yellow */}
+      <rect x="20" y="0" width="7" height="16" rx="3.5" fill="#ECB22E" />
+      <rect x="27" y="7" width="16" height="7" rx="3.5" fill="#ECB22E" />
+
+      {/* Bottom-right: red */}
+      <rect x="27" y="27" width="16" height="7" rx="3.5" fill="#E01E5A" />
+      <rect x="34" y="27" width="7" height="16" rx="3.5" fill="#E01E5A" />
+
+      {/* Bottom-left: blue */}
+      <rect x="7" y="34" width="16" height="7" rx="3.5" fill="#36C5F0" />
+      <rect x="7" y="34" width="7" height="16" rx="3.5" fill="#2EB67D" />
+    </svg>
+  );
+}
+
+export function GmailLogo({ className, style }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      {/* Gmail envelope with M shape */}
+      <path
+        d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.910 1.528-1.145C21.69 2.28 24 3.434 24 5.457Z"
+        fill="#EA4335"
+      />
+      <path
+        d="M0 5.457v13.909c0 .904.732 1.636 1.636 1.636h3.819V11.73L12 16.64V9.548L5.455 4.64 3.927 3.493C2.309 2.28 0 3.434 0 5.457Z"
+        fill="#C5221F"
+      />
+    </svg>
+  );
+}
+
+export function NotionLogo({ className, style }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 100 100"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      {/* Notion N logo */}
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M6.017 4.313l55.333-4.087c6.797-.583 8.547-.194 12.818 2.914l17.665 12.496c2.914 2.139 3.884 2.72 3.884 5.05v68.414c0 4.475-1.652 7.098-7.393 7.486l-64.444 3.884c-4.282.194-6.321-.388-8.557-3.108L3.102 84.849C.868 81.945 0 79.806 0 77.28V11.412c0-3.497 1.556-6.41 6.017-7.1z"
+        fill="white"
+      />
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M61.35.227l-55.333 4.086C1.556 5.003 0 7.915 0 11.412V77.28c0 2.526.868 4.665 3.102 7.569l12.22 12.914c2.236 2.72 4.275 3.302 8.557 3.108l64.444-3.884c5.741-.388 7.393-3.01 7.393-7.486V24.686c0-2.24-.875-2.875-3.514-4.773L74.168 3.14C69.897.033 68.147-.357 61.35.227zM25.99 19.43c-4.075.293-5.002.36-7.319-1.55L12.16 13.202c-.582-.583-.291-1.262.97-1.456l53.39-3.884c4.475-.388 6.807 1.166 8.557 2.526l9.123 6.516c.389.194 1.359 1.36.098 1.36l-55.04 3.302-2.268-.136zM19.837 85.64V30.326c0-2.333.679-3.497 2.914-3.691l62.598-3.593c2.139-.194 3.011 1.166 3.011 3.497v54.927c0 2.333-.874 3.886-3.497 4.08l-61.141 3.594c-2.624.194-3.885-1.069-3.885-3.5zm59.6-52.304c.389 1.749 0 3.497-1.75 3.691l-2.912.582v42.826c-2.527 1.36-4.858 2.138-6.801 2.138-3.108 0-3.886-.97-6.22-3.886l-19.012-29.91v28.94l6.02 1.361s0 3.497-4.857 3.497l-13.386.776c-.39-.778 0-2.721 1.359-3.109l3.497-.972V38.62l-4.762-.388c-.389-1.75.582-4.276 3.303-4.47l14.354-.971 19.79 30.2V34.343l-5.05-.582c-.39-2.138 1.166-3.691 3.108-3.886l13.377-.777z"
+        fill="black"
+      />
+    </svg>
+  );
+}
+
+export function HubSpotLogo({ className, style }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      {/* HubSpot sprocket/gear icon */}
+      <path
+        d="M17.127 7.474A5.236 5.236 0 0 0 17.7 5.04V5a5 5 0 1 0-5 5 4.97 4.97 0 0 0 2.433-.634l2.45 2.45A3.5 3.5 0 1 0 19 14.5a3.48 3.48 0 0 0-1.627-2.95l-.011-.007 2.45-2.45a2.5 2.5 0 1 0-2.685-1.619zM12.7 5a2.7 2.7 0 1 1 2.7 2.7A2.7 2.7 0 0 1 12.7 5zM17.5 17.2A1.2 1.2 0 1 1 18.7 16a1.2 1.2 0 0 1-1.2 1.2zM7 8.5A1.5 1.5 0 1 1 8.5 7 1.5 1.5 0 0 1 7 8.5z"
+        fill="#FF7A59"
+      />
+      <circle cx="7" cy="17" r="4" fill="#FF7A59" opacity="0.3" />
+      <circle cx="7" cy="17" r="2" fill="#FF7A59" />
+    </svg>
+  );
+}
+
+export function SalesforceLogo({ className, style }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 101 70"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      {/* Salesforce cloud logo */}
+      <path
+        d="M41.9 9.5A18.5 18.5 0 0 1 56 3a18.7 18.7 0 0 1 16.7 10.3 14.6 14.6 0 0 1 5.9-1.2 14.7 14.7 0 0 1 14.7 14.7 14.7 14.7 0 0 1-14.7 14.7H23.4a13.7 13.7 0 0 1-13.7-13.7 13.7 13.7 0 0 1 13.7-13.7 13.6 13.6 0 0 1 5 .94A18.5 18.5 0 0 1 41.9 9.5z"
+        fill="#00A1E0"
+      />
+    </svg>
+  );
+}
+
+export function OpenAILogo({ className, style }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      {/* OpenAI hexagonal flower logo */}
+      <path
+        d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.985 5.985 0 0 0-3.998 2.9 6.046 6.046 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.997-2.9 6.056 6.056 0 0 0-.747-7.073zM13.26 22.43a4.476 4.476 0 0 1-2.876-1.04l.141-.081 4.779-2.758a.795.795 0 0 0 .392-.681v-6.737l2.02 1.168a.071.071 0 0 1 .038.052v5.583a4.504 4.504 0 0 1-4.494 4.494zM3.6 18.304a4.47 4.47 0 0 1-.535-3.014l.142.085 4.783 2.759a.77.77 0 0 0 .78 0l5.843-3.369v2.332a.08.08 0 0 1-.032.067L9.72 19.95a4.5 4.5 0 0 1-6.12-1.645zM2.34 7.896a4.485 4.485 0 0 1 2.366-1.973V11.6a.766.766 0 0 0 .388.676l5.815 3.355-2.02 1.168a.076.076 0 0 1-.071 0L4.006 14.3A4.502 4.502 0 0 1 2.34 7.896zm16.597 3.855l-5.843-3.376L15.114 7.2a.076.076 0 0 1 .071 0l4.816 2.806a4.5 4.5 0 0 1-.692 8.112v-5.678a.79.79 0 0 0-.411-.69zm2.01-3.023l-.141-.085-4.774-2.782a.776.776 0 0 0-.785 0L9.409 9.23V6.897a.071.071 0 0 1 .028-.067l4.814-2.806a4.503 4.503 0 0 1 6.689 4.66zm-12.64 4.135l-2.02-1.164a.08.08 0 0 1-.038-.057V6.075a4.5 4.5 0 0 1 7.375-3.453l-.142.08-4.778 2.758a.795.795 0 0 0-.393.681zm1.097-2.365l2.602-1.5 2.607 1.5v2.999l-2.597 1.5-2.607-1.5z"
+        fill="black"
+      />
+    </svg>
+  );
+}
+
+export function GoogleLogo({ className, style }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      {/* Google G logo with 4 colors */}
+      <path
+        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+        fill="#4285F4"
+      />
+      <path
+        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+        fill="#34A853"
+      />
+      <path
+        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+        fill="#FBBC05"
+      />
+      <path
+        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+        fill="#EA4335"
+      />
+    </svg>
+  );
+}
+
+export function GitHubLogo({ className, style }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      {/* GitHub octocat silhouette */}
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0 0 22 12.017C22 6.484 17.522 2 12 2z"
+        fill="#181717"
+      />
+    </svg>
+  );
+}
+
+export function OpenRouterLogo({ className, style }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      {/* Router/network icon styled with OpenRouter brand color #6366f1 */}
+      <rect x="1" y="13" width="22" height="8" rx="2" stroke="#6366f1" strokeWidth="1.5" fill="none" />
+      <circle cx="6" cy="17" r="1" fill="#6366f1" />
+      <circle cx="10" cy="17" r="1" fill="#6366f1" />
+      <circle cx="14" cy="17" r="1" fill="#6366f1" />
+      <circle cx="18" cy="17" r="1" fill="#6366f1" />
+      <path d="M8 13V9" stroke="#6366f1" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M16 13V9" stroke="#6366f1" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M8 9H16" stroke="#6366f1" strokeWidth="1.5" strokeLinecap="round" />
+      <circle cx="8" cy="7" r="2" stroke="#6366f1" strokeWidth="1.5" fill="none" />
+      <circle cx="16" cy="7" r="2" stroke="#6366f1" strokeWidth="1.5" fill="none" />
+    </svg>
+  );
+}

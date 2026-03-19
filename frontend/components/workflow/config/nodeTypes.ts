@@ -20,6 +20,12 @@ import {
   Hourglass,
   CheckCircle2,
 } from "lucide-react";
+import {
+  SlackLogo,
+  GmailLogo,
+  NotionLogo,
+  HubSpotLogo,
+} from "../icons/ServiceLogos";
 
 export type NodeCategory =
   | "trigger"
@@ -32,7 +38,7 @@ export interface NodeTypeConfig {
   id: string;
   name: string;
   category: NodeCategory;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
   description: string;
   color: string;
   bgColor: string;
@@ -200,7 +206,7 @@ export const NODE_TYPES: Record<string, NodeTypeConfig> = {
     id: "slack",
     name: "Slack",
     category: "tool",
-    icon: MessageSquare,
+    icon: SlackLogo,
     description: "Send messages, create channels, manage teams",
     color: "#3b82f6",
     bgColor: "bg-blue-50",
@@ -212,7 +218,7 @@ export const NODE_TYPES: Record<string, NodeTypeConfig> = {
     id: "gmail",
     name: "Gmail",
     category: "tool",
-    icon: Mail,
+    icon: GmailLogo,
     description: "Send emails, manage labels, organize inbox",
     color: "#3b82f6",
     bgColor: "bg-blue-50",
@@ -224,7 +230,7 @@ export const NODE_TYPES: Record<string, NodeTypeConfig> = {
     id: "notion",
     name: "Notion",
     category: "tool",
-    icon: File,
+    icon: NotionLogo,
     description: "Create pages, databases, manage knowledge",
     color: "#3b82f6",
     bgColor: "bg-blue-50",
@@ -236,7 +242,7 @@ export const NODE_TYPES: Record<string, NodeTypeConfig> = {
     id: "crm",
     name: "CRM",
     category: "tool",
-    icon: Users,
+    icon: HubSpotLogo,
     description: "Manage contacts, deals, and customer data",
     color: "#3b82f6",
     bgColor: "bg-blue-50",
@@ -504,6 +510,27 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
   // Summarization Agent
   "summarization-agent": [
     {
+      key: "provider",
+      label: "AI Provider",
+      type: "select",
+      defaultValue: "openai",
+      required: true,
+      options: [
+        { value: "openai", label: "OpenAI" },
+        { value: "anthropic", label: "Anthropic" },
+        { value: "google", label: "Google AI" },
+        { value: "openrouter", label: "OpenRouter" },
+      ],
+    },
+    {
+      key: "apiKey",
+      label: "API Key",
+      type: "api-key",
+      placeholder: "sk-... or openrouter key",
+      required: true,
+      description: "Your OpenAI, Anthropic, or OpenRouter API key",
+    },
+    {
       key: "model",
       label: "AI Model",
       type: "select",
@@ -515,6 +542,10 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
         { value: "gpt-3.5-turbo", label: "GPT-3.5 Turbo" },
         { value: "claude-3-opus", label: "Claude 3 Opus" },
         { value: "claude-3-sonnet", label: "Claude 3 Sonnet" },
+        { value: "openrouter/auto", label: "OpenRouter Auto" },
+        { value: "openrouter/anthropic/claude-3.5-sonnet", label: "Claude 3.5 Sonnet (OpenRouter)" },
+        { value: "openrouter/google/gemini-pro", label: "Gemini Pro (OpenRouter)" },
+        { value: "openrouter/meta-llama/llama-3-70b", label: "Llama 3 70B (OpenRouter)" },
       ],
     },
     {
@@ -551,6 +582,27 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
   // Classification Agent
   "classification-agent": [
     {
+      key: "provider",
+      label: "AI Provider",
+      type: "select",
+      defaultValue: "openai",
+      required: true,
+      options: [
+        { value: "openai", label: "OpenAI" },
+        { value: "anthropic", label: "Anthropic" },
+        { value: "google", label: "Google AI" },
+        { value: "openrouter", label: "OpenRouter" },
+      ],
+    },
+    {
+      key: "apiKey",
+      label: "API Key",
+      type: "api-key",
+      placeholder: "sk-... or openrouter key",
+      required: true,
+      description: "Your OpenAI, Anthropic, or OpenRouter API key",
+    },
+    {
       key: "model",
       label: "AI Model",
       type: "select",
@@ -562,6 +614,10 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
         { value: "gpt-3.5-turbo", label: "GPT-3.5 Turbo" },
         { value: "claude-3-opus", label: "Claude 3 Opus" },
         { value: "claude-3-sonnet", label: "Claude 3 Sonnet" },
+        { value: "openrouter/auto", label: "OpenRouter Auto" },
+        { value: "openrouter/anthropic/claude-3.5-sonnet", label: "Claude 3.5 Sonnet (OpenRouter)" },
+        { value: "openrouter/google/gemini-pro", label: "Gemini Pro (OpenRouter)" },
+        { value: "openrouter/meta-llama/llama-3-70b", label: "Llama 3 70B (OpenRouter)" },
       ],
     },
     {
@@ -594,6 +650,27 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
   // Extraction Agent
   "extraction-agent": [
     {
+      key: "provider",
+      label: "AI Provider",
+      type: "select",
+      defaultValue: "openai",
+      required: true,
+      options: [
+        { value: "openai", label: "OpenAI" },
+        { value: "anthropic", label: "Anthropic" },
+        { value: "google", label: "Google AI" },
+        { value: "openrouter", label: "OpenRouter" },
+      ],
+    },
+    {
+      key: "apiKey",
+      label: "API Key",
+      type: "api-key",
+      placeholder: "sk-... or openrouter key",
+      required: true,
+      description: "Your OpenAI, Anthropic, or OpenRouter API key",
+    },
+    {
       key: "model",
       label: "AI Model",
       type: "select",
@@ -605,6 +682,10 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
         { value: "gpt-3.5-turbo", label: "GPT-3.5 Turbo" },
         { value: "claude-3-opus", label: "Claude 3 Opus" },
         { value: "claude-3-sonnet", label: "Claude 3 Sonnet" },
+        { value: "openrouter/auto", label: "OpenRouter Auto" },
+        { value: "openrouter/anthropic/claude-3.5-sonnet", label: "Claude 3.5 Sonnet (OpenRouter)" },
+        { value: "openrouter/google/gemini-pro", label: "Gemini Pro (OpenRouter)" },
+        { value: "openrouter/meta-llama/llama-3-70b", label: "Llama 3 70B (OpenRouter)" },
       ],
     },
     {
@@ -631,6 +712,27 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
   // Reasoning Agent
   "reasoning-agent": [
     {
+      key: "provider",
+      label: "AI Provider",
+      type: "select",
+      defaultValue: "openai",
+      required: true,
+      options: [
+        { value: "openai", label: "OpenAI" },
+        { value: "anthropic", label: "Anthropic" },
+        { value: "google", label: "Google AI" },
+        { value: "openrouter", label: "OpenRouter" },
+      ],
+    },
+    {
+      key: "apiKey",
+      label: "API Key",
+      type: "api-key",
+      placeholder: "sk-... or openrouter key",
+      required: true,
+      description: "Your OpenAI, Anthropic, or OpenRouter API key",
+    },
+    {
       key: "model",
       label: "AI Model",
       type: "select",
@@ -640,6 +742,10 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
         { value: "gpt-4", label: "GPT-4" },
         { value: "gpt-4-turbo", label: "GPT-4 Turbo" },
         { value: "claude-3-opus", label: "Claude 3 Opus" },
+        { value: "openrouter/auto", label: "OpenRouter Auto" },
+        { value: "openrouter/anthropic/claude-3.5-sonnet", label: "Claude 3.5 Sonnet (OpenRouter)" },
+        { value: "openrouter/google/gemini-pro", label: "Gemini Pro (OpenRouter)" },
+        { value: "openrouter/meta-llama/llama-3-70b", label: "Llama 3 70B (OpenRouter)" },
       ],
     },
     {
@@ -668,6 +774,27 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
   // Decision Agent
   "decision-agent": [
     {
+      key: "provider",
+      label: "AI Provider",
+      type: "select",
+      defaultValue: "openai",
+      required: true,
+      options: [
+        { value: "openai", label: "OpenAI" },
+        { value: "anthropic", label: "Anthropic" },
+        { value: "google", label: "Google AI" },
+        { value: "openrouter", label: "OpenRouter" },
+      ],
+    },
+    {
+      key: "apiKey",
+      label: "API Key",
+      type: "api-key",
+      placeholder: "sk-... or openrouter key",
+      required: true,
+      description: "Your OpenAI, Anthropic, or OpenRouter API key",
+    },
+    {
       key: "model",
       label: "AI Model",
       type: "select",
@@ -677,6 +804,10 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
         { value: "gpt-4", label: "GPT-4" },
         { value: "gpt-4-turbo", label: "GPT-4 Turbo" },
         { value: "claude-3-opus", label: "Claude 3 Opus" },
+        { value: "openrouter/auto", label: "OpenRouter Auto" },
+        { value: "openrouter/anthropic/claude-3.5-sonnet", label: "Claude 3.5 Sonnet (OpenRouter)" },
+        { value: "openrouter/google/gemini-pro", label: "Gemini Pro (OpenRouter)" },
+        { value: "openrouter/meta-llama/llama-3-70b", label: "Llama 3 70B (OpenRouter)" },
       ],
     },
     {
@@ -734,6 +865,42 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
 
   // Gmail
   gmail: [
+    {
+      key: "provider",
+      label: "Email Provider",
+      type: "select",
+      defaultValue: "gmail-api",
+      required: true,
+      options: [
+        { value: "gmail-api", label: "Gmail API" },
+        { value: "smtp", label: "SMTP" },
+        { value: "sendgrid", label: "SendGrid" },
+      ],
+      description: "Choose how to send emails",
+    },
+    {
+      key: "apiKey",
+      label: "API Key / OAuth Token",
+      type: "api-key",
+      placeholder: "Gmail OAuth token or SendGrid API key",
+      description: "Required for Gmail API and SendGrid providers",
+    },
+    {
+      key: "smtpHost",
+      label: "SMTP Host",
+      type: "text",
+      placeholder: "smtp.gmail.com",
+      description: "SMTP server hostname (required when using SMTP provider)",
+    },
+    {
+      key: "smtpPort",
+      label: "SMTP Port",
+      type: "number",
+      defaultValue: 587,
+      min: 1,
+      max: 65535,
+      description: "SMTP port (587 for TLS, 465 for SSL, 25 for plain)",
+    },
     {
       key: "to",
       label: "To",

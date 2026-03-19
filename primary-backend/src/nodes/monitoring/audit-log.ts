@@ -1,3 +1,14 @@
+import { promisify } from 'util';
+import * as zlib from 'zlib';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import { BaseNodeExecutor } from '../../execution/base-executor';
+import { AuditLogNode, NodeExecutionContext } from '../../types/nodes';
+import { getConnectionManager } from '../../connections/manager';
+import { getEncryptionManager } from '../../encryption/manager';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { Client } from '@elastic/elasticsearch';
+
 const gzip = promisify(zlib.gzip);
 
 /**
@@ -156,7 +167,7 @@ export class AuditLogNodeExecutor extends BaseNodeExecutor {
       workflow_id: context.workflow_id,
       execution_id: context.execution_id,
       triggered_by: context.user_context?.user_id,
-      trigger_type: context.trigger_type,
+      trigger_type: (context as any).trigger_type,
     };
 
     if (node.include.includes("inputs")) {
@@ -191,8 +202,8 @@ export class AuditLogNodeExecutor extends BaseNodeExecutor {
       workflow_id: context.workflow_id,
       execution_id: context.execution_id,
       triggered_by: context.user_context?.user_id,
-      trigger_type: context.trigger_type,
-      trigger_metadata: context.trigger_metadata,
+      trigger_type: (context as any).trigger_type,
+      trigger_metadata: (context as any).trigger_metadata,
       environment: context.environment,
       user_context: context.user_context,
     };
@@ -382,13 +393,13 @@ export class AuditLogNodeExecutor extends BaseNodeExecutor {
     const s3Client = new S3Client({
       region: connection.region || "us-east-1",
       credentials: {
-        accessKeyId: connection.credentials.access_key || process.env.AWS_KEY,
+        accessKeyId: (connection.credentials as any).access_key || process.env.AWS_KEY,
         secretAccessKey:
-          connection.credentials.secret_key || process.env.AWS_SECRET,
+          (connection.credentials as any).secret_key || process.env.AWS_SECRET,
       },
     });
 
-    const key = `audit-logs/${context.workflow_id}/${traceId}.${isCompressed ? "json.gz" : "json"}`;
+    const key = `audit-logs/${traceId}.${isCompressed ? "json.gz" : "json"}`;
     const body = Buffer.from(JSON.stringify(data));
 
     const command = new PutObjectCommand({
@@ -461,8 +472,8 @@ export class AuditLogNodeExecutor extends BaseNodeExecutor {
     const client = new Client({
       node: connection.base_url || "http://localhost:9200",
       auth: {
-        username: connection.credentials.username,
-        password: connection.credentials.password,
+        username: connection.credentials.username || '',
+        password: connection.credentials.password || '',
       },
     });
 
@@ -638,7 +649,7 @@ export class AuditLogNodeExecutor extends BaseNodeExecutor {
   private extractOutputs(previousResults: any): any {
     const outputs: any = {};
 
-    for (const [nodeId, result] of Object.entries(previousResults || {})) {
+    for (const [nodeId, result] of Object.entries(previousResults || {}) as [string, any][]) {
       outputs[nodeId] = {
         status: result.status,
         output: result.output,
@@ -656,7 +667,7 @@ export class AuditLogNodeExecutor extends BaseNodeExecutor {
   private extractErrors(previousResults: any): any[] {
     const errors: any[] = [];
 
-    for (const [nodeId, result] of Object.entries(previousResults || {})) {
+    for (const [nodeId, result] of Object.entries(previousResults || {}) as [string, any][]) {
       if (result.error) {
         errors.push({
           node_id: nodeId,
@@ -679,7 +690,7 @@ export class AuditLogNodeExecutor extends BaseNodeExecutor {
   private countErrors(previousResults: any): number {
     let count = 0;
 
-    for (const result of Object.values(previousResults || {})) {
+    for (const result of Object.values(previousResults || {}) as any[]) {
       if (result.error) {
         count++;
       }
@@ -694,7 +705,7 @@ export class AuditLogNodeExecutor extends BaseNodeExecutor {
   private extractAgentDecisions(previousResults: any): any[] {
     const decisions: any[] = [];
 
-    for (const [nodeId, result] of Object.entries(previousResults || {})) {
+    for (const [nodeId, result] of Object.entries(previousResults || {}) as [string, any][]) {
       if (result.output?.decisions) {
         decisions.push({
           node_id: nodeId,
@@ -715,7 +726,7 @@ export class AuditLogNodeExecutor extends BaseNodeExecutor {
   private extractToolCalls(previousResults: any): any[] {
     const toolCalls: any[] = [];
 
-    for (const [nodeId, result] of Object.entries(previousResults || {})) {
+    for (const [nodeId, result] of Object.entries(previousResults || {}) as [string, any][]) {
       if (result.output?.tool_calls) {
         toolCalls.push({
           node_id: nodeId,
@@ -742,7 +753,7 @@ export class AuditLogNodeExecutor extends BaseNodeExecutor {
 
     const nodeTimings: number[] = [];
 
-    for (const [nodeId, result] of Object.entries(previousResults || {})) {
+    for (const [nodeId, result] of Object.entries(previousResults || {}) as [string, any][]) {
       const execTime = result.execution_time_ms || 0;
 
       timing.nodes[nodeId] = {
@@ -804,7 +815,7 @@ export class AuditLogNodeExecutor extends BaseNodeExecutor {
   private buildExecutionTrace(previousResults: any): any[] {
     const trace: any[] = [];
 
-    for (const [nodeId, result] of Object.entries(previousResults || {})) {
+    for (const [nodeId, result] of Object.entries(previousResults || {}) as [string, any][]) {
       trace.push({
         node_id: nodeId,
         status: result.status,

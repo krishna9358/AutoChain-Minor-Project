@@ -6,7 +6,7 @@ import {
 import { getConnectionManager } from '../../connections/manager';
 import { OpenAI } from 'openai';
 import { Pinecone, Index, RecordMetadata } from '@pinecone-database/pinecone';
-import { WeaviateClient, ObjectsBatcher } from 'weaviate-ts-client';
+import weaviate, { WeaviateClient, ObjectsBatcher } from 'weaviate-ts-client';
 import { ChromaClient, Collection } from 'chromadb';
 import { createClient } from '@libsql/client'; // For SQLite-based memory
 import { createClient as createRedisClient } from 'redis';
@@ -152,22 +152,21 @@ export class MemoryNodeExecutor extends BaseNodeExecutor {
   /**
    * Execute Pinecone operations
    */
-  private async executeRedisOperation(
-    node: MemoryNode,
+  private async executePineconeOperation(
+    memoryType: string,
     operation: string,
     node: MemoryNode,
-    resolvedData: any,
+    data: any,
     searchConfig: any,
     context: NodeExecutionContext
   ): Promise<any> {
-    const connectionManager = getConnectionManager();
     const apiKey = node.api_key?.startsWith("env.")
       ? process.env[node.api_key.substring(4)]
       : node.api_key;
 
     if (!apiKey) {
       throw new Error("Pinecone API key not configured");
-
+    }
 
     let pinecone = this.pineconeClients.get(apiKey);
     if (!pinecone) {
@@ -179,7 +178,7 @@ export class MemoryNodeExecutor extends BaseNodeExecutor {
 
     switch (operation) {
       case 'store':
-        return await this.storeInPinecone(index, data, node.embedding_model, context);
+        return await this.storeInPinecone(index, data, node.embedding_model || '', context);
 
       case 'retrieve':
         return await this.retrieveFromPinecone(index, data, context);
@@ -191,7 +190,7 @@ export class MemoryNodeExecutor extends BaseNodeExecutor {
         return await this.deleteFromPinecone(index, data, context);
 
       case 'update':
-        return await this.updateInPinecone(index, data, node.embedding_model, context);
+        return await this.updateInPinecone(index, data, node.embedding_model || '', context);
 
       default:
         throw new Error(`Unknown Pinecone operation: ${operation}`);
@@ -253,7 +252,7 @@ export class MemoryNodeExecutor extends BaseNodeExecutor {
     }
 
     // Generate embedding if not provided
-    const embedding = vector || await this.generateEmbedding(text, embeddingModel, context);
+    const embedding = vector || await this.generateEmbedding(text, embeddingModel);
 
     const record = {
       id: id || this.generateId(),
@@ -267,7 +266,7 @@ export class MemoryNodeExecutor extends BaseNodeExecutor {
       },
     };
 
-    await index.upsert([{ record }]);
+    await index.upsert({ records: [record] } as any);
 
     return {
       success: true,
@@ -280,8 +279,8 @@ export class MemoryNodeExecutor extends BaseNodeExecutor {
   /**
    * Retrieve data from Pinecone
    */
-  private async deleteFromWeaviate(
-    index: any,
+  private async retrieveFromPinecone(
+    index: Index,
     data: any,
     context: NodeExecutionContext
   ): Promise<any> {
@@ -291,20 +290,17 @@ export class MemoryNodeExecutor extends BaseNodeExecutor {
       throw new Error("Object ID is required for retrieval");
     }
 
-    const response = await index.fetch([id]);
+    const response = await index.fetch({ ids: [id] } as any);
 
-    if (!response.records || response.records.length === 0) {
-      if (!matches || matches.length === 0 || !matches.records) {
-        if (!result.objects || result.objects.length === 0) {
-          if (!result || !result.ids || result.ids.length === 0) {
-            return {
-              success: false,
-              operation: "retrieve",
-              records: [],
-            };
-          }
+    if (!response.records || Object.keys(response.records).length === 0) {
+      return {
+        success: false,
+        operation: "retrieve",
+        records: [],
+      };
+    }
 
-    const records = matches.records.map((record) => ({
+    const records = Object.values(response.records).map((record: any) => ({
       id: record.id,
       vector: record.values,
       metadata: record.metadata,
@@ -379,7 +375,7 @@ export class MemoryNodeExecutor extends BaseNodeExecutor {
     const { id } = data;
 
     if (!id) {
-      throw new Error("Object ID is required for update");
+      throw new Error("Object ID is required for delete");
     }
 
     await index.deleteOne(id);
@@ -400,7 +396,7 @@ export class MemoryNodeExecutor extends BaseNodeExecutor {
     embeddingModel: string,
     context: NodeExecutionContext
   ): Promise<any> {
-    const { id, vector, metadata } = data;
+    const { id, text, vector, metadata } = data;
 
     if (!id) {
       throw new Error("Record ID is required for update");
@@ -425,7 +421,7 @@ export class MemoryNodeExecutor extends BaseNodeExecutor {
       };
     }
 
-    await index.upsert([record]);
+    await index.upsert({ records: [record] } as any);
 
     return {
       success: true,
@@ -454,25 +450,27 @@ export class MemoryNodeExecutor extends BaseNodeExecutor {
 
     let client = this.weaviateClients.get(apiKey + host);
     if (!client) {
-      client = new WeaviateClient({
+      client = weaviate.client({
         scheme: host.startsWith('https') ? 'https' : 'http',
         host: host.replace(/^https?:\/\//, ''),
-        apiKey: apiKey,
+        apiKey: apiKey as any,
       });
       this.weaviateClients.set(apiKey + host, client);
     }
 
+    const weaviateClient = client as WeaviateClient;
+
     switch (operation) {
       case "store":
-        return await this.storeInWeaviate(index, data, node.embedding_model, context);
+        return await this.storeInWeaviate(weaviateClient, node.index, data, node.embedding_model || '', context);
       case "retrieve":
-        return await this.retrieveFromWeaviate(index, data, context);
+        return await this.retrieveFromWeaviate(weaviateClient, node.index, data, context);
       case "search":
-        return await this.searchInWeaviate(index, searchConfig, data, context);
+        return await this.searchInWeaviate(weaviateClient, node.index, searchConfig, data, context);
       case "delete":
-        return await this.deleteFromWeaviate(index, data, context);
+        return await this.deleteFromWeaviate(weaviateClient, node.index, data, context);
       case "update":
-        return await this.updateInWeaviate(index, data, node.embedding_model, context);
+        return await this.updateInWeaviate(weaviateClient, node.index, data, node.embedding_model || '', context);
       default:
         throw new Error(`Unknown Weaviate operation: ${operation}`);
     }
@@ -510,9 +508,9 @@ export class MemoryNodeExecutor extends BaseNodeExecutor {
 
     await client.data.creator()
       .withClassName(className)
-      .withId(dataObject.id)
-      .withVector(dataObject.vector)
-      .withProperties(dataObject.properties)
+      .withId(dataObj.id)
+      .withVector(dataObj.vector)
+      .withProperties(dataObj.properties)
       .do();
 
     return {
@@ -599,7 +597,7 @@ export class MemoryNodeExecutor extends BaseNodeExecutor {
     return {
       success: true,
       operation: "delete",
-      deleted_count: Array.isArray(ids) ? ids.length : 1,
+      deleted_id: id,
     };
   }
 
@@ -617,7 +615,7 @@ export class MemoryNodeExecutor extends BaseNodeExecutor {
 
     const embedding = vector || (text ? await this.generateEmbedding(text, embeddingModel) : null);
 
-    await client.dataUpdater()
+    await (client as any).dataUpdater()
       .withId(id)
       .withClassName(className)
       .withProperties({
@@ -660,7 +658,7 @@ export class MemoryNodeExecutor extends BaseNodeExecutor {
 
     switch (operation) {
       case "store":
-        return await this.storeInChroma(collection, data, node.embedding_model, context);
+        return await this.storeInChroma(collection, data, node.embedding_model || '', context);
       case "retrieve":
         return await this.retrieveFromChroma(collection, data, context);
       case "search":
@@ -668,7 +666,7 @@ export class MemoryNodeExecutor extends BaseNodeExecutor {
       case "delete":
         return await this.deleteFromChroma(collection, data, context);
       case "update":
-        return await this.updateInChroma(collection, data, node.embedding_model, context);
+        return await this.updateInChroma(collection, data, node.embedding_model || '', context);
       default:
         throw new Error(`Unknown ChromaDB operation: ${operation}`);
     }
@@ -715,7 +713,6 @@ export class MemoryNodeExecutor extends BaseNodeExecutor {
     data: any,
     context: NodeExecutionContext
   ): Promise<any> {
-    const { ids, where } = data;
     const { id } = data;
 
     const results = await collection.get({
@@ -725,8 +722,8 @@ export class MemoryNodeExecutor extends BaseNodeExecutor {
     return {
       success: true,
       operation: 'retrieve',
-      records: results.ids.map((id, i) => ({
-        id,
+      records: results.ids.map((rid, i) => ({
+        id: rid,
         document: results.documents[i],
         metadata: results.metadatas[i],
       })),
@@ -750,7 +747,7 @@ export class MemoryNodeExecutor extends BaseNodeExecutor {
 
     const results = await collection.query({
       queryEmbeddings: [queryEmbedding],
-      nResults: top_n,
+      nResults: top_k,
     });
 
     // Filter by score threshold if available
@@ -761,7 +758,7 @@ export class MemoryNodeExecutor extends BaseNodeExecutor {
           metadata: results.metadatas[0][i],
           distance: results.distances[0][i],
         }))
-          .filter(match => (1 - match.distance) >= score_threshold)
+          .filter(match => (1 - (match.distance ?? 0)) >= score_threshold)
       : [];
 
     return {
@@ -770,7 +767,7 @@ export class MemoryNodeExecutor extends BaseNodeExecutor {
       query: searchQuery,
       matches,
       count: matches.length,
-      top_n,
+      top_k,
     };
   }
 
@@ -782,7 +779,7 @@ export class MemoryNodeExecutor extends BaseNodeExecutor {
     data: any,
     context: NodeExecutionContext
   ): Promise<any> {
-    const { ids } = data;
+    const { id } = data;
 
     await collection.delete({
       ids: [id],
@@ -791,7 +788,6 @@ export class MemoryNodeExecutor extends BaseNodeExecutor {
     return {
       success: true,
       operation: "delete",
-      key,
       deleted_id: id,
     };
   }
@@ -805,7 +801,7 @@ export class MemoryNodeExecutor extends BaseNodeExecutor {
     embeddingModel: string,
     context: NodeExecutionContext
   ): Promise<any> {
-    const { id, vector, metadata } = data;
+    const { id, text, vector, metadata } = data;
 
     const embedding = vector || (text ? await this.generateEmbedding(text, embeddingModel) : null);
 
@@ -840,22 +836,22 @@ export class MemoryNodeExecutor extends BaseNodeExecutor {
     context: NodeExecutionContext
   ): Promise<any> {
     const connectionManager = getConnectionManager();
-    const connection = await connectionManager.getConnection(node.connection_id);
+    const connection = await connectionManager.getConnection(node.connection_id || '');
 
     if (!connection) {
       throw new Error(`Redis connection not found: ${node.connection_id}`);
     }
 
-    let client = this.redisClients.get(node.connection_id);
+    let client = this.redisClients.get(node.connection_id || '');
     if (!client) {
       client = createRedisClient({
         socket: {
-          host: connection.host,
-          port: connection.port || 6379,
+          host: (connection as any).host,
+          port: (connection as any).port || 6379,
         },
         password: connection.credentials.password,
       });
-      this.redisClients.set(node.connection_id, client);
+      this.redisClients.set(node.connection_id || '', client);
     }
 
     const key = `${context.workflow_id}:${node.index}`;
@@ -879,13 +875,13 @@ export class MemoryNodeExecutor extends BaseNodeExecutor {
   /**
    * Store data in Redis
    */
-  private async updateInRedis(
+  private async storeInRedis(
     client: any,
-    key: key: string,
+    key: string,
     data: any,
     context: NodeExecutionContext
   ): Promise<any> {
-    const { id, vector, metadata } = data;
+    const { id, text, metadata } = data;
 
     const value = JSON.stringify({
       id: id || this.generateId(),
@@ -908,12 +904,11 @@ export class MemoryNodeExecutor extends BaseNodeExecutor {
   /**
    * Retrieve data from Redis
    */
-  private async deleteFromRedis(
+  private async retrieveFromRedis(
     client: any,
-    key: key: string,
+    key: string,
     context: NodeExecutionContext
   ): Promise<any> {
-    const { id } = data;
     const value = await client.get(key);
 
     if (!value) {
@@ -936,7 +931,7 @@ export class MemoryNodeExecutor extends BaseNodeExecutor {
    */
   private async searchInRedis(
     client: any,
-    key: key: string,
+    key: string,
     searchConfig: any,
     data: any,
     context: NodeExecutionContext
@@ -967,7 +962,6 @@ export class MemoryNodeExecutor extends BaseNodeExecutor {
   private async deleteFromRedis(
     client: any,
     key: string,
-    data: any,
     context: NodeExecutionContext
   ): Promise<any> {
     await client.del(key);
@@ -1115,7 +1109,6 @@ export class MemoryNodeExecutor extends BaseNodeExecutor {
       await client.quit();
     }
     this.redisClients.clear();
-  }
 
     // Clear other client caches
     this.pineconeClients.clear();
