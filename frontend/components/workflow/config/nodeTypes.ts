@@ -321,6 +321,8 @@ export interface ConfigField {
   min?: number;
   max?: number;
   rows?: number;
+  /** Show this field only when another field has a specific value */
+  showWhen?: { field: string; value: string | string[] };
 }
 
 // Component-specific config schemas (mirroring backend componentCatalog configFields)
@@ -346,14 +348,16 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
       label: "Webhook Path",
       type: "text",
       placeholder: "/incoming/orders",
-      description: "URL path for incoming webhook requests (when trigger mode is Webhook)",
+      description: "URL path for incoming webhook requests",
+      showWhen: { field: "triggerMode", value: "webhook" },
     },
     {
       key: "cron",
       label: "Cron Expression",
       type: "text",
       placeholder: "0 */6 * * *",
-      description: "Cron schedule expression (when trigger mode is Schedule)",
+      description: "Cron schedule expression",
+      showWhen: { field: "triggerMode", value: "schedule" },
     },
     {
       key: "inputSchema",
@@ -408,6 +412,7 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
       type: "password",
       placeholder: "Enter token or use {{secrets.MY_KEY}}",
       description: "Authentication credential (supports secret references)",
+      showWhen: { field: "authType", value: ["bearer", "api-key", "basic"] },
     },
     {
       key: "headers",
@@ -472,13 +477,15 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
       type: "url",
       placeholder: "https://hooks.slack.com/services/...",
       description: "Slack incoming webhook URL",
+      showWhen: { field: "mode", value: "webhook" },
     },
     {
       key: "botToken",
       label: "Bot Token",
       type: "password",
       placeholder: "xoxb-...",
-      description: "Slack Bot token (when using Bot API mode)",
+      description: "Slack Bot token",
+      showWhen: { field: "mode", value: "bot" },
     },
     {
       key: "channel",
@@ -540,7 +547,8 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
       label: "SMTP Host",
       type: "text",
       placeholder: "smtp.gmail.com",
-      description: "SMTP server hostname (for SMTP provider)",
+      description: "SMTP server hostname",
+      showWhen: { field: "provider", value: "smtp" },
     },
     {
       key: "smtpPort",
@@ -550,6 +558,7 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
       min: 1,
       max: 65535,
       description: "SMTP server port",
+      showWhen: { field: "provider", value: "smtp" },
     },
     {
       key: "from",
@@ -896,6 +905,7 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
       type: "text",
       placeholder: "Replacement text",
       description: "Replacement string for regex operations",
+      showWhen: { field: "operation", value: "regex" },
     },
     {
       key: "separator",
@@ -903,6 +913,7 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
       type: "text",
       placeholder: ",",
       description: "Separator character for split/join operations",
+      showWhen: { field: "operation", value: ["split", "join"] },
     },
   ],
 
@@ -927,13 +938,15 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
       min: 100,
       max: 86400000,
       description: "Wait time in milliseconds (max 24 hours)",
+      showWhen: { field: "delayType", value: "fixed" },
     },
     {
       key: "untilTime",
       label: "Wait Until (ISO)",
       type: "text",
       placeholder: "2025-12-31T23:59:59Z",
-      description: "ISO timestamp to wait until (for 'Until Specific Time' type)",
+      description: "ISO timestamp to wait until",
+      showWhen: { field: "delayType", value: "until" },
     },
   ],
 
@@ -959,7 +972,8 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
       defaultValue: 3,
       min: 0,
       max: 10,
-      description: "Number of retry attempts (when strategy is Retry)",
+      description: "Number of retry attempts",
+      showWhen: { field: "strategy", value: "retry" },
     },
     {
       key: "retryDelayMs",
@@ -969,6 +983,7 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
       min: 100,
       max: 60000,
       description: "Delay between retry attempts",
+      showWhen: { field: "strategy", value: "retry" },
     },
     {
       key: "backoffMultiplier",
@@ -978,6 +993,7 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
       min: 1,
       max: 10,
       description: "Multiplier for exponential backoff between retries",
+      showWhen: { field: "strategy", value: "retry" },
     },
     {
       key: "fallbackValue",
@@ -986,6 +1002,7 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
       rows: 3,
       defaultValue: {},
       description: "Value to use when strategy is Fallback",
+      showWhen: { field: "strategy", value: "fallback" },
     },
     {
       key: "notifyOnError",
