@@ -21,9 +21,10 @@ import type { ComponentConfigField } from "../config/componentCatalog";
 
 interface NodeConfigFormProps {
   nodeType: string;
+  fields: ComponentConfigField[];
   config: Record<string, any>;
   onChange: (config: Record<string, any>) => void;
-  fields?: ComponentConfigField[];
+  errors?: string[];
 }
 
 export const NodeConfigForm: React.FC<NodeConfigFormProps> = ({
@@ -31,6 +32,7 @@ export const NodeConfigForm: React.FC<NodeConfigFormProps> = ({
   config,
   onChange,
   fields: providedFields,
+  errors,
 }) => {
   const fields: ComponentConfigField[] = providedFields || [];
 
@@ -73,6 +75,7 @@ export const NodeConfigForm: React.FC<NodeConfigFormProps> = ({
         const Icon = FieldIcon[field.type] || Type;
         const value = config[field.key] ?? field.defaultValue ?? "";
         const isEmpty = value === "" || value === undefined || value === null;
+        const fieldErrors = (errors || []).filter((e) => e.startsWith(`${field.key}:`));
 
         return (
           <div key={field.key} className="space-y-1.5">
@@ -103,6 +106,7 @@ export const NodeConfigForm: React.FC<NodeConfigFormProps> = ({
                   background: "var(--input-bg, rgba(0,0,0,0.15))",
                   border: `1px solid ${isEmpty ? "var(--border-subtle)" : "var(--border-medium)"}`,
                   color: "var(--text-primary)",
+                  borderColor: fieldErrors.length > 0 ? "#ef4444" : undefined,
                 }}
               />
             )}
@@ -123,6 +127,7 @@ export const NodeConfigForm: React.FC<NodeConfigFormProps> = ({
                   background: "var(--input-bg, rgba(0,0,0,0.15))",
                   border: `1px solid ${isEmpty ? "var(--border-subtle)" : "var(--border-medium)"}`,
                   color: "var(--text-primary)",
+                  borderColor: fieldErrors.length > 0 ? "#ef4444" : undefined,
                 }}
               />
             )}
@@ -150,6 +155,7 @@ export const NodeConfigForm: React.FC<NodeConfigFormProps> = ({
                   background: "var(--input-bg, rgba(0,0,0,0.15))",
                   border: `1px solid ${isEmpty ? "var(--border-subtle)" : "var(--border-medium)"}`,
                   color: "var(--text-primary)",
+                  borderColor: fieldErrors.length > 0 ? "#ef4444" : undefined,
                 }}
               />
             )}
@@ -176,6 +182,7 @@ export const NodeConfigForm: React.FC<NodeConfigFormProps> = ({
                   background: "var(--input-bg, rgba(0,0,0,0.15))",
                   border: `1px solid ${isEmpty ? "var(--border-subtle)" : "var(--border-medium)"}`,
                   color: "var(--text-primary)",
+                  borderColor: fieldErrors.length > 0 ? "#ef4444" : undefined,
                 }}
               />
             )}
@@ -192,6 +199,7 @@ export const NodeConfigForm: React.FC<NodeConfigFormProps> = ({
                   background: "var(--input-bg, rgba(0,0,0,0.15))",
                   border: `1px solid ${isEmpty ? "var(--border-subtle)" : "var(--border-medium)"}`,
                   color: "var(--text-primary)",
+                  borderColor: fieldErrors.length > 0 ? "#ef4444" : undefined,
                 }}
               />
             )}
@@ -265,6 +273,12 @@ export const NodeConfigForm: React.FC<NodeConfigFormProps> = ({
                 options={field.options || []}
                 placeholder={field.placeholder || "Select options..."}
               />
+            )}
+
+            {fieldErrors.length > 0 && (
+              <p className="text-xs mt-1" style={{ color: "#ef4444" }}>
+                {fieldErrors[0].split(": ").slice(1).join(": ")}
+              </p>
             )}
 
             {field.description && (

@@ -1104,6 +1104,12 @@ function WorkflowInner() {
                   {/* Node palette — 2-column grid with separators */}
                   {leftTab === "nodes" && (
                     <div className="flex-1 overflow-y-auto">
+                      {components.length === 0 && !loading && (
+                        <div className="p-4 text-center" style={{ color: "var(--text-muted)" }}>
+                          <p className="text-sm">No components available</p>
+                          <p className="text-xs mt-1">Check your backend connection</p>
+                        </div>
+                      )}
                       {(components.length > 0
                         ? Object.entries(
                             groupComponentsByCategory(components),
@@ -1614,25 +1620,34 @@ function WorkflowInner() {
                       >
                         Configuration
                       </label>
-                      <NodeConfigForm
-                        nodeType={selNode.data.nodeType as string}
-                        fields={
-                          componentMap[selNode.data.componentId as string]
-                            ?.configFields || []
-                        }
-                        config={
-                          (selNode.data.config as Record<string, any>) || {}
-                        }
-                        onChange={(config) =>
-                          setNodes((n) =>
-                            n.map((nd) =>
-                              nd.id === selNodeId
-                                ? { ...nd, data: { ...nd.data, config } }
-                                : nd,
-                            ),
-                          )
-                        }
-                      />
+                      {componentMap[selNode.data.componentId as string]?.configFields?.length ? (
+                        <NodeConfigForm
+                          nodeType={selNode.data.nodeType as string}
+                          fields={
+                            componentMap[selNode.data.componentId as string]
+                              ?.configFields || []
+                          }
+                          config={
+                            (selNode.data.config as Record<string, any>) || {}
+                          }
+                          onChange={(config) =>
+                            setNodes((n) =>
+                              n.map((nd) =>
+                                nd.id === selNodeId
+                                  ? { ...nd, data: { ...nd.data, config } }
+                                  : nd,
+                              ),
+                            )
+                          }
+                          errors={validationErrors[selNode.id] || []}
+                        />
+                      ) : (
+                        <div className="p-4 rounded-lg text-center" style={{ background: "var(--bg-tertiary)", color: "var(--text-muted)" }}>
+                          <AlertCircle className="w-5 h-5 mx-auto mb-2" style={{ color: "var(--text-muted)" }} />
+                          <p className="text-sm font-medium">No configuration fields</p>
+                          <p className="text-xs mt-1">This node type has no configurable settings.</p>
+                        </div>
+                      )}
                     </div>
                   </div>
 

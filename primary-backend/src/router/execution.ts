@@ -90,16 +90,18 @@ router.post(
         },
       });
 
-      // Create pending steps for each node
-      for (const node of workflow.nodes) {
-        await prisma.runStep.create({
-          data: {
-            runId: run.id,
-            nodeId: node.id,
-            status: "PENDING",
-          },
-        });
-      }
+      // Create pending steps for each node in a single transaction
+      await prisma.$transaction(
+        workflow.nodes.map((node) =>
+          prisma.runStep.create({
+            data: {
+              runId: run.id,
+              nodeId: node.id,
+              status: "PENDING",
+            },
+          })
+        )
+      );
 
       // Simulate execution (in production, use a job queue)
       simulateExecution(run.id, workflow.nodes, workflow.edges).catch(async (err) => {
@@ -135,6 +137,140 @@ router.post(
     }
   },
 );
+
+// Cancel a running workflow
+router.post("/run/:runId/cancel", authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const run = await prisma.workflowRun.findUnique({
+      where: { id: req.params.runId },
+    });
+
+    if (!run) {
+      return res.status(404).json({ error: "Run not found" });
+    }
+
+    if (run.status !== "RUNNING" && run.status !== "WAITING_APPROVAL") {
+      return res.status(400).json({ error: `Cannot cancel run with status: ${run.status}` });
+    }
+
+    await prisma.$transaction([
+      prisma.workflowRun.update({
+        where: { id: req.params.runId },
+        data: {
+          status: "CANCELLED",
+          error: "Cancelled by user",
+          completedAt: new Date(),
+        },
+      }),
+      prisma.runStep.updateMany({
+        where: { runId: req.params.runId, status: { in: ["PENDING", "RUNNING"] } },
+        data: { status: "CANCELLED", completedAt: new Date() },
+      }),
+    ]);
+
+    await prisma.auditLog.create({
+      data: {
+        workflowId: run.workflowId,
+        userId: req.userId!,
+        action: "run.cancelled",
+        details: { runId: req.params.runId },
+      },
+    });
+
+    res.json({ message: "Run cancelled", runId: req.params.runId });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Handle approval decision
+router.post("/run/:runId/approve", authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { approved, comment } = req.body;
+    const { runId } = req.params;
+
+    const approval = await prisma.approval.findFirst({
+      where: { runId, status: "PENDING" },
+    });
+
+    if (!approval) {
+      return res.status(404).json({ error: "No pending approval found for this run" });
+    }
+
+    await prisma.$transaction([
+      prisma.approval.update({
+        where: { id: approval.id },
+        data: {
+          status: approved ? "APPROVED" : "REJECTED",
+          userId: req.userId,
+          decidedAt: new Date(),
+          comment: comment || null,
+        },
+      }),
+      prisma.runStep.updateMany({
+        where: { runId, nodeId: approval.nodeId, status: "WAITING_APPROVAL" },
+        data: {
+          status: approved ? "COMPLETED" : "FAILED",
+          completedAt: new Date(),
+          outputPayload: { approved, approver: req.userId, comment },
+        },
+      }),
+    ]);
+
+    if (approved) {
+      // Resume execution from the approval node
+      const run = await prisma.workflowRun.findUnique({
+        where: { id: runId },
+        include: { workflow: { include: { nodes: true, edges: true } } },
+      });
+
+      if (run?.workflow) {
+        await prisma.workflowRun.update({
+          where: { id: runId },
+          data: { status: "RUNNING" },
+        });
+
+        // Build adjacency and resume from approval node's children
+        const adjacency = new Map<string, string[]>();
+        for (const edge of run.workflow.edges) {
+          const sources = adjacency.get(edge.sourceNodeId) || [];
+          sources.push(edge.targetNodeId);
+          adjacency.set(edge.sourceNodeId, sources);
+        }
+
+        const nextNodes = adjacency.get(approval.nodeId) || [];
+        if (nextNodes.length > 0) {
+          // Continue execution from next nodes (fire-and-forget with error handling)
+          resumeExecution(runId, run.workflow.nodes, run.workflow.edges, nextNodes).catch(async (err) => {
+            console.error(`Resume after approval failed for run ${runId}:`, err);
+            await prisma.workflowRun.update({
+              where: { id: runId },
+              data: { status: "FAILED", error: err.message, completedAt: new Date() },
+            }).catch(() => {});
+          });
+        } else {
+          await prisma.workflowRun.update({
+            where: { id: runId },
+            data: { status: "COMPLETED", completedAt: new Date() },
+          });
+        }
+      }
+    } else {
+      await prisma.workflowRun.update({
+        where: { id: runId },
+        data: {
+          status: "FAILED",
+          error: `Approval rejected${comment ? `: ${comment}` : ""}`,
+          completedAt: new Date(),
+        },
+      });
+    }
+
+    res.json({ message: approved ? "Approved" : "Rejected", runId });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // Simulated execution engine
 async function simulateExecution(runId: string, nodes: any[], edges: any[]) {
@@ -206,11 +342,27 @@ async function simulateExecution(runId: string, nodes: any[], edges: any[]) {
   }
 
   // BFS execution
+  const WORKFLOW_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+  const workflowStartTime = Date.now();
+
   const queue = [triggerNode.id];
   const visited = new Set<string>();
 
   while (queue.length > 0) {
     const nodeId = queue.shift()!;
+
+    if (Date.now() - workflowStartTime > WORKFLOW_TIMEOUT_MS) {
+      await prisma.workflowRun.update({
+        where: { id: runId },
+        data: {
+          status: "FAILED",
+          error: "Workflow execution timed out after 5 minutes",
+          completedAt: new Date(),
+        },
+      });
+      return;
+    }
+
     if (visited.has(nodeId)) continue;
     visited.add(nodeId);
 
@@ -308,6 +460,91 @@ async function simulateExecution(runId: string, nodes: any[], edges: any[]) {
     where: { runId, status: "FAILED" },
   });
 
+  await prisma.workflowRun.update({
+    where: { id: runId },
+    data: {
+      status: failedSteps > 0 ? "FAILED" : "COMPLETED",
+      completedAt: new Date(),
+      ...(failedSteps > 0 && { error: `${failedSteps} node(s) failed during execution` }),
+    },
+  });
+}
+
+async function resumeExecution(runId: string, nodes: any[], edges: any[], startNodeIds: string[]) {
+  const nodeIds = new Set(nodes.map((n) => n.id));
+  const adjacency = new Map<string, string[]>();
+  for (const edge of edges) {
+    if (!nodeIds.has(edge.sourceNodeId) || !nodeIds.has(edge.targetNodeId)) continue;
+    const sources = adjacency.get(edge.sourceNodeId) || [];
+    sources.push(edge.targetNodeId);
+    adjacency.set(edge.sourceNodeId, sources);
+  }
+
+  const queue = [...startNodeIds];
+  const visited = new Set<string>();
+  const WORKFLOW_TIMEOUT_MS = 5 * 60 * 1000;
+  const workflowStartTime = Date.now();
+
+  // Get already-completed steps to skip
+  const completedSteps = await prisma.runStep.findMany({
+    where: { runId, status: "COMPLETED" },
+    select: { nodeId: true },
+  });
+  completedSteps.forEach((s) => visited.add(s.nodeId));
+
+  while (queue.length > 0) {
+    const nodeId = queue.shift()!;
+    if (visited.has(nodeId)) continue;
+    visited.add(nodeId);
+
+    if (Date.now() - workflowStartTime > WORKFLOW_TIMEOUT_MS) {
+      await prisma.workflowRun.update({
+        where: { id: runId },
+        data: { status: "FAILED", error: "Workflow execution timed out", completedAt: new Date() },
+      });
+      return;
+    }
+
+    const node = nodes.find((n) => n.id === nodeId);
+    if (!node) continue;
+
+    const startTime = Date.now();
+    await prisma.runStep.updateMany({
+      where: { runId, nodeId },
+      data: { status: "RUNNING", startedAt: new Date() },
+    });
+
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 500 + Math.random() * 1500));
+      const executionTimeMs = Date.now() - startTime;
+      const output = generateNodeOutput(node);
+
+      await prisma.runStep.updateMany({
+        where: { runId, nodeId },
+        data: {
+          status: "COMPLETED",
+          completedAt: new Date(),
+          executionTimeMs,
+          outputPayload: output,
+        },
+      });
+
+      const nextNodes = adjacency.get(nodeId) || [];
+      for (const next of nextNodes) queue.push(next);
+    } catch (nodeErr: any) {
+      await prisma.runStep.updateMany({
+        where: { runId, nodeId },
+        data: {
+          status: "FAILED",
+          completedAt: new Date(),
+          executionTimeMs: Date.now() - startTime,
+          error: nodeErr.message || "Node execution failed",
+        },
+      });
+    }
+  }
+
+  const failedSteps = await prisma.runStep.count({ where: { runId, status: "FAILED" } });
   await prisma.workflowRun.update({
     where: { id: runId },
     data: {
@@ -605,7 +842,9 @@ router.get("/events/:runId", authMiddleware, async (req: AuthRequest, res) => {
     clearInterval(keepAliveInterval);
   });
 
-  // In production, you'd also handle req.on('error') and req.on('end')
+  req.on("error", () => {
+    clearInterval(keepAliveInterval);
+  });
 });
 
 export const executionRouter = router;
