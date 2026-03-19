@@ -3,9 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import axios from "axios";
-import { BACKEND_URL } from "@/app/config";
 import { useTheme } from "@/components/ThemeProvider";
+import { useWorkspace } from "@/components/WorkspaceProvider";
+import { useToast } from "@/components/hooks/use-toast";
+import { workflowApi } from "@/lib/api";
+import { CreateWorkspaceModal } from "@/components/workspace/CreateWorkspaceModal";
 import {
   Zap,
   Plus,
@@ -22,13 +24,16 @@ import {
   PanelLeft,
   LayoutTemplate,
   Key,
-  Link2,
   ArrowRight,
   ScrollText,
+  ChevronsUpDown,
+  Check,
+  Building2,
+  Lock,
+  FolderPlus,
 } from "lucide-react";
 
 const IS_DEV = process.env.NEXT_PUBLIC_DEV_MODE === "true";
-const DEV_TOKEN = process.env.NEXT_PUBLIC_DEV_TOKEN || "dev-demo-token";
 
 interface WorkflowItem {
   id: string;
@@ -55,7 +60,6 @@ const STATUS_DOT: Record<string, string> = {
   ARCHIVED: "bg-zinc-500",
 };
 
-// ─── Templates (moved to dashboard) ─────────────────────────
 const TEMPLATES = [
   {
     id: "meeting",
@@ -308,13 +312,12 @@ const TEMPLATES = [
         nodeType: "SLACK_SEND",
         label: "Notify On-Call",
         category: "ACTION",
-        config: { channel: "#incidents", messageTemplate: "🚨 Incident alert" },
+        config: { channel: "#incidents", messageTemplate: "Incident alert" },
       },
     ],
   },
 ];
 
-// ─── Nav items ──────────────────────────────────────────────
 type TabId =
   | "workflows"
   | "templates"
@@ -326,6 +329,16 @@ type TabId =
 export default function DashboardPage() {
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
+  const {
+    workspaces,
+    activeWorkspace,
+    setActiveWorkspace,
+    hasWorkspace,
+    loading: wsLoading,
+    refreshWorkspaces,
+  } = useWorkspace();
+  const { toast } = useToast();
+
   const [workflows, setWorkflows] = useState<WorkflowItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -335,9 +348,10 @@ export default function DashboardPage() {
   const [apiKey, setApiKey] = useState("");
   const [webhookUrl, setWebhookUrl] = useState("");
   const [settingsSaved, setSettingsSaved] = useState(false);
+  const [wsSwitcherOpen, setWsSwitcherOpen] = useState(false);
+  const [showCreateWs, setShowCreateWs] = useState(false);
 
   useEffect(() => {
-    initDashboard();
     const k = localStorage.getItem("agentflow-api-key");
     if (k) setApiKey(k);
     const w = localStorage.getItem("agentflow-webhook-url");
@@ -347,45 +361,49 @@ export default function DashboardPage() {
         e.preventDefault();
         setCmdOpen(true);
       }
-      if (e.key === "Escape") setCmdOpen(false);
+      if (e.key === "Escape") {
+        setCmdOpen(false);
+        setWsSwitcherOpen(false);
+      }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  const initDashboard = async () => {
-    let token = localStorage.getItem("token");
-    if (!token && IS_DEV) {
-      try {
-        const res = await axios.get(`${BACKEND_URL}/api/v1/user/dev-bootstrap`);
-        token = res.data.token;
-        localStorage.setItem("token", token!);
-        localStorage.setItem("user", JSON.stringify(res.data.user));
-      } catch {
-        token = DEV_TOKEN;
-        localStorage.setItem("token", token);
-        localStorage.setItem("user", JSON.stringify({ name: "Dev User" }));
-      }
-    }
-    if (!token) {
-      router.push("/login");
+  useEffect(() => {
+    if (!hasWorkspace || !activeWorkspace) {
+      setWorkflows([]);
+      setLoading(false);
       return;
     }
-    try {
-      const res = await axios
-        .get(`${BACKEND_URL}/api/v1/workflows`, {
-          headers: { Authorization: token },
-        })
-        .catch(() => ({ data: [] }));
-      setWorkflows(res.data || []);
-    } catch {
-    } finally {
-      setLoading(false);
-    }
-  };
+    const loadWorkflows = async () => {
+      setLoading(true);
+      try {
+        const data = await workflowApi.list();
+        setWorkflows(data || []);
+      } catch (err: any) {
+        toast({
+          title: "Failed to load workflows",
+          description: err.message,
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadWorkflows();
+  }, [activeWorkspace?.id, hasWorkspace]);
 
   const importTemplate = (template: (typeof TEMPLATES)[0]) => {
-    // Build nodes with positions in a vertical layout
+    if (!hasWorkspace) {
+      toast({
+        title: "No workspace",
+        description: "Create a workspace first to use templates.",
+        variant: "destructive",
+      });
+      setShowCreateWs(true);
+      return;
+    }
     const nodes = template.nodes.map((n, i) => ({
       id: `${n.nodeType}-${Date.now()}-${i}`,
       type: "workflowNode",
@@ -397,13 +415,11 @@ export default function DashboardPage() {
         config: n.config,
       },
     }));
-    // Build edges connecting sequential nodes
     const edges = nodes.slice(0, -1).map((n, i) => ({
       id: `e-${i}`,
       source: n.id,
       target: nodes[i + 1].id,
     }));
-    // Store in sessionStorage so workflow builder can pick it up
     sessionStorage.setItem(
       "template-import",
       JSON.stringify({
@@ -420,31 +436,23 @@ export default function DashboardPage() {
     localStorage.setItem("agentflow-api-key", apiKey);
     localStorage.setItem("agentflow-webhook-url", webhookUrl);
     setSettingsSaved(true);
+    toast({
+      title: "Settings saved",
+      description: "Your API configuration has been updated.",
+      variant: "success",
+    });
     setTimeout(() => setSettingsSaved(false), 2000);
   };
 
   const userName =
     typeof window !== "undefined"
-      ? JSON.parse(localStorage.getItem("user") || '{"name":"User"}').name
+      ? JSON.parse(localStorage.getItem("user") || '{"name":"Dev User"}').name
       : "User";
   const filtered = workflows.filter(
     (w) =>
       w.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       w.description?.toLowerCase().includes(searchQuery.toLowerCase()),
   );
-
-  if (loading)
-    return (
-      <div
-        className="min-h-screen flex items-center justify-center"
-        style={{ background: "var(--bg-primary)" }}
-      >
-        <Loader2
-          className="w-5 h-5 animate-spin"
-          style={{ color: "var(--text-muted)" }}
-        />
-      </div>
-    );
 
   const navItems: {
     icon: typeof LayoutGrid;
@@ -469,6 +477,21 @@ export default function DashboardPage() {
     },
     { icon: Settings, label: "Settings", id: "settings" },
   ];
+
+  const featureDisabled = !hasWorkspace;
+
+  if (wsLoading)
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ background: "var(--bg-primary)" }}
+      >
+        <Loader2
+          className="w-5 h-5 animate-spin"
+          style={{ color: "var(--text-muted)" }}
+        />
+      </div>
+    );
 
   return (
     <div
@@ -585,23 +608,142 @@ export default function DashboardPage() {
           borderColor: "var(--border-subtle)",
         }}
       >
+        {/* Workspace Switcher */}
         <div
-          className="flex items-center justify-between px-3 py-4 border-b"
+          className="px-2 pt-3 pb-2 border-b"
           style={{ borderColor: "var(--border-subtle)" }}
         >
-          <div className="flex items-center space-x-2 overflow-hidden">
-            <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center shrink-0">
-              <Zap className="w-4 h-4 text-white" />
-            </div>
-            {sidebarOpen && (
-              <span
-                className="text-sm font-semibold truncate"
-                style={{ color: "var(--text-primary)" }}
+          {sidebarOpen ? (
+            <div className="relative">
+              <button
+                onClick={() => setWsSwitcherOpen(!wsSwitcherOpen)}
+                className="w-full flex items-center gap-2 px-2 py-2 rounded-lg transition-colors hover:bg-white/5"
               >
-                AgentFlow
-              </span>
-            )}
-          </div>
+                <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center shrink-0">
+                  {activeWorkspace ? (
+                    <span className="text-[10px] font-bold text-white">
+                      {activeWorkspace.name.charAt(0).toUpperCase()}
+                    </span>
+                  ) : (
+                    <Building2 className="w-3.5 h-3.5 text-white" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0 text-left">
+                  <p
+                    className="text-xs font-semibold truncate"
+                    style={{ color: "var(--text-primary)" }}
+                  >
+                    {activeWorkspace?.name || "No Workspace"}
+                  </p>
+                  {activeWorkspace?.slug && (
+                    <p
+                      className="text-[10px] truncate"
+                      style={{ color: "var(--text-muted)" }}
+                    >
+                      {activeWorkspace.slug}
+                    </p>
+                  )}
+                </div>
+                <ChevronsUpDown
+                  className="w-3.5 h-3.5 shrink-0"
+                  style={{ color: "var(--text-muted)" }}
+                />
+              </button>
+
+              <AnimatePresence>
+                {wsSwitcherOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    className="absolute top-full left-0 right-0 mt-1 rounded-lg border shadow-xl z-50 overflow-hidden"
+                    style={{
+                      background: "var(--bg-card)",
+                      borderColor: "var(--border-subtle)",
+                    }}
+                  >
+                    <div className="p-1 max-h-48 overflow-y-auto">
+                      {workspaces.map((ws) => (
+                        <button
+                          key={ws.id}
+                          onClick={() => {
+                            setActiveWorkspace(ws);
+                            setWsSwitcherOpen(false);
+                            toast({
+                              title: "Workspace switched",
+                              description: `Now using "${ws.name}"`,
+                              variant: "success",
+                            });
+                          }}
+                          className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left transition-colors hover:bg-white/5"
+                        >
+                          <div
+                            className="w-5 h-5 rounded flex items-center justify-center shrink-0"
+                            style={{ background: "rgba(99,102,241,0.1)" }}
+                          >
+                            <span className="text-[9px] font-bold text-indigo-500">
+                              {ws.name.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                          <span
+                            className="text-xs truncate flex-1"
+                            style={{ color: "var(--text-primary)" }}
+                          >
+                            {ws.name}
+                          </span>
+                          {activeWorkspace?.id === ws.id && (
+                            <Check className="w-3 h-3 text-indigo-500 shrink-0" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                    <div
+                      className="border-t p-1"
+                      style={{ borderColor: "var(--border-subtle)" }}
+                    >
+                      <button
+                        onClick={() => {
+                          setWsSwitcherOpen(false);
+                          setShowCreateWs(true);
+                        }}
+                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left transition-colors hover:bg-white/5"
+                        style={{ color: "var(--text-muted)" }}
+                      >
+                        <FolderPlus className="w-3.5 h-3.5" />
+                        <span className="text-xs">New Workspace</span>
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          ) : (
+            <button
+              onClick={() => {
+                setSidebarOpen(true);
+                setWsSwitcherOpen(true);
+              }}
+              className="w-full flex items-center justify-center py-2"
+              title={activeWorkspace?.name || "No Workspace"}
+            >
+              <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center">
+                {activeWorkspace ? (
+                  <span className="text-[10px] font-bold text-white">
+                    {activeWorkspace.name.charAt(0).toUpperCase()}
+                  </span>
+                ) : (
+                  <Building2 className="w-3.5 h-3.5 text-white" />
+                )}
+              </div>
+            </button>
+          )}
+        </div>
+
+        {/* Collapse toggle */}
+        <div
+          className="flex items-center justify-end px-2 py-1.5"
+          style={{ borderColor: "var(--border-subtle)" }}
+        >
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="p-1 rounded hover:opacity-70"
@@ -614,33 +756,63 @@ export default function DashboardPage() {
             )}
           </button>
         </div>
+
+        {/* Nav items */}
         <nav className="flex-1 p-2 space-y-0.5">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() =>
-                item.path ? router.push(item.path) : setActiveTab(item.id)
-              }
-              className={`w-full flex items-center ${sidebarOpen ? "space-x-3 px-3" : "justify-center px-0"} py-2 rounded-lg text-sm transition-all`}
-              style={{
-                background: (item.path ? false : activeTab === item.id)
-                  ? "rgba(99,102,241,0.08)"
-                  : "transparent",
-                color: item.path
-                  ? "var(--text-muted)"
-                  : activeTab === item.id
-                    ? "#6366f1"
-                    : "var(--text-muted)",
-              }}
-              title={!sidebarOpen ? item.label : undefined}
-            >
-              <item.icon className="w-4 h-4 shrink-0" />
-              {sidebarOpen && (
-                <span className="font-medium truncate">{item.label}</span>
-              )}
-            </button>
-          ))}
+          {navItems.map((item) => {
+            const disabled = featureDisabled && item.id !== "settings";
+            return (
+              <button
+                key={item.id}
+                onClick={() => {
+                  if (disabled) {
+                    toast({
+                      title: "Workspace required",
+                      description:
+                        "Create a workspace to access this feature.",
+                      variant: "destructive",
+                    });
+                    setShowCreateWs(true);
+                    return;
+                  }
+                  item.path ? router.push(item.path) : setActiveTab(item.id);
+                }}
+                className={`w-full flex items-center ${sidebarOpen ? "space-x-3 px-3" : "justify-center px-0"} py-2 rounded-lg text-sm transition-all ${disabled ? "opacity-40 cursor-not-allowed" : ""}`}
+                style={{
+                  background:
+                    !disabled && (item.path ? false : activeTab === item.id)
+                      ? "rgba(99,102,241,0.08)"
+                      : "transparent",
+                  color: disabled
+                    ? "var(--text-muted)"
+                    : item.path
+                      ? "var(--text-muted)"
+                      : activeTab === item.id
+                        ? "#6366f1"
+                        : "var(--text-muted)",
+                }}
+                title={
+                  !sidebarOpen
+                    ? disabled
+                      ? `${item.label} (workspace required)`
+                      : item.label
+                    : undefined
+                }
+              >
+                {disabled ? (
+                  <Lock className="w-4 h-4 shrink-0" />
+                ) : (
+                  <item.icon className="w-4 h-4 shrink-0" />
+                )}
+                {sidebarOpen && (
+                  <span className="font-medium truncate">{item.label}</span>
+                )}
+              </button>
+            );
+          })}
         </nav>
+
+        {/* Bottom */}
         <div
           className="p-2 border-t space-y-1"
           style={{ borderColor: "var(--border-subtle)" }}
@@ -730,7 +902,19 @@ export default function DashboardPage() {
               </button>
               {activeTab === "workflows" && (
                 <button
-                  onClick={() => router.push("/workflow/new")}
+                  onClick={() => {
+                    if (featureDisabled) {
+                      toast({
+                        title: "Workspace required",
+                        description:
+                          "Create a workspace first to create workflows.",
+                        variant: "destructive",
+                      });
+                      setShowCreateWs(true);
+                      return;
+                    }
+                    router.push("/workflow/new");
+                  }}
                   className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
                 >
                   <Plus className="w-4 h-4" />
@@ -742,10 +926,52 @@ export default function DashboardPage() {
         </header>
 
         <div className="p-6">
+          {/* ──── No workspace banner ──── */}
+          {!hasWorkspace && activeTab !== "settings" && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-6 p-6 rounded-xl border-2 border-dashed text-center"
+              style={{ borderColor: "rgba(99,102,241,0.3)" }}
+            >
+              <Building2
+                className="w-10 h-10 mx-auto mb-3"
+                style={{ color: "var(--text-muted)" }}
+              />
+              <h3
+                className="text-base font-semibold mb-1"
+                style={{ color: "var(--text-primary)" }}
+              >
+                Create your first workspace
+              </h3>
+              <p
+                className="text-sm mb-4 max-w-md mx-auto"
+                style={{ color: "var(--text-muted)" }}
+              >
+                Workspaces organize your workflows, secrets, and team members.
+                Create one to get started.
+              </p>
+              <button
+                onClick={() => setShowCreateWs(true)}
+                className="inline-flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-colors"
+              >
+                <FolderPlus className="w-4 h-4" />
+                <span>Create Workspace</span>
+              </button>
+            </motion.div>
+          )}
+
           {/* ──── Workflows Tab ──── */}
-          {activeTab === "workflows" && (
+          {activeTab === "workflows" && hasWorkspace && (
             <>
-              {filtered.length === 0 ? (
+              {loading ? (
+                <div className="flex items-center justify-center py-24">
+                  <Loader2
+                    className="w-5 h-5 animate-spin"
+                    style={{ color: "var(--text-muted)" }}
+                  />
+                </div>
+              ) : filtered.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-24 text-center">
                   <div
                     className="w-12 h-12 rounded-xl border flex items-center justify-center mb-4"
@@ -860,7 +1086,7 @@ export default function DashboardPage() {
           )}
 
           {/* ──── Templates Tab ──── */}
-          {activeTab === "templates" && (
+          {activeTab === "templates" && hasWorkspace && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {TEMPLATES.map((t) => (
                 <motion.div
@@ -896,7 +1122,6 @@ export default function DashboardPage() {
                   >
                     {t.description}
                   </p>
-                  {/* Node preview */}
                   <div className="flex flex-wrap gap-1 mb-4">
                     {t.nodes.map((n, i) => (
                       <span
@@ -972,7 +1197,7 @@ export default function DashboardPage() {
                       className="text-xs font-medium flex items-center space-x-1.5 mb-1.5"
                       style={{ color: "var(--text-secondary)" }}
                     >
-                      <Link2 className="w-3.5 h-3.5" />
+                      <Zap className="w-3.5 h-3.5" />
                       <span>Webhook Base URL</span>
                     </label>
                     <input
@@ -997,7 +1222,7 @@ export default function DashboardPage() {
                     onClick={saveSettings}
                     className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
                   >
-                    <span>{settingsSaved ? "✓ Saved" : "Save Settings"}</span>
+                    <span>{settingsSaved ? "Saved" : "Save Settings"}</span>
                   </button>
                 </div>
               </div>
@@ -1046,6 +1271,17 @@ export default function DashboardPage() {
           )}
         </div>
       </main>
+
+      {/* Create Workspace Modal */}
+      {showCreateWs && (
+        <CreateWorkspaceModal
+          open={showCreateWs}
+          onOpenChange={setShowCreateWs}
+          onSuccess={() => {
+            refreshWorkspaces();
+          }}
+        />
+      )}
     </div>
   );
 }

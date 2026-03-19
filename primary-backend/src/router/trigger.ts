@@ -1,15 +1,25 @@
-
-
 import { Router } from "express";
-import { prismaClient } from "../db";
+import prisma from "../db";
 
 const router = Router();
 
+// The old availableTrigger model no longer exists.
+// This endpoint now returns trigger-type workflow components instead.
 router.get("/available", async (req, res) => {
-    const availableTriggers = await prismaClient.availableTrigger.findMany({});
+    // Return templates as available triggers
+    const templates = await prisma.template.findMany({
+      where: { isPublic: true },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        icon: true,
+        category: true,
+      },
+    });
     res.json({
-        availableTriggers
-    })
+        availableTriggers: templates
+    });
 });
 
 export const triggerRouter = router;

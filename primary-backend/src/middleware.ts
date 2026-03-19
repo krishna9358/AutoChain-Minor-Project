@@ -10,13 +10,14 @@ export interface AuthRequest extends Request {
 export const DEV_USER_ID = "dev-user-00000000";
 
 export const authMiddleware = (req: AuthRequest, res: Response, next: NextFunction) => {
-  const token = req.headers.authorization;
+  const raw = req.headers.authorization;
 
-  if (!token) {
+  if (!raw) {
     return res.status(401).json({ error: "No token provided" });
   }
 
-  // Dev mode bypass — skip JWT verification
+  const token = raw.startsWith("Bearer ") ? raw.slice(7) : raw;
+
   if (token === "dev-demo-token") {
     req.userId = DEV_USER_ID;
     return next();

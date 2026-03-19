@@ -1,0 +1,90 @@
+"use client";
+
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+  type ReactNode,
+} from "react";
+import { workspaceApi, type Workspace, ensureDevToken } from "@/lib/api";
+
+interface WorkspaceContextType {
+  workspaces: Workspace[];
+  activeWorkspace: Workspace | null;
+  loading: boolean;
+  error: string | null;
+  setActiveWorkspace: (ws: Workspace) => void;
+  refreshWorkspaces: () => Promise<void>;
+  hasWorkspace: boolean;
+}
+
+const WorkspaceContext = createContext<WorkspaceContextType>({
+  workspaces: [],
+  activeWorkspace: null,
+  loading: true,
+  error: null,
+  setActiveWorkspace: () => {},
+  refreshWorkspaces: async () => {},
+  hasWorkspace: false,
+});
+
+const ACTIVE_WS_KEY = "agentflow-active-workspace";
+
+export function WorkspaceProvider({ children }: { children: ReactNode }) {
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [activeWorkspace, setActiveWs] = useState<Workspace | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const refreshWorkspaces = useCallback(async () => {
+    try {
+      setError(null);
+      ensureDevToken();
+      const list = await workspaceApi.listWorkspaces();
+      setWorkspaces(list);
+
+      if (list.length > 0) {
+        const savedId = localStorage.getItem(ACTIVE_WS_KEY);
+        const saved = list.find((w) => w.id === savedId);
+        setActiveWs(saved || list[0]);
+      } else {
+        setActiveWs(null);
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to load workspaces");
+      setWorkspaces([]);
+      setActiveWs(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const setActiveWorkspace = useCallback((ws: Workspace) => {
+    setActiveWs(ws);
+    localStorage.setItem(ACTIVE_WS_KEY, ws.id);
+  }, []);
+
+  useEffect(() => {
+    refreshWorkspaces();
+  }, [refreshWorkspaces]);
+
+  return (
+    <WorkspaceContext.Provider
+      value={{
+        workspaces,
+        activeWorkspace,
+        loading,
+        error,
+        setActiveWorkspace,
+        refreshWorkspaces,
+        hasWorkspace: workspaces.length > 0,
+      }}
+    >
+      {children}
+    </WorkspaceContext.Provider>
+  );
+}
+
+export const useWorkspace = () => useContext(WorkspaceContext);

@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import { userRouter } from "./router/user";
 import { workflowRouter } from "./router/workflow";
+import { workspaceRouter } from "./router/workspace";
 import { executionRouter } from "./router/execution";
 import { templateRouter } from "./router/template";
 import { approvalRouter } from "./router/approval";
@@ -30,6 +31,7 @@ app.get("/health", (_, res) => {
 // API Routes
 app.use("/api/v1/user", userRouter);
 app.use("/api/v1/workflows", workflowRouter);
+app.use("/api/v1/workspaces", workspaceRouter);
 app.use("/api/v1/execution", executionRouter);
 app.use("/api/v1/templates", templateRouter);
 app.use("/api/v1/approvals", approvalRouter);

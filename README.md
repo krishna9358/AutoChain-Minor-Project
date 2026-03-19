@@ -40,6 +40,8 @@ Once everything is running, open:
 - Password: demo123
 - Or use the demo mode - no login required!
 
+
+
 ## 📋 Development Commands
 
 The `dev` command provides everything you need:

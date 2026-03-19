@@ -2,6 +2,7 @@ import { Router } from "express";
 import prisma from "../db";
 import { authMiddleware, AuthRequest } from "../middleware";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { validateWorkflowNodes } from "./componentCatalog";
 
 const router = Router();
@@ -46,11 +47,11 @@ router.post("/", authMiddleware, async (req: AuthRequest, res) => {
           ? {
               create: normalizedNodes.map((n: any, i: number) => ({
                 id: inputNodes[i]?.id || n.id,
-                nodeType: n.componentId,
+                nodeType: n.componentId as any,
                 category: inputNodes[i]?.category,
                 label: inputNodes[i]?.label,
                 description: inputNodes[i]?.description,
-                config: n.config || {},
+                config: (n.config || {}) as Prisma.InputJsonValue,
                 position: inputNodes[i]?.position || { x: 0, y: 0 },
                 metadata: {
                   ...(inputNodes[i]?.metadata || {}),
@@ -100,7 +101,7 @@ router.post("/", authMiddleware, async (req: AuthRequest, res) => {
       data: {
         workflowId: workflow.id,
         version: 1,
-        nodesData: normalizedNodes || [],
+        nodesData: (normalizedNodes || []) as unknown as Prisma.InputJsonValue,
         edgesData: edges || [],
         changelog: "Initial version",
       },
@@ -247,11 +248,11 @@ router.put("/:id", authMiddleware, async (req: AuthRequest, res) => {
           data: {
             id: originalNode.id || n.id,
             workflowId: workflow.id,
-            nodeType: n.componentId,
+            nodeType: n.componentId as any,
             category: originalNode.category,
             label: originalNode.label,
             description: originalNode.description,
-            config: n.config || {},
+            config: (n.config || {}) as Prisma.InputJsonValue,
             position: originalNode.position || { x: 0, y: 0 },
             metadata: {
               ...(originalNode.metadata || {}),
@@ -291,7 +292,7 @@ router.put("/:id", authMiddleware, async (req: AuthRequest, res) => {
         data: {
           workflowId: workflow.id,
           version: newVersion,
-          nodesData: normalizedNodes,
+          nodesData: normalizedNodes as unknown as Prisma.InputJsonValue,
           edgesData: edges || [],
           changelog: `Version ${newVersion}`,
         },

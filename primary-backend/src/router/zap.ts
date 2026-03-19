@@ -1,14 +1,15 @@
-
 import { Router } from "express";
-import { authMiddleware } from "../middleware";
+import { authMiddleware, AuthRequest } from "../middleware";
 import { ZapCreateSchema } from "../types";
-import { prismaClient } from "../db";
+import prisma from "../db";
 
 const router = Router();
 
-router.post("/", authMiddleware, async (req, res) => {
-    // @ts-ignore
-    const id: string = req.id;
+// NOTE: The old Zap/Trigger/Action models no longer exist in the schema.
+// This router is kept for backward compatibility but now creates Workflows instead.
+
+router.post("/", authMiddleware, async (req: AuthRequest, res) => {
+    const id: string = req.userId!;
     const body = req.body;
     const parsedData = ZapCreateSchema.safeParse(body);
     
@@ -18,99 +19,77 @@ router.post("/", authMiddleware, async (req, res) => {
         });
     }   
 
-    const zapId = await prismaClient.$transaction(async tx => {
-        const zap = await prismaClient.zap.create({
-            data: {
-                userId: parseInt(id),
-                triggerId: "",
-                actions: {
-                    create: parsedData.data.actions.map((x, index) => ({
-                        actionId: x.availableActionId,
-                        sortingOrder: index,
-                        metadata: x.actionMetadata
-                    }))
-                }
-            }
-        })
+    // Get user's workspace
+    const membership = await prisma.workspaceMember.findFirst({
+        where: { userId: id },
+    });
 
-        const trigger = await tx.trigger.create({
-            data: {
-                triggerId: parsedData.data.availableTriggerId,
-                zapId: zap.id,
-            }
-        });
+    if (!membership) {
+        return res.status(400).json({ message: "No workspace found" });
+    }
 
-        await tx.zap.update({
-            where: {
-                id: zap.id
-            },
-            data: {
-                triggerId: trigger.id
-            }
-        })
-
-        return zap.id;
-
-    })
-    return res.json({
-        zapId
-    })
-})
-
-router.get("/", authMiddleware, async (req, res) => {
-    // @ts-ignore
-    const id = req.id;
-    const zaps = await prismaClient.zap.findMany({
-        where: {
-            userId: id
+    const workflow = await prisma.workflow.create({
+        data: {
+            name: "Untitled Zap",
+            userId: id,
+            workspaceId: membership.workspaceId,
         },
         include: {
-            actions: {
-               include: {
-                    type: true
-               }
-            },
-            trigger: {
-                include: {
-                    type: true
-                }
-            }
-        }
+            nodes: true,
+            edges: true,
+        },
     });
 
     return res.json({
-        zaps
-    })
-})
+        zapId: workflow.id
+    });
+});
 
-router.get("/:zapId", authMiddleware, async (req, res) => {
-    //@ts-ignore
-    const id = req.id;
+router.get("/", authMiddleware, async (req: AuthRequest, res) => {
+    const id = req.userId!;
+
+    const membership = await prisma.workspaceMember.findFirst({
+        where: { userId: id },
+    });
+
+    if (!membership) {
+        return res.json({ zaps: [] });
+    }
+
+    const workflows = await prisma.workflow.findMany({
+        where: {
+            workspaceId: membership.workspaceId,
+            userId: id,
+        },
+        include: {
+            nodes: true,
+            edges: true,
+        },
+    });
+
+    return res.json({
+        zaps: workflows
+    });
+});
+
+router.get("/:zapId", authMiddleware, async (req: AuthRequest, res) => {
+    const id = req.userId!;
     const zapId = req.params.zapId;
 
-    const zap = await prismaClient.zap.findFirst({
+    const workflow = await prisma.workflow.findFirst({
         where: {
             id: zapId,
-            userId: id
+            userId: id,
         },
         include: {
-            actions: {
-               include: {
-                    type: true
-               }
-            },
-            trigger: {
-                include: {
-                    type: true
-                }
-            }
-        }
+            nodes: true,
+            edges: true,
+        },
     });
 
     return res.json({
-        zap
-    })
-
-})
+        zap: workflow
+    });
+});
 
 export const zapRouter = router;

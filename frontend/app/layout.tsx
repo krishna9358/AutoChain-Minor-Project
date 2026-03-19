@@ -2,12 +2,15 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { ToastProvider } from "@/components/hooks/use-toast";
+import { WorkspaceProvider } from "@/components/WorkspaceProvider";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "AgentFlow AI — Enterprise Workflow Automation",
-  description: "Design, generate, and execute AI-powered workflows with enterprise-grade observability",
+  description:
+    "Design, generate, and execute AI-powered workflows with enterprise-grade observability",
 };
 
 export default function RootLayout({
@@ -19,7 +22,9 @@ export default function RootLayout({
     <html lang="en" data-theme="dark">
       <body className={inter.className}>
         <ThemeProvider>
-          {children}
+          <ToastProvider>
+            <WorkspaceProvider>{children}</WorkspaceProvider>
+          </ToastProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import {
   Type,
-  Textarea as TextareaIcon,
+  AlignLeft as TextareaIcon,
   Hash,
   ToggleLeft,
   Lock,
@@ -85,10 +85,9 @@ export const NodeConfigForm: React.FC<NodeConfigFormProps> = ({
                 </span>
               </span>
               {field.description && (
-                <HelpCircle
-                  className="w-3 h-3 opacity-50 cursor-help"
-                  title={field.description}
-                />
+                <span title={field.description}>
+                  <HelpCircle className="w-3 h-3 opacity-50 cursor-help" />
+                </span>
               )}
             </label>
 
@@ -151,7 +150,7 @@ export const NodeConfigForm: React.FC<NodeConfigFormProps> = ({
             )}
 
             {field.type === "password" ||
-              (field.type === "api-key" && (
+              ((field.type as string) === "api-key" && (
                 <div className="relative">
                   <input
                     type="password"

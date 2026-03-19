@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "tsc -b && node dist/index.js"
+    "dev": "npx tsc -b && node dist/index.js"
   },
   "keywords": [],
   "author": "",
@@ -20,6 +20,7 @@
     "nodemailer": "^6.9.14"
   },
   "devDependencies": {
-    "prisma": "^5.17.0"
+    "prisma": "^5.17.0",
+    "typescript": "^5.5.0"
   }
 }
