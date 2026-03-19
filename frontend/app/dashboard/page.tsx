@@ -33,6 +33,9 @@ import {
   Trash2,
   Edit2,
   Copy,
+  Play,
+  Sparkles,
+  FlaskConical,
   Filter,
   SlidersHorizontal,
   Tag,
@@ -678,6 +681,77 @@ export default function DashboardPage() {
 
             {hasWorkspace && (
               <>
+                {/* Demo workflow quick-launch banner */}
+                {(() => {
+                  const demo = workflows.find((w) =>
+                    w.name === "Support Ticket Triage AI",
+                  );
+                  if (!demo) return null;
+                  return (
+                    <motion.div
+                      initial={{ opacity: 0, y: -6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex items-start gap-4 mb-5 p-4 rounded-2xl border"
+                      style={{
+                        background: "rgba(99,102,241,0.04)",
+                        borderColor: "rgba(99,102,241,0.2)",
+                      }}
+                    >
+                      <div
+                        className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
+                        style={{ background: "rgba(99,102,241,0.12)" }}
+                      >
+                        <FlaskConical className="w-5 h-5 text-indigo-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <p
+                            className="text-sm font-semibold"
+                            style={{ color: "var(--text-primary)" }}
+                          >
+                            Demo Workflow Ready
+                          </p>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-500/10 text-indigo-500">
+                            DEMO
+                          </span>
+                        </div>
+                        <p
+                          className="text-xs leading-relaxed"
+                          style={{ color: "var(--text-muted)" }}
+                        >
+                          <span className="font-medium" style={{ color: "var(--text-secondary)" }}>
+                            {demo.name}
+                          </span>{" "}
+                          — 5-node AI pipeline: webhook trigger → extract ticket info →
+                          classify issue type → generate reply → send email. Click{" "}
+                          <strong>Open</strong> to explore, then hit{" "}
+                          <strong>Run</strong> to execute end-to-end.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          onClick={() => router.push(`/workflow/${demo.id}`)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors hover:bg-white/5"
+                          style={{
+                            borderColor: "rgba(99,102,241,0.3)",
+                            color: "#6366f1",
+                          }}
+                        >
+                          Open
+                          <ArrowRight className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => router.push(`/workflow/${demo.id}?tab=runs`)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white transition-colors"
+                        >
+                          <Play className="w-3 h-3" />
+                          Run Demo
+                        </button>
+                      </div>
+                    </motion.div>
+                  );
+                })()}
+
                 {/* Filter bar */}
                 <div className="flex items-center gap-3 mb-4 flex-wrap">
                   <div className="flex items-center gap-1">
@@ -879,12 +953,19 @@ export default function DashboardPage() {
                               <Workflow className="w-3.5 h-3.5 text-indigo-500" />
                             </div>
                             <div className="min-w-0">
-                              <p
-                                className="text-sm font-medium truncate"
-                                style={{ color: "var(--text-primary)" }}
-                              >
-                                {wf.name}
-                              </p>
+                              <div className="flex items-center gap-1.5">
+                                <p
+                                  className="text-sm font-medium truncate"
+                                  style={{ color: "var(--text-primary)" }}
+                                >
+                                  {wf.name}
+                                </p>
+                                {wf.name === "Support Ticket Triage AI" && (
+                                  <span className="shrink-0 px-1.5 py-0.5 rounded-full text-[9px] font-bold tracking-wider bg-indigo-500/10 text-indigo-500">
+                                    DEMO
+                                  </span>
+                                )}
+                              </div>
                               {wf.description && (
                                 <p
                                   className="text-[11px] truncate"

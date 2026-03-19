@@ -46,6 +46,19 @@ router.get("/dev-bootstrap", async (req, res) => {
       include: { workspace: true },
     });
 
+    const workspaceId = membership?.workspace?.id;
+
+    // Seed demo workflow if the workspace has no workflows yet
+    if (workspaceId) {
+      const existingWorkflows = await prisma.workflow.count({
+        where: { workspaceId },
+      });
+
+      if (existingWorkflows === 0) {
+        await seedDemoWorkflow(workspaceId);
+      }
+    }
+
     res.json({
       token: "dev-demo-token",
       user: { id: user.id, email: user.email, name: user.name, role: user.role },
@@ -55,6 +68,131 @@ router.get("/dev-bootstrap", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// ── Demo workflow seeder ─────────────────────────────────────────
+async function seedDemoWorkflow(workspaceId: string) {
+  // Node IDs (stable so the workflow can be re-seeded cleanly)
+  const n1 = "demo-node-trigger";
+  const n2 = "demo-node-extract";
+  const n3 = "demo-node-classify";
+  const n4 = "demo-node-reason";
+  const n5 = "demo-node-email";
+
+  const workflow = await prisma.workflow.create({
+    data: {
+      workspaceId,
+      userId: DEV_USER_ID,
+      name: "Support Ticket Triage AI",
+      description:
+        "Automatically triage inbound support tickets: extract details, classify issue type, generate a reply draft, and send it to the customer.",
+      status: "ACTIVE",
+      nodes: {
+        create: [
+          {
+            id: n1,
+            nodeType: "WEBHOOK_TRIGGER",
+            category: "TRIGGER",
+            label: "New Support Ticket",
+            description: "Fires when a ticket arrives via webhook",
+            position: { x: 300, y: 60 },
+            config: {
+              triggerMode: "webhook",
+              webhookPath: "/incoming/support",
+              inputSchema: {
+                type: "object",
+                properties: {
+                  ticketId: { type: "string" },
+                  customerEmail: { type: "string" },
+                  subject: { type: "string" },
+                  body: { type: "string" },
+                  priority: { type: "string", enum: ["low", "medium", "high"] },
+                },
+              },
+            },
+            metadata: { componentId: "entry-point", isDemo: true },
+          },
+          {
+            id: n2,
+            nodeType: "EXTRACTION_AGENT",
+            category: "AI_AGENT",
+            label: "Extract Ticket Info",
+            description: "Pull out customer name, issue summary, and affected product",
+            position: { x: 300, y: 220 },
+            config: {
+              extractionFields: [
+                { name: "customerName", description: "Full name of the customer" },
+                { name: "issueSummary", description: "One-line summary of the reported problem" },
+                { name: "affectedProduct", description: "Product or service that is broken" },
+                { name: "urgency", description: "Urgency level detected in the message tone" },
+              ],
+              model: "gpt-4o",
+              outputFormat: "json",
+            },
+            metadata: { componentId: "extraction-agent", isDemo: true },
+          },
+          {
+            id: n3,
+            nodeType: "CLASSIFICATION_AGENT",
+            category: "AI_AGENT",
+            label: "Classify Issue Type",
+            description: "Route to Bug, Billing, Feature Request, or General Inquiry",
+            position: { x: 300, y: 380 },
+            config: {
+              categories: ["bug", "billing", "feature-request", "general-inquiry"],
+              confidenceThreshold: 0.75,
+              model: "gpt-4o",
+              systemPrompt:
+                "You are a support ticket classifier. Classify the issue into exactly one category.",
+            },
+            metadata: { componentId: "classification-agent", isDemo: true },
+          },
+          {
+            id: n4,
+            nodeType: "REASONING_AGENT",
+            category: "AI_AGENT",
+            label: "Generate Reply Draft",
+            description: "Draft a personalised first-response email",
+            position: { x: 300, y: 540 },
+            config: {
+              model: "gpt-4o",
+              temperature: 0.4,
+              systemPrompt:
+                "You are a friendly support agent. Write a concise, empathetic first-response email acknowledging the issue and stating next steps.",
+              outputFormat: "markdown",
+            },
+            metadata: { componentId: "reasoning-agent", isDemo: true },
+          },
+          {
+            id: n5,
+            nodeType: "EMAIL_SEND",
+            category: "ACTION",
+            label: "Send to Customer",
+            description: "Deliver the drafted reply to the customer",
+            position: { x: 300, y: 700 },
+            config: {
+              to: "{{extract.customerEmail}}",
+              subject: "Re: {{extract.subject}}",
+              body: "{{reason.output}}",
+              from: "support@autochain.ai",
+              replyTo: "support@autochain.ai",
+            },
+            metadata: { componentId: "email-send", isDemo: true },
+          },
+        ],
+      },
+      edges: {
+        create: [
+          { sourceNodeId: n1, targetNodeId: n2, animated: true },
+          { sourceNodeId: n2, targetNodeId: n3, animated: true },
+          { sourceNodeId: n3, targetNodeId: n4, animated: true },
+          { sourceNodeId: n4, targetNodeId: n5, animated: true },
+        ],
+      },
+    },
+  });
+
+  return workflow;
+}
 
 const signupSchema = z.object({
   email: z.string().email(),
