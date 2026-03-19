@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { Sparkles, CheckCircle2, ArrowDown, Lightbulb, Brain, ChevronRight, Zap, FileText, Tag, Search, GitBranch, MessageSquare, Mail, File, Users, ShieldCheck, Hourglass, Clock, Upload, Webhook, GitFork, RefreshCw, CheckCircle2 as Check } from 'lucide-react';
+import { Sparkles, CheckCircle2, ArrowDown, Lightbulb, Brain, ChevronRight, Zap, FileText, GitBranch, Mail, GitFork, RefreshCw, Clock, Database, Archive, Send, ShieldAlert } from 'lucide-react';
+import { SlackLogo } from './icons/ServiceLogos';
 
 interface WorkflowStep {
   step: number;
@@ -123,7 +124,7 @@ const WorkflowExplanation: React.FC<WorkflowExplanationProps> = ({
                     )}
                   >
                     {isCompleted ? (
-                      <Check className="w-6 h-6" />
+                      <CheckCircle2 className="w-6 h-6" />
                     ) : (
                       <Icon className={cn("w-6 h-6", isActive && "animate-bounce")} />
                     )}
@@ -217,13 +218,13 @@ const WorkflowExplanation: React.FC<WorkflowExplanationProps> = ({
               </div>
               <div className="bg-white rounded-lg p-4 text-center shadow-sm">
                 <div className="text-2xl font-bold text-blue-600">
-                  {steps.filter(s => s.icon === Brain || s.icon === Search || s.icon === Tag).length}
+                  {steps.filter(s => s.icon === Brain || s.icon === FileText).length}
                 </div>
                 <div className="text-xs text-slate-600 mt-1">AI Agents</div>
               </div>
               <div className="bg-white rounded-lg p-4 text-center shadow-sm">
                 <div className="text-2xl font-bold text-green-600">
-                  {steps.filter(s => s.icon === MessageSquare || s.icon === Mail || s.icon === Users).length}
+                  {steps.filter(s => s.icon === SlackLogo || s.icon === Mail || s.icon === Database).length}
                 </div>
                 <div className="text-xs text-slate-600 mt-1">Integrations</div>
               </div>
@@ -259,26 +260,21 @@ const WorkflowExplanation: React.FC<WorkflowExplanationProps> = ({
 // Helper function to generate workflow steps from nodes
 export const generateWorkflowSteps = (nodes: any[]): WorkflowStep[] => {
   const iconMap: Record<string, { icon: any; color: string; bgColor: string }> = {
-    'webhook-trigger': { icon: Webhook, color: '#f59e0b', bgColor: 'bg-amber-500' },
-    'file-upload': { icon: Upload, color: '#f59e0b', bgColor: 'bg-amber-500' },
-    'api-trigger': { icon: Webhook, color: '#f59e0b', bgColor: 'bg-amber-500' },
-    'scheduled-trigger': { icon: Clock, color: '#f59e0b', bgColor: 'bg-amber-500' },
-    'summarization-agent': { icon: FileText, color: '#8b5cf6', bgColor: 'bg-purple-500' },
-    'classification-agent': { icon: Tag, color: '#8b5cf6', bgColor: 'bg-purple-500' },
-    'extraction-agent': { icon: Search, color: '#8b5cf6', bgColor: 'bg-purple-500' },
-    'reasoning-agent': { icon: Brain, color: '#8b5cf6', bgColor: 'bg-purple-500' },
-    'decision-agent': { icon: GitBranch, color: '#8b5cf6', bgColor: 'bg-purple-500' },
-    'slack': { icon: MessageSquare, color: '#3b82f6', bgColor: 'bg-blue-500' },
-    'gmail': { icon: Mail, color: '#3b82f6', bgColor: 'bg-blue-500' },
-    'notion': { icon: File, color: '#3b82f6', bgColor: 'bg-blue-500' },
-    'crm': { icon: Users, color: '#3b82f6', bgColor: 'bg-blue-500' },
-    'webhook-action': { icon: Webhook, color: '#3b82f6', bgColor: 'bg-blue-500' },
-    'condition': { icon: GitFork, color: '#10b981', bgColor: 'bg-emerald-500' },
+    'entry-point': { icon: Zap, color: '#f59e0b', bgColor: 'bg-amber-500' },
+    'http-request': { icon: GitFork, color: '#3b82f6', bgColor: 'bg-blue-500' },
+    'slack-send': { icon: SlackLogo, color: '#3b82f6', bgColor: 'bg-blue-500' },
+    'email-send': { icon: Mail, color: '#3b82f6', bgColor: 'bg-blue-500' },
+    'db-query': { icon: Database, color: '#3b82f6', bgColor: 'bg-blue-500' },
+    'if-condition': { icon: GitFork, color: '#10b981', bgColor: 'bg-emerald-500' },
+    'switch-case': { icon: GitBranch, color: '#10b981', bgColor: 'bg-emerald-500' },
     'loop': { icon: RefreshCw, color: '#10b981', bgColor: 'bg-emerald-500' },
-    'branch': { icon: GitBranch, color: '#10b981', bgColor: 'bg-emerald-500' },
-    'approval': { icon: ShieldCheck, color: '#6b7280', bgColor: 'bg-gray-500' },
-    'delay': { icon: Hourglass, color: '#6b7280', bgColor: 'bg-gray-500' },
-    'verification': { icon: Check, color: '#6b7280', bgColor: 'bg-gray-500' },
+    'ai-agent': { icon: Brain, color: '#8b5cf6', bgColor: 'bg-purple-500' },
+    'text-transform': { icon: FileText, color: '#8b5cf6', bgColor: 'bg-purple-500' },
+    'delay': { icon: Clock, color: '#6b7280', bgColor: 'bg-gray-500' },
+    'error-handler': { icon: ShieldAlert, color: '#6b7280', bgColor: 'bg-gray-500' },
+    'approval': { icon: CheckCircle2, color: '#6b7280', bgColor: 'bg-gray-500' },
+    'artifact-writer': { icon: Archive, color: '#6366f1', bgColor: 'bg-indigo-500' },
+    'webhook-response': { icon: Send, color: '#6366f1', bgColor: 'bg-indigo-500' },
   };
 
   return nodes.map((node, index) => {

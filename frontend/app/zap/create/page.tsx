@@ -235,9 +235,9 @@ function WorkflowEditor() {
           type: "customTask",
           position: { x: 250, y: 50 },
           data: {
-            type: "webhook-trigger",
+            type: "entry-point",
             config: {
-              id: "webhook-trigger",
+              id: "entry-point",
               name: "Webhook Trigger",
               image: "",
             },
@@ -250,9 +250,9 @@ function WorkflowEditor() {
           type: "customTask",
           position: { x: 250, y: 200 },
           data: {
-            type: "classification-agent",
+            type: "ai-agent",
             config: {
-              id: "classification-agent",
+              id: "ai-agent",
               name: "Classification Agent",
               image: "",
             },
@@ -265,8 +265,8 @@ function WorkflowEditor() {
           type: "customTask",
           position: { x: 250, y: 350 },
           data: {
-            type: "slack",
-            config: { id: "slack", name: "Slack", image: "" },
+            type: "slack-send",
+            config: { id: "slack-send", name: "Slack", image: "" },
             selected: false,
             metadata: {},
           },

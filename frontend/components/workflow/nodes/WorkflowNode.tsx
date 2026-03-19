@@ -2,11 +2,11 @@ import React from 'react';
 import { Handle, Position } from '@xyflow/react';
 import type { NodeProps, Node } from '@xyflow/react';
 import {
-  Zap, Globe, Clock, FileText, Brain, GitBranch, Shield,
-  MessageSquare, Mail, File, Users, RotateCcw, Hourglass,
-  PauseCircle, ShieldCheck, CheckCircle2, Upload, Webhook,
-  Tag, Search, GitFork, RefreshCw,
+  Zap, Globe, Clock, FileText, Brain, GitBranch,
+  Mail, GitFork, RefreshCw, CheckCircle2,
+  Database, Archive, Send, ShieldAlert,
 } from 'lucide-react';
+import { SlackLogo } from '../icons/ServiceLogos';
 
 // Node type data interface
 type WorkflowNodeData = {
@@ -24,57 +24,48 @@ type WorkflowNodeData = {
 type WorkflowNodeType = Node<WorkflowNodeData>;
 
 const NODE_ICONS: Record<string, React.ElementType> = {
-  'webhook-trigger': Webhook,
-  'file-upload': Upload,
-  'api-trigger': Globe,
-  'scheduled-trigger': Clock,
-  'summarization-agent': FileText,
-  'classification-agent': Tag,
-  'extraction-agent': Search,
-  'reasoning-agent': Brain,
-  'decision-agent': GitBranch,
-  'slack': MessageSquare,
-  'gmail': Mail,
-  'notion': File,
-  'crm': Users,
-  'webhook-action': Globe,
-  'condition': GitFork,
+  'entry-point': Zap,
+  'http-request': Globe,
+  'slack-send': SlackLogo,
+  'email-send': Mail,
+  'db-query': Database,
+  'if-condition': GitFork,
+  'switch-case': GitBranch,
   'loop': RefreshCw,
-  'branch': GitBranch,
-  'approval': ShieldCheck,
-  'delay': Hourglass,
-  'verification': CheckCircle2,
+  'ai-agent': Brain,
+  'text-transform': FileText,
+  'delay': Clock,
+  'error-handler': ShieldAlert,
+  'approval': CheckCircle2,
+  'artifact-writer': Archive,
+  'webhook-response': Send,
 };
 
 const NODE_COLORS: Record<string, string> = {
-  'trigger': '#f59e0b',
-  'ai-agent': '#8b5cf6',
-  'tool': '#3b82f6',
+  'input': '#f59e0b',
+  'integration': '#3b82f6',
+  'ai': '#8b5cf6',
   'logic': '#10b981',
   'control': '#6b7280',
+  'output': '#6366f1',
 };
 
 const CATEGORY_FOR_TYPE: Record<string, string> = {
-  'webhook-trigger': 'trigger',
-  'file-upload': 'trigger',
-  'api-trigger': 'trigger',
-  'scheduled-trigger': 'trigger',
-  'summarization-agent': 'ai-agent',
-  'classification-agent': 'ai-agent',
-  'extraction-agent': 'ai-agent',
-  'reasoning-agent': 'ai-agent',
-  'decision-agent': 'ai-agent',
-  'slack': 'tool',
-  'gmail': 'tool',
-  'notion': 'tool',
-  'crm': 'tool',
-  'webhook-action': 'tool',
-  'condition': 'logic',
+  'entry-point': 'input',
+  'http-request': 'integration',
+  'slack-send': 'integration',
+  'email-send': 'integration',
+  'db-query': 'integration',
+  'if-condition': 'logic',
+  'switch-case': 'logic',
   'loop': 'logic',
-  'branch': 'logic',
-  'approval': 'control',
+  'ai-agent': 'ai',
+  'text-transform': 'ai',
   'delay': 'control',
-  'verification': 'control',
+  'error-handler': 'control',
+  'approval': 'control',
+  'artifact-writer': 'output',
+  'webhook-response': 'output',
 };
 
 const WorkflowNode: React.FC<NodeProps<WorkflowNodeType>> = ({ data, isConnectable }) => {
@@ -84,7 +75,7 @@ const WorkflowNode: React.FC<NodeProps<WorkflowNodeType>> = ({ data, isConnectab
   const color = NODE_COLORS[category] || '#6b7280';
   const label = (data.label || data.config?.name || nodeType || 'Node') as string;
   const description = (data.description as string) || category.replace('-', ' ');
-  const isTrigger = category === 'trigger';
+  const isTrigger = category === 'input';
   const isConfigured = Boolean(data.config && Object.keys(data.config).length > 0);
 
   return (

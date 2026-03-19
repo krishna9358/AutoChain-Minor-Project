@@ -89,6 +89,18 @@ export class NodeExecutorFactory {
       "meeting.intelligence",
       MeetingIntelligenceNodeExecutor,
     );
+
+    // Catalog-format aliases (kebab-case componentCatalog IDs → same executors)
+    this.executorMap.set("entry-point", WebhookTriggerExecutor);
+    this.executorMap.set("http-request", HttpToolExecutor);
+    this.executorMap.set("slack-send", SlackToolExecutor);
+    this.executorMap.set("email-send", EmailToolExecutor);
+    this.executorMap.set("db-query", DatabaseToolExecutor);
+    this.executorMap.set("if-condition", ConditionalExecutor);
+    this.executorMap.set("switch-case", SwitchExecutor);
+    this.executorMap.set("ai-agent", AgentNodeExecutor);
+    this.executorMap.set("error-handler", ErrorHandlingNodeExecutor);
+    this.executorMap.set("approval", HumanApprovalNodeExecutor);
   }
 
   /**

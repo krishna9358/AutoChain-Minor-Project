@@ -9,7 +9,7 @@ interface NodePaletteProps {
 
 const NodePalette: React.FC<NodePaletteProps> = ({ onNodeDragStart }) => {
   const [expandedCategories, setExpandedCategories] = useState<Set<NodeCategory>>(
-    new Set(['trigger', 'ai-agent', 'tool', 'logic', 'control'])
+    new Set(['input', 'integration', 'ai', 'logic', 'control', 'output'] as NodeCategory[])
   );
 
   const toggleCategory = (category: NodeCategory) => {
