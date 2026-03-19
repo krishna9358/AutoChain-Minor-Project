@@ -67,6 +67,10 @@ import {
   Link2,
   Pause,
   FolderPlus,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
   Building2,
   ChevronsUpDown,
   Check,
@@ -219,6 +223,7 @@ function WorkflowInner() {
   );
   const [leftTab, setLeftTab] = useState<"ai" | "nodes">(isNew ? "ai" : "nodes");
   const [leftOpen, setLeftOpen] = useState(true);
+  const [rightOpen, setRightOpen] = useState(true);
 
   // Workflow data
   const [nodes, setNodes] = useState<Node[]>([]);
@@ -837,198 +842,219 @@ function WorkflowInner() {
 
       {/* ─── Editor area ──── */}
       {hasWorkspace && (
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex overflow-hidden relative">
           {/* ── Left Panel ── */}
-          {activeMode === "design" && leftOpen && (
-            <div
-              className="w-[220px] shrink-0 border-r flex flex-col"
-              style={{ background: "var(--bg-secondary)", borderColor: "var(--border-subtle)" }}
-            >
-              {/* Left panel tabs */}
-              <div
-                className="flex items-center gap-0 border-b px-2 py-1.5"
-                style={{ borderColor: "var(--border-subtle)" }}
-              >
-                {([
-                  { id: "ai" as const, icon: Sparkles, label: "AI" },
-                  { id: "nodes" as const, icon: Plus, label: "Nodes" },
-                ] as const).map((t) => (
-                  <button
-                    key={t.id}
-                    onClick={() => setLeftTab(t.id)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
-                    style={{
-                      background: leftTab === t.id ? "rgba(99,102,241,0.08)" : "transparent",
-                      color: leftTab === t.id ? "#6366f1" : "var(--text-muted)",
-                    }}
+          {activeMode === "design" && (
+            <AnimatePresence initial={false}>
+              {leftOpen ? (
+                <motion.div
+                  key="left-open"
+                  initial={{ width: 0, opacity: 0 }}
+                  animate={{ width: 256, opacity: 1 }}
+                  exit={{ width: 0, opacity: 0 }}
+                  transition={{ duration: 0.18, ease: "easeInOut" }}
+                  className="shrink-0 border-r flex flex-col overflow-hidden"
+                  style={{ background: "var(--bg-secondary)", borderColor: "var(--border-subtle)" }}
+                >
+                  {/* Left panel header */}
+                  <div
+                    className="flex items-center justify-between border-b px-2 py-1.5 shrink-0"
+                    style={{ borderColor: "var(--border-subtle)" }}
                   >
-                    <t.icon className="w-3.5 h-3.5" />
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* AI Generator */}
-              {leftTab === "ai" && (
-                <div className="flex-1 overflow-y-auto p-3 space-y-3">
-                  <textarea
-                    value={aiPrompt}
-                    onChange={(e) => setAiPrompt(e.target.value)}
-                    onKeyDown={(e) => e.stopPropagation()}
-                    placeholder="Describe your workflow in plain English..."
-                    rows={4}
-                    className="w-full p-2.5 rounded-xl text-xs resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
-                    style={{
-                      background: "var(--input-bg)",
-                      border: "1px solid var(--input-border)",
-                      color: "var(--text-primary)",
-                    }}
-                  />
-                  <button
-                    onClick={() => aiGenerate()}
-                    disabled={aiGen || !aiPrompt.trim()}
-                    className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold disabled:opacity-50 transition-colors"
-                  >
-                    {aiGen ? (
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                    ) : (
-                      <Sparkles className="w-3 h-3" />
-                    )}
-                    {aiGen ? "Generating..." : "Generate Workflow"}
-                  </button>
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider px-1" style={{ color: "var(--text-muted)" }}>
-                      Quick prompts
-                    </p>
-                    {[
-                      "Process meeting transcripts and extract tasks",
-                      "Classify support tickets and auto-respond",
-                      "Process invoices and route for approval",
-                    ].map((p, i) => (
-                      <button
-                        key={i}
-                        onClick={() => { setAiPrompt(p); aiGenerate(p); }}
-                        className="w-full text-left text-[11px] p-2 rounded-lg transition-colors hover:bg-white/5"
-                        style={{ color: "var(--text-muted)" }}
-                      >
-                        "{p}"
-                      </button>
-                    ))}
+                    <div className="flex items-center gap-0">
+                      {([
+                        { id: "ai" as const, icon: Sparkles, label: "AI" },
+                        { id: "nodes" as const, icon: Plus, label: "Nodes" },
+                      ] as const).map((t) => (
+                        <button
+                          key={t.id}
+                          onClick={() => setLeftTab(t.id)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                          style={{
+                            background: leftTab === t.id ? "rgba(99,102,241,0.08)" : "transparent",
+                            color: leftTab === t.id ? "#6366f1" : "var(--text-muted)",
+                          }}
+                        >
+                          <t.icon className="w-3.5 h-3.5" />
+                          {t.label}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => setLeftOpen(false)}
+                      className="p-1 rounded-lg hover:bg-white/5 transition-colors"
+                      style={{ color: "var(--text-muted)" }}
+                      title="Collapse panel"
+                    >
+                      <PanelLeftClose className="w-4 h-4" />
+                    </button>
                   </div>
-                </div>
-              )}
 
-              {/* Node palette — 2-column grid matching screenshot 1 */}
-              {leftTab === "nodes" && (
-                <div className="flex-1 overflow-y-auto p-2">
-                  {components.length > 0 ? (
-                    Object.entries(groupComponentsByCategory(components)).map(([cat, items]) => (
-                      <div key={cat} className="mb-4">
-                        <p
-                          className="text-[10px] font-semibold uppercase tracking-wider px-1 mb-1.5"
-                          style={{ color: "var(--text-muted)" }}
-                        >
-                          {categoryLabel(cat as ComponentCategory)}
+                  {/* AI Generator */}
+                  {leftTab === "ai" && (
+                    <div className="flex-1 overflow-y-auto p-3 space-y-3">
+                      <textarea
+                        value={aiPrompt}
+                        onChange={(e) => setAiPrompt(e.target.value)}
+                        onKeyDown={(e) => e.stopPropagation()}
+                        placeholder="Describe your workflow in plain English..."
+                        rows={4}
+                        className="w-full p-2.5 rounded-xl text-xs resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                        style={{
+                          background: "var(--input-bg)",
+                          border: "1px solid var(--input-border)",
+                          color: "var(--text-primary)",
+                        }}
+                      />
+                      <button
+                        onClick={() => aiGenerate()}
+                        disabled={aiGen || !aiPrompt.trim()}
+                        className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold disabled:opacity-50 transition-colors"
+                      >
+                        {aiGen ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                        {aiGen ? "Generating..." : "Generate Workflow"}
+                      </button>
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider px-1" style={{ color: "var(--text-muted)" }}>
+                          Quick prompts
                         </p>
-                        <div className="grid grid-cols-2 gap-1">
-                          {items.map((it) => (
-                            <div
-                              key={it.id}
-                              draggable
-                              onDragStart={(e) => {
-                                e.dataTransfer.setData("componentId", it.id);
-                                e.dataTransfer.effectAllowed = "move";
-                              }}
-                              className="flex flex-col items-center p-2.5 rounded-xl cursor-grab active:cursor-grabbing transition-all hover:bg-white/5 border border-transparent hover:border-white/5"
-                            >
-                              <div
-                                className="w-9 h-9 rounded-xl flex items-center justify-center mb-1.5"
-                                style={{ background: "rgba(99,102,241,0.12)", color: "#6366f1" }}
-                              >
-                                <Workflow className="w-4 h-4" />
-                              </div>
-                              <span
-                                className="text-[10px] font-medium text-center leading-tight"
-                                style={{ color: "var(--text-secondary)" }}
-                              >
-                                {it.name}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
+                        {[
+                          "Process meeting transcripts and extract tasks",
+                          "Classify support tickets and auto-respond",
+                          "Process invoices and route for approval",
+                        ].map((p, i) => (
+                          <button
+                            key={i}
+                            onClick={() => { setAiPrompt(p); aiGenerate(p); }}
+                            className="w-full text-left text-[11px] p-2 rounded-lg transition-colors hover:bg-white/5"
+                            style={{ color: "var(--text-muted)" }}
+                          >
+                            "{p}"
+                          </button>
+                        ))}
                       </div>
-                    ))
-                  ) : (
-                    /* Fallback static grid from NODE_CFG */
-                    Object.entries(
-                      Object.entries(NODE_CFG).reduce<Record<string, typeof NODE_CFG[string][]>>(
-                        (acc, [key, val]) => {
-                          (acc[val.cat] = acc[val.cat] || []).push({ ...val, _key: key } as any);
-                          return acc;
-                        },
-                        {},
-                      ),
-                    ).map(([cat, items]) => (
-                      <div key={cat} className="mb-4">
-                        <p
-                          className="text-[10px] font-semibold uppercase tracking-wider px-1 mb-1.5"
-                          style={{ color: "var(--text-muted)" }}
-                        >
-                          {cat.replace(/_/g, " ")}
-                        </p>
-                        <div className="grid grid-cols-2 gap-1">
-                          {items.map((item: any) => {
-                            const Icon = item.icon;
-                            return (
-                              <div
-                                key={item._key}
-                                draggable
-                                onDragStart={(e) => {
-                                  e.dataTransfer.setData("componentId", item._key);
-                                  e.dataTransfer.effectAllowed = "move";
-                                }}
-                                className="flex flex-col items-center p-2.5 rounded-xl cursor-grab active:cursor-grabbing transition-all hover:bg-white/5 border border-transparent hover:border-white/5"
-                              >
+                    </div>
+                  )}
+
+                  {/* Node palette — 2-column grid with separators */}
+                  {leftTab === "nodes" && (
+                    <div className="flex-1 overflow-y-auto">
+                      {(components.length > 0
+                        ? Object.entries(groupComponentsByCategory(components)).map(([cat, items]) => ({
+                            cat,
+                            items: items.map((it) => ({
+                              key: it.id,
+                              label: it.name,
+                              icon: Workflow as any,
+                              color: "#6366f1",
+                              dragId: it.id,
+                            })),
+                          }))
+                        : Object.entries(
+                            Object.entries(NODE_CFG).reduce<Record<string, any[]>>(
+                              (acc, [key, val]) => {
+                                (acc[val.cat] = acc[val.cat] || []).push({
+                                  key,
+                                  label: val.label,
+                                  icon: val.icon,
+                                  color: val.color,
+                                  dragId: key,
+                                });
+                                return acc;
+                              },
+                              {},
+                            ),
+                          ).map(([cat, items]) => ({ cat, items }))
+                      ).map(({ cat, items }, groupIdx, all) => (
+                        <div key={cat}>
+                          {/* Category header with separator */}
+                          <div
+                            className="px-4 pt-4 pb-2"
+                            style={{
+                              borderTop: groupIdx > 0 ? "1px solid var(--border-subtle)" : "none",
+                            }}
+                          >
+                            <p
+                              className="text-[11px] font-bold uppercase tracking-widest"
+                              style={{ color: "var(--text-muted)" }}
+                            >
+                              {components.length > 0
+                                ? categoryLabel(cat as ComponentCategory)
+                                : cat.replace(/_/g, " ")}
+                            </p>
+                          </div>
+                          {/* 2-column node grid */}
+                          <div className="grid grid-cols-2 gap-1.5 px-3 pb-2">
+                            {items.map((item: any) => {
+                              const Icon = item.icon;
+                              return (
                                 <div
-                                  className="w-9 h-9 rounded-xl flex items-center justify-center mb-1.5"
+                                  key={item.key}
+                                  draggable
+                                  onDragStart={(e) => {
+                                    e.dataTransfer.setData("componentId", item.dragId);
+                                    e.dataTransfer.effectAllowed = "move";
+                                  }}
+                                  className="flex flex-col items-center p-3 rounded-xl cursor-grab active:cursor-grabbing transition-all group"
                                   style={{
-                                    backgroundColor: `${item.color}18`,
-                                    color: item.color,
+                                    border: "1px solid var(--border-subtle)",
+                                    background: "var(--bg-card)",
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    (e.currentTarget as HTMLElement).style.borderColor = "rgba(99,102,241,0.4)";
+                                    (e.currentTarget as HTMLElement).style.background = "rgba(99,102,241,0.04)";
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    (e.currentTarget as HTMLElement).style.borderColor = "var(--border-subtle)";
+                                    (e.currentTarget as HTMLElement).style.background = "var(--bg-card)";
                                   }}
                                 >
-                                  <Icon className="w-4 h-4" />
+                                  <div
+                                    className="w-11 h-11 rounded-xl flex items-center justify-center mb-2"
+                                    style={{
+                                      backgroundColor: `${item.color}18`,
+                                      color: item.color,
+                                    }}
+                                  >
+                                    <Icon className="w-5 h-5" />
+                                  </div>
+                                  <span
+                                    className="text-[11px] font-medium text-center leading-tight"
+                                    style={{ color: "var(--text-secondary)" }}
+                                  >
+                                    {item.label}
+                                  </span>
                                 </div>
-                                <span
-                                  className="text-[10px] font-medium text-center leading-tight"
-                                  style={{ color: "var(--text-secondary)" }}
-                                >
-                                  {item.label}
-                                </span>
-                              </div>
-                            );
-                          })}
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    ))
+                      ))}
+                    </div>
                   )}
-                </div>
+                </motion.div>
+              ) : (
+                /* Left collapsed: slim toggle strip */
+                <motion.div
+                  key="left-closed"
+                  initial={{ width: 0, opacity: 0 }}
+                  animate={{ width: 36, opacity: 1 }}
+                  exit={{ width: 0, opacity: 0 }}
+                  transition={{ duration: 0.18, ease: "easeInOut" }}
+                  className="shrink-0 border-r flex flex-col items-center pt-2 gap-2"
+                  style={{ background: "var(--bg-secondary)", borderColor: "var(--border-subtle)" }}
+                >
+                  <button
+                    onClick={() => setLeftOpen(true)}
+                    className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"
+                    style={{ color: "var(--text-muted)" }}
+                    title="Expand panel"
+                  >
+                    <PanelLeftOpen className="w-4 h-4" />
+                  </button>
+                </motion.div>
               )}
-            </div>
-          )}
-
-          {/* Left panel toggle when closed */}
-          {activeMode === "design" && !leftOpen && (
-            <button
-              onClick={() => setLeftOpen(true)}
-              className="absolute left-2 top-16 z-20 p-1.5 rounded-lg border shadow-sm"
-              style={{
-                background: "var(--bg-card)",
-                borderColor: "var(--border-subtle)",
-                color: "var(--text-muted)",
-              }}
-            >
-              <Plus className="w-3.5 h-3.5" />
-            </button>
+            </AnimatePresence>
           )}
 
           {/* ── Canvas ── */}
@@ -1173,10 +1199,39 @@ function WorkflowInner() {
             )}
           </div>
 
-          {/* ── Right Panel (always visible in design mode) ── */}
+          {/* ── Right Panel (always visible in design mode, collapsible) ── */}
           {activeMode === "design" && (
-            <div
-              className="w-[272px] shrink-0 border-l flex flex-col overflow-hidden"
+            <AnimatePresence initial={false}>
+              {!rightOpen && (
+                <motion.div
+                  key="right-closed"
+                  initial={{ width: 0, opacity: 0 }}
+                  animate={{ width: 36, opacity: 1 }}
+                  exit={{ width: 0, opacity: 0 }}
+                  transition={{ duration: 0.18, ease: "easeInOut" }}
+                  className="shrink-0 border-l flex flex-col items-center pt-2"
+                  style={{ background: "var(--bg-secondary)", borderColor: "var(--border-subtle)" }}
+                >
+                  <button
+                    onClick={() => setRightOpen(true)}
+                    className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"
+                    style={{ color: "var(--text-muted)" }}
+                    title="Expand panel"
+                  >
+                    <PanelRightOpen className="w-4 h-4" />
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          )}
+          {activeMode === "design" && rightOpen && (
+            <motion.div
+              key="right-open"
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: 288, opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              transition={{ duration: 0.18, ease: "easeInOut" }}
+              className="shrink-0 border-l flex flex-col overflow-hidden"
               style={{ background: "var(--bg-secondary)", borderColor: "var(--border-subtle)" }}
             >
               {selNode ? (
@@ -1184,7 +1239,7 @@ function WorkflowInner() {
                 <div className="flex flex-col h-full">
                   {/* Header */}
                   <div
-                    className="flex items-center gap-2 px-4 py-3 border-b shrink-0"
+                    className="flex items-center gap-2 px-3 py-2.5 border-b shrink-0"
                     style={{ borderColor: "var(--border-subtle)" }}
                   >
                     <button
@@ -1210,7 +1265,7 @@ function WorkflowInner() {
                           >
                             <Icon className="w-3.5 h-3.5" />
                           </div>
-                          <div className="min-w-0">
+                          <div className="min-w-0 flex-1">
                             <p className="text-xs font-semibold truncate" style={{ color: "var(--text-primary)" }}>
                               {(selNode.data.label as string) || cfg.label}
                             </p>
@@ -1221,6 +1276,14 @@ function WorkflowInner() {
                         </div>
                       );
                     })()}
+                    <button
+                      onClick={() => setRightOpen(false)}
+                      className="p-1 rounded-lg hover:bg-white/5 transition-colors shrink-0"
+                      style={{ color: "var(--text-muted)" }}
+                      title="Collapse panel"
+                    >
+                      <PanelRightClose className="w-4 h-4" />
+                    </button>
                   </div>
 
                   <div className="flex-1 overflow-y-auto">
@@ -1313,6 +1376,24 @@ function WorkflowInner() {
               ) : (
                 /* ── Workflow Properties (default when no node selected) ── */
                 <div className="flex flex-col h-full overflow-y-auto">
+                  {/* Workflow props header */}
+                  <div
+                    className="flex items-center justify-between px-4 py-2.5 border-b shrink-0"
+                    style={{ borderColor: "var(--border-subtle)" }}
+                  >
+                    <p className="text-xs font-semibold" style={{ color: "var(--text-primary)" }}>
+                      Workflow
+                    </p>
+                    <button
+                      onClick={() => setRightOpen(false)}
+                      className="p-1 rounded-lg hover:bg-white/5 transition-colors"
+                      style={{ color: "var(--text-muted)" }}
+                      title="Collapse panel"
+                    >
+                      <PanelRightClose className="w-4 h-4" />
+                    </button>
+                  </div>
+
                   {/* Status section */}
                   <div className="px-4 py-4 border-b" style={{ borderColor: "var(--border-subtle)" }}>
                     <p className="text-[11px] font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-muted)" }}>
@@ -1446,7 +1527,7 @@ function WorkflowInner() {
                   </div>
                 </div>
               )}
-            </div>
+            </motion.div>
           )}
         </div>
       )}

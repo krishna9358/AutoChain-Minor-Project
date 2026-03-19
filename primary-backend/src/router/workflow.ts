@@ -234,6 +234,21 @@ router.put("/:id", authMiddleware, async (req: AuthRequest, res) => {
 
       const normalizedNodes = nodeValidation.normalized;
 
+      // Remove RunSteps referencing these nodes before deleting them
+      // (nodeId is non-nullable, so we must delete the steps, not null them out)
+      const existingNodeIds = (
+        await prisma.workflowNode.findMany({
+          where: { workflowId: workflow.id },
+          select: { id: true },
+        })
+      ).map((n) => n.id);
+
+      if (existingNodeIds.length > 0) {
+        await prisma.runStep.deleteMany({
+          where: { nodeId: { in: existingNodeIds } },
+        });
+      }
+
       // Delete existing nodes (cascade deletes edges)
       await prisma.workflowNode.deleteMany({
         where: { workflowId: workflow.id },
