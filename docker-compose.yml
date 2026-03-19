@@ -36,6 +36,10 @@ services:
     volumes:
       - zkdata:/var/lib/zookeeper/data
       - zklogs:/var/lib/zookeeper/log
+    deploy:
+      resources:
+        limits:
+          memory: 512M
     healthcheck:
       test: ["CMD-SHELL", "echo srvr | nc localhost 2181 | grep -q Mode"]
       interval: 10s
@@ -65,6 +69,10 @@ services:
       - "9094:9094"
     volumes:
       - kafkadata:/var/lib/kafka/data
+    deploy:
+      resources:
+        limits:
+          memory: 1G
     healthcheck:
       test:
         [
@@ -96,11 +104,13 @@ services:
       PORT: "3001"
       KAFKA_BROKER: kafka:9092
       NODE_ENV: development
+      ENCRYPTION_KEY: autochain-dev-encryption-key-32ch
     ports:
       - "3001:3001"
     volumes:
       - ./primary-backend/src:/app/src
       - ./primary-backend/prisma:/app/prisma
+      - ./primary-backend/tsconfig.json:/app/tsconfig.json
       - /app/node_modules
       - /app/dist
     depends_on:
