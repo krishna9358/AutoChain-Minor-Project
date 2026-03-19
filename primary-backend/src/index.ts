@@ -26,7 +26,7 @@ async function ensureDevUser() {
       await prisma.user.create({
         data: {
           id: DEV_USER_ID,
-          email: "dev@agentflow.ai",
+          email: "dev@autochain.ai",
           name: "Dev User",
           password: "dev123",
           role: "ADMIN",
@@ -46,7 +46,7 @@ app.use(express.json({ limit: "10mb" }));
 app.get("/health", (_, res) => {
   res.json({
     status: "ok",
-    service: "agentflow-backend",
+    service: "autochain-backend",
     timestamp: new Date().toISOString(),
   });
 });
@@ -67,6 +67,6 @@ app.use("/api/v1/api-keys", apiKeysRouter);
 
 ensureDevUser().then(() => {
   app.listen(PORT, () => {
-    console.log(`AgentFlow AI Backend running on port ${PORT}`);
+    console.log(`AutoChain AI Backend running on port ${PORT}`);
   });
 });

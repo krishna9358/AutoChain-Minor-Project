@@ -34,7 +34,7 @@ const WorkspaceContext = createContext<WorkspaceContextType>({
   hasWorkspace: false,
 });
 
-const ACTIVE_WS_KEY = "agentflow-active-workspace";
+const ACTIVE_WS_KEY = "autochain-active-workspace";
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);

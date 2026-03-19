@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * AgentFlow AI — Unified Development Command
+ * AutoChain AI — Unified Development Command
  *
  * Usage: node scripts/dev.js [command]
  *
@@ -102,8 +102,8 @@ const services = [
 // Environment templates
 const envTemplates = {
   "primary-backend": {
-    DATABASE_URL: "postgresql://postgres:agentflow_dev@postgres:5432/agentflow",
-    JWT_SECRET: "agentflow-dev-secret-key",
+    DATABASE_URL: "postgresql://postgres:autochain_dev@postgres:5432/autochain",
+    JWT_SECRET: "autochain-dev-secret-key",
     PORT: "3001",
     KAFKA_BROKER: "kafka:9092",
     NODE_ENV: "development",
@@ -114,17 +114,17 @@ const envTemplates = {
     NEXT_PUBLIC_DEV_TOKEN: "dev-demo-token",
   },
   hooks: {
-    DATABASE_URL: "postgresql://postgres:agentflow_dev@postgres:5432/agentflow",
+    DATABASE_URL: "postgresql://postgres:autochain_dev@postgres:5432/autochain",
     PORT: "3002",
     NODE_ENV: "development",
   },
   processor: {
-    DATABASE_URL: "postgresql://postgres:agentflow_dev@postgres:5432/agentflow",
+    DATABASE_URL: "postgresql://postgres:autochain_dev@postgres:5432/autochain",
     KAFKA_BROKER: "kafka:9092",
     NODE_ENV: "development",
   },
   worker: {
-    DATABASE_URL: "postgresql://postgres:agentflow_dev@postgres:5432/agentflow",
+    DATABASE_URL: "postgresql://postgres:autochain_dev@postgres:5432/autochain",
     KAFKA_BROKER: "kafka:9092",
     NODE_ENV: "development",
   },
@@ -183,7 +183,7 @@ function banner() {
   );
   console.log(
     colorize("║  ", "cyan") +
-      colorize("⚡ AgentFlow AI ", "blue") +
+      colorize("⚡ AutoChain AI ", "blue") +
       colorize("— Development Environment", "cyan") +
       "               ║",
   );
@@ -418,7 +418,7 @@ switch (command) {
   case "help":
   default:
     console.log(`
-AgentFlow AI Development Command
+AutoChain AI Development Command
 
 Usage: node scripts/dev.js [command]
 

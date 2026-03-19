@@ -37,7 +37,7 @@ export default function LoginPage() {
         <div className="text-center mb-8">
           <div className="inline-flex w-10 h-10 rounded-lg bg-indigo-600 items-center justify-center mb-4"><Zap className="w-5 h-5 text-white" /></div>
           <h1 className="text-xl font-semibold" style={{ color: "var(--text-primary)" }}>Sign in</h1>
-          <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>Welcome back to AgentFlow</p>
+          <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>Welcome back to AutoChain</p>
         </div>
         <form onSubmit={login} className="space-y-4">
           <div className="p-5 rounded-xl border space-y-4" style={{ background: "var(--bg-card)", borderColor: "var(--border-subtle)" }}>

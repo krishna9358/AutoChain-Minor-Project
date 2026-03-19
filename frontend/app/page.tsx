@@ -103,7 +103,7 @@ const testimonials = [
     role: "VP of Engineering, TechCorp",
     avatar: "SC",
     content:
-      "AgentFlow has transformed how we automate our processes. What used to take weeks now takes hours.",
+      "AutoChain has transformed how we automate our processes. What used to take weeks now takes hours.",
     rating: 5,
   },
   {
@@ -142,7 +142,7 @@ export default function LandingPage() {
       localStorage.setItem("token", "dev-demo-token");
       localStorage.setItem(
         "user",
-        JSON.stringify({ name: "Dev User", email: "dev@agentflow.ai" }),
+        JSON.stringify({ name: "Dev User", email: "dev@autochain.ai" }),
       );
       router.push("/dashboard");
     }
@@ -167,7 +167,7 @@ export default function LandingPage() {
               <Zap className="h-5 w-5 text-primary-foreground" />
             </div>
             <span className="text-xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-              AgentFlow
+              AutoChain
             </span>
             <Badge variant="secondary" className="ml-2 text-xs">
               v2.0
@@ -502,7 +502,7 @@ export default function LandingPage() {
               Loved by Teams Worldwide
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Join thousands of teams who trust AgentFlow for their automation
+              Join thousands of teams who trust AutoChain for their automation
               needs.
             </p>
           </div>
@@ -600,7 +600,7 @@ export default function LandingPage() {
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/60">
                   <Zap className="h-4 w-4 text-primary-foreground" />
                 </div>
-                <span className="font-bold">AgentFlow</span>
+                <span className="font-bold">AutoChain</span>
               </div>
               <p className="text-sm text-muted-foreground mb-4">
                 AI-powered workflow automation platform for modern teams.
@@ -737,7 +737,7 @@ export default function LandingPage() {
 
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
             <div className="flex items-center gap-4">
-              <span>© 2025 AgentFlow AI</span>
+              <span>© 2025 AutoChain AI</span>
               <Separator orientation="vertical" className="h-4" />
               <a href="#" className="hover:text-foreground transition-colors">
                 Terms

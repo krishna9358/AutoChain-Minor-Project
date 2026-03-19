@@ -3,14 +3,14 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log("🌱 Seeding AgentFlow AI database...");
+  console.log("🌱 Seeding AutoChain AI database...");
 
   // Create demo user
   const user = await prisma.user.upsert({
-    where: { email: "demo@agentflow.ai" },
+    where: { email: "demo@autochain.ai" },
     update: {},
     create: {
-      email: "demo@agentflow.ai",
+      email: "demo@autochain.ai",
       name: "Demo User",
       password: "demo123",
       role: "ADMIN",
@@ -24,7 +24,7 @@ async function main() {
     create: {
       name: "Demo Workspace",
       slug: "demo-workspace",
-      description: "Default demo workspace for AgentFlow AI",
+      description: "Default demo workspace for AutoChain AI",
       members: {
         create: {
           userId: user.id,
@@ -166,7 +166,7 @@ async function main() {
   }
 
   console.log("✅ Seed complete!");
-  console.log(`   User: demo@agentflow.ai / demo123`);
+  console.log(`   User: demo@autochain.ai / demo123`);
   console.log(`   Workspace: ${workspace.name}`);
   console.log(`   Templates: ${templates.length} created`);
 }

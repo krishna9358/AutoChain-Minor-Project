@@ -20,7 +20,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>("dark");
 
   useEffect(() => {
-    const saved = localStorage.getItem("agentflow-theme") as Theme;
+    const saved = localStorage.getItem("autochain-theme") as Theme;
     const t = saved || "dark";
     setThemeState(t);
     document.documentElement.setAttribute("data-theme", t);
@@ -28,7 +28,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const applyTheme = (t: Theme) => {
     setThemeState(t);
-    localStorage.setItem("agentflow-theme", t);
+    localStorage.setItem("autochain-theme", t);
     document.documentElement.setAttribute("data-theme", t);
   };
 

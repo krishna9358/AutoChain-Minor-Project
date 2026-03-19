@@ -1,8 +1,8 @@
-# AgentFlow AI — Improvements Summary
+# AutoChain AI — Improvements Summary
 
 ## Overview
 
-This document summarizes all the improvements made to the AgentFlow AI platform, including unified development setup, modern UI with shadcn/ui components, enhanced Docker configuration, and comprehensive documentation.
+This document summarizes all the improvements made to the AutoChain AI platform, including unified development setup, modern UI with shadcn/ui components, enhanced Docker configuration, and comprehensive documentation.
 
 ## 1. Unified Development Command
 
@@ -69,7 +69,7 @@ This document summarizes all the improvements made to the AgentFlow AI platform,
 2. **Enhanced Service Configuration**
    - All services now have proper health checks
    - Restart policies (`unless-stopped`)
-   - Dedicated network (`agentflow-network`) for inter-service communication
+   - Dedicated network (`autochain-network`) for inter-service communication
    - Environment file support for all services
    - Proper volume mounting for hot reload
    - Node modules excluded from volume mounts (better performance)
@@ -622,7 +622,7 @@ cd minor-project
 
 ## Conclusion
 
-These improvements transform the AgentFlow AI platform into a professional, scalable, and developer-friendly application. The unified development command, modern UI with shadcn/ui components, enhanced Docker configuration, and comprehensive documentation provide a solid foundation for building enterprise-grade workflow automation.
+These improvements transform the AutoChain AI platform into a professional, scalable, and developer-friendly application. The unified development command, modern UI with shadcn/ui components, enhanced Docker configuration, and comprehensive documentation provide a solid foundation for building enterprise-grade workflow automation.
 
 The platform now offers:
 - 🚀 Faster development with single-command setup

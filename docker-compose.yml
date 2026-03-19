@@ -2,12 +2,12 @@ services:
   # ─── Database ───────────────────────────────────────────────────────────
   postgres:
     image: postgres:16-alpine
-    container_name: agentflow-db
+    container_name: autochain-db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: agentflow
+      POSTGRES_DB: autochain
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: agentflow_dev
+      POSTGRES_PASSWORD: autochain_dev
       POSTGRES_INITDB_ARGS: "-E UTF8 --locale=C"
     ports:
       - "5432:5432"
@@ -15,18 +15,18 @@ services:
       - pgdata:/var/lib/postgresql/data
       - ./scripts/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d agentflow"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d autochain"]
       interval: 5s
       timeout: 3s
       retries: 10
       start_period: 10s
     networks:
-      - agentflow-network
+      - autochain-network
 
   # ─── Kafka (for scalable event processing) ───────────────────────────────
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.0
-    container_name: agentflow-zookeeper
+    container_name: autochain-zookeeper
     restart: unless-stopped
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
@@ -43,11 +43,11 @@ services:
       retries: 10
       start_period: 30s
     networks:
-      - agentflow-network
+      - autochain-network
 
   kafka:
     image: confluentinc/cp-kafka:7.6.0
-    container_name: agentflow-kafka
+    container_name: autochain-kafka
     restart: unless-stopped
     depends_on:
       zookeeper:
@@ -79,20 +79,20 @@ services:
       retries: 10
       start_period: 30s
     networks:
-      - agentflow-network
+      - autochain-network
 
   # ─── Backend API ────────────────────────────────────────────────────────
   backend:
     build:
       context: ./primary-backend
       dockerfile: Dockerfile.dev
-    container_name: agentflow-backend
+    container_name: autochain-backend
     restart: unless-stopped
     env_file:
       - ./primary-backend/.env
     environment:
-      DATABASE_URL: postgresql://postgres:agentflow_dev@postgres:5432/agentflow
-      JWT_SECRET: agentflow-dev-secret-key
+      DATABASE_URL: postgresql://postgres:autochain_dev@postgres:5432/autochain
+      JWT_SECRET: autochain-dev-secret-key
       PORT: "3001"
       KAFKA_BROKER: kafka:9092
       NODE_ENV: development
@@ -115,19 +115,19 @@ services:
       retries: 5
       start_period: 20s
     networks:
-      - agentflow-network
+      - autochain-network
 
   # ─── Hooks (Webhook Receiver) ─────────────────────────────────────────────
   hooks:
     build:
       context: ./hooks
       dockerfile: Dockerfile.dev
-    container_name: agentflow-hooks
+    container_name: autochain-hooks
     restart: unless-stopped
     env_file:
       - ./hooks/.env
     environment:
-      DATABASE_URL: postgresql://postgres:agentflow_dev@postgres:5432/agentflow
+      DATABASE_URL: postgresql://postgres:autochain_dev@postgres:5432/autochain
       PORT: "3002"
       KAFKA_BROKER: kafka:9092
       NODE_ENV: development
@@ -150,19 +150,19 @@ services:
       retries: 5
       start_period: 20s
     networks:
-      - agentflow-network
+      - autochain-network
 
   # ─── Processor (Outbox → Kafka) ──────────────────────────────────────────
   processor:
     build:
       context: ./processor
       dockerfile: Dockerfile.dev
-    container_name: agentflow-processor
+    container_name: autochain-processor
     restart: unless-stopped
     env_file:
       - ./processor/.env
     environment:
-      DATABASE_URL: postgresql://postgres:agentflow_dev@postgres:5432/agentflow
+      DATABASE_URL: postgresql://postgres:autochain_dev@postgres:5432/autochain
       KAFKA_BROKER: kafka:9092
       NODE_ENV: development
       PROCESSOR_INTERVAL: 5000
@@ -185,19 +185,19 @@ services:
       retries: 3
       start_period: 30s
     networks:
-      - agentflow-network
+      - autochain-network
 
   # ─── Worker (Kafka Consumer → Execute Actions) ───────────────────────────
   worker:
     build:
       context: ./worker
       dockerfile: Dockerfile.dev
-    container_name: agentflow-worker
+    container_name: autochain-worker
     restart: unless-stopped
     env_file:
       - ./worker/.env
     environment:
-      DATABASE_URL: postgresql://postgres:agentflow_dev@postgres:5432/agentflow
+      DATABASE_URL: postgresql://postgres:autochain_dev@postgres:5432/autochain
       KAFKA_BROKER: kafka:9092
       NODE_ENV: development
       WORKER_CONCURRENCY: 5
@@ -220,14 +220,14 @@ services:
       retries: 3
       start_period: 30s
     networks:
-      - agentflow-network
+      - autochain-network
 
   # ─── Frontend (Next.js Dev) ─────────────────────────────────────────────
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile.dev
-    container_name: agentflow-frontend
+    container_name: autochain-frontend
     restart: unless-stopped
     env_file:
       - ./frontend/.env.local
@@ -255,7 +255,7 @@ services:
       retries: 5
       start_period: 30s
     networks:
-      - agentflow-network
+      - autochain-network
 
 volumes:
   pgdata:
@@ -268,5 +268,5 @@ volumes:
     driver: local
 
 networks:
-  agentflow-network:
+  autochain-network:
     driver: bridge

@@ -424,7 +424,7 @@ export default function DashboardPage() {
               className="text-sm font-semibold hidden sm:block"
               style={{ color: "var(--text-primary)" }}
             >
-              AgentFlow
+              AutoChain
             </span>
           </div>
 
@@ -616,7 +616,7 @@ export default function DashboardPage() {
       </nav>
 
       {/* ─── Main Content ──── */}
-      <main className="flex-1 px-6 py-6 max-w-[1200px] w-full mx-auto">
+      <main className="flex-1 px-6 py-6 max-w-[1400px] w-full mx-auto">
         {/* No workspace banner */}
         {!hasWorkspace && (
           <motion.div
@@ -1158,9 +1158,9 @@ export default function DashboardPage() {
                 >
                   {typeof window !== "undefined"
                     ? JSON.parse(
-                        localStorage.getItem("user") || '{"email":"dev@agentflow.ai"}',
+                        localStorage.getItem("user") || '{"email":"dev@autochain.ai"}',
                       ).email
-                    : "dev@agentflow.ai"}
+                    : "dev@autochain.ai"}
                 </p>
                 <button
                   onClick={() => {

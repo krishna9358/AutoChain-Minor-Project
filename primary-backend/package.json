@@ -1,7 +1,7 @@
 {
-  "name": "agentflow-backend",
+  "name": "autochain-backend",
   "version": "1.0.0",
-  "description": "AgentFlow AI - Enterprise Workflow Automation Backend",
+  "description": "AutoChain AI - Enterprise Workflow Automation Backend",
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsc -b && node dist/index.js",

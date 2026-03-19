@@ -31,7 +31,7 @@ export default function SignupPage() {
         <div className="text-center mb-8">
           <div className="inline-flex w-10 h-10 rounded-lg bg-indigo-600 items-center justify-center mb-4"><Zap className="w-5 h-5 text-white" /></div>
           <h1 className="text-xl font-semibold" style={{ color: "var(--text-primary)" }}>Create account</h1>
-          <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>Get started with AgentFlow</p>
+          <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>Get started with AutoChain</p>
         </div>
         <form onSubmit={signup} className="space-y-4">
           <div className="p-5 rounded-xl border space-y-4" style={{ background: "var(--bg-card)", borderColor: "var(--border-subtle)" }}>

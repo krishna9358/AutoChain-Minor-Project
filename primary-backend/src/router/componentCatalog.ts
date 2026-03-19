@@ -210,8 +210,8 @@ const Components: WorkflowComponentDefinition[] = [
       { key: "webhookUrl", label: "Webhook URL", type: "url", placeholder: "https://hooks.slack.com/services/...", description: "Slack incoming webhook URL" },
       { key: "botToken", label: "Bot Token", type: "password", placeholder: "xoxb-...", description: "Slack Bot token (when using Bot API mode)" },
       { key: "channel", label: "Channel", type: "text", required: true, placeholder: "#general", description: "Channel name (e.g. #general) or user ID" },
-      { key: "message", label: "Message", type: "textarea", required: true, rows: 4, placeholder: "Hello from AgentFlow! Status: {{payload.status}}", description: "Message text — supports {{variable}} template syntax" },
-      { key: "username", label: "Bot Username", type: "text", placeholder: "AgentFlow Bot", description: "Display name for the bot message" },
+      { key: "message", label: "Message", type: "textarea", required: true, rows: 4, placeholder: "Hello from AutoChain! Status: {{payload.status}}", description: "Message text — supports {{variable}} template syntax" },
+      { key: "username", label: "Bot Username", type: "text", placeholder: "AutoChain Bot", description: "Display name for the bot message" },
       { key: "iconEmoji", label: "Icon Emoji", type: "text", placeholder: ":robot_face:", description: "Emoji to use as the bot avatar" },
     ],
     configSchema: z.object({
@@ -254,7 +254,7 @@ const Components: WorkflowComponentDefinition[] = [
       { key: "from", label: "From Address", type: "email", required: true, placeholder: "noreply@yourcompany.com" },
       { key: "to", label: "To Address(es)", type: "text", required: true, placeholder: "user@example.com, admin@example.com", description: "Comma-separated email addresses" },
       { key: "subject", label: "Subject", type: "text", required: true, placeholder: "Workflow Report — {{payload.date}}", description: "Email subject line — supports {{variable}} syntax" },
-      { key: "body", label: "Email Body", type: "textarea", required: true, rows: 6, placeholder: "Hi {{payload.name}},\n\nYour report is ready.\n\nBest,\nAgentFlow", description: "Email body content — supports {{variable}} syntax" },
+      { key: "body", label: "Email Body", type: "textarea", required: true, rows: 6, placeholder: "Hi {{payload.name}},\n\nYour report is ready.\n\nBest,\nAutoChain", description: "Email body content — supports {{variable}} syntax" },
       { key: "isHtml", label: "Send as HTML", type: "boolean", defaultValue: false, description: "Treat the body as HTML instead of plain text" },
     ],
     configSchema: z.object({

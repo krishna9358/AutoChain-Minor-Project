@@ -28,7 +28,7 @@ const DEV_TOKEN = "dev-token-12345";
 
 function token() {
   if (IS_DEV) return DEV_TOKEN;
-  const stored = localStorage.getItem("agentflow-auth-token");
+  const stored = localStorage.getItem("autochain-auth-token");
   return stored ? `Bearer ${stored}` : null;
 }
 

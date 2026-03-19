@@ -8,7 +8,7 @@ import { WorkspaceProvider } from "@/components/providers/WorkspaceProvider";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "AgentFlow AI — Enterprise Workflow Automation",
+  title: "AutoChain AI — Enterprise Workflow Automation",
   description:
     "Design, generate, and execute AI-powered workflows with enterprise-grade observability",
 };

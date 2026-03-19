@@ -15,7 +15,7 @@ router.get("/dev-bootstrap", async (req, res) => {
       user = await prisma.user.create({
         data: {
           id: DEV_USER_ID,
-          email: "dev@agentflow.ai",
+          email: "dev@autochain.ai",
           name: "Dev User",
           password: "dev123",
           role: "ADMIN",

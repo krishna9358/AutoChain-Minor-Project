@@ -1,4 +1,4 @@
-# AgentFlow AI — Enterprise No-Code Multi-Agent Workflow Automation Platform
+# AutoChain AI — Enterprise No-Code Multi-Agent Workflow Automation Platform
 
 > Design, generate, and execute AI-powered workflows with enterprise-grade observability
 
@@ -36,7 +36,7 @@ Once everything is running, open:
 - **Kafka**: localhost:9094
 
 **Default Credentials** (Dev Mode):
-- Email: demo@agentflow.ai
+- Email: demo@autochain.ai
 - Password: demo123
 - Or use the demo mode - no login required!
 
@@ -64,7 +64,7 @@ The `dev` command provides everything you need:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                     AgentFlow AI Platform                        │
+│                     AutoChain AI Platform                        │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐         │
@@ -270,22 +270,22 @@ Changes to source files are automatically reflected without rebuilding container
 ### Database (PostgreSQL)
 ```bash
 # Connect to database
-docker exec -it agentflow-db psql -U postgres -d agentflow
+docker exec -it autochain-db psql -U postgres -d autochain
 
 # View logs
-docker logs agentflow-db -f
+docker logs autochain-db -f
 ```
 
 ### Kafka
 ```bash
 # List topics
-docker exec -it agentflow-kafka kafka-topics.sh --bootstrap-server localhost:9092 --list
+docker exec -it autochain-kafka kafka-topics.sh --bootstrap-server localhost:9092 --list
 
 # Create topic
-docker exec -it agentflow-kafka kafka-topics.sh --bootstrap-server localhost:9092 --create --topic my-topic --partitions 3
+docker exec -it autochain-kafka kafka-topics.sh --bootstrap-server localhost:9092 --create --topic my-topic --partitions 3
 
 # Consume messages
-docker exec -it agentflow-kafka kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic workflow.events --from-beginning
+docker exec -it autochain-kafka kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic workflow.events --from-beginning
 ```
 
 ### All Services
@@ -294,9 +294,9 @@ docker exec -it agentflow-kafka kafka-console-consumer.sh --bootstrap-server loc
 ./dev logs
 
 # View specific service logs
-docker logs agentflow-backend -f
-docker logs agentflow-frontend -f
-docker logs agentflow-worker -f
+docker logs autochain-backend -f
+docker logs autochain-frontend -f
+docker logs autochain-worker -f
 ```
 
 ## 🔐 Security
@@ -325,19 +325,19 @@ docker logs agentflow-worker -f
 ### Database connection issues
 ```bash
 # Restart database
-docker restart agentflow-db
+docker restart autochain-db
 
 # Check database health
-docker exec agentflow-db pg_isready -U postgres
+docker exec autochain-db pg_isready -U postgres
 ```
 
 ### Kafka connection issues
 ```bash
 # Restart Kafka
-docker restart agentflow-kafka agentflow-zookeeper
+docker restart autochain-kafka autochain-zookeeper
 
 # Check Kafka logs
-docker logs agentflow-kafka -f
+docker logs autochain-kafka -f
 ```
 
 ### Port already in use
@@ -447,10 +447,10 @@ MIT License - see LICENSE file for details
 
 ## 📞 Support
 
-- Documentation: https://docs.agentflow.ai
-- Issues: https://github.com/agentflow/agentflow/issues
-- Email: support@agentflow.ai
+- Documentation: https://docs.autochain.ai
+- Issues: https://github.com/autochain/autochain/issues
+- Email: support@autochain.ai
 
 ---
 
-**Built with ❤️ by the AgentFlow AI team**
+**Built with ❤️ by the AutoChain AI team**
