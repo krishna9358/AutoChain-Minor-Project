@@ -48,13 +48,13 @@ router.get("/dev-bootstrap", async (req, res) => {
 
     const workspaceId = membership?.workspace?.id;
 
-    // Seed demo workflow if the workspace has no workflows yet
+    // Seed demo workflow if it doesn't already exist
     if (workspaceId) {
-      const existingWorkflows = await prisma.workflow.count({
-        where: { workspaceId },
+      const demoExists = await prisma.workflow.findFirst({
+        where: { workspaceId, name: "Support Ticket Triage AI" },
       });
 
-      if (existingWorkflows === 0) {
+      if (!demoExists) {
         await seedDemoWorkflow(workspaceId);
       }
     }

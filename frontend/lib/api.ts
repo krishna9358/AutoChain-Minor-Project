@@ -55,10 +55,9 @@ export interface AddMemberRequest {
 
 export function ensureDevToken() {
   if (IS_DEV && typeof window !== "undefined") {
-    const existing = localStorage.getItem("token");
-    if (!existing) {
-      localStorage.setItem("token", DEV_TOKEN);
-    }
+    // Always force the dev token in dev mode — prevents stale/expired JWTs
+    // from a previous session causing 401s
+    localStorage.setItem("token", DEV_TOKEN);
   }
 }
 

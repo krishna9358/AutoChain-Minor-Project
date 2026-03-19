@@ -66,8 +66,15 @@ router.post(
 
 // Simulated execution engine
 async function simulateExecution(runId: string, nodes: any[], edges: any[]) {
-  // Find trigger node (entry point)
-  const triggerNode = nodes.find((n) => n.category === "TRIGGER");
+  // Find trigger/entry-point node (supports both legacy "TRIGGER" and catalog "input" categories)
+  const triggerNode = nodes.find(
+    (n) =>
+      n.category === "TRIGGER" ||
+      n.category === "input" ||
+      n.nodeType === "WEBHOOK_TRIGGER" ||
+      n.nodeType === "ENTRY_POINT" ||
+      n.metadata?.componentId === "entry-point",
+  );
 
   if (!triggerNode) {
     await prisma.workflowRun.update({

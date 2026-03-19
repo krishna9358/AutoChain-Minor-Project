@@ -21,9 +21,9 @@ const PORT = process.env.PORT || 3001;
 async function ensureDevUser() {
   if (process.env.NODE_ENV === "production") return;
   try {
-    const existing = await prisma.user.findUnique({ where: { id: DEV_USER_ID } });
-    if (!existing) {
-      await prisma.user.create({
+    let user = await prisma.user.findUnique({ where: { id: DEV_USER_ID } });
+    if (!user) {
+      user = await prisma.user.create({
         data: {
           id: DEV_USER_ID,
           email: "dev@autochain.ai",
@@ -34,8 +34,23 @@ async function ensureDevUser() {
       });
       console.log("Dev user bootstrapped:", DEV_USER_ID);
     }
+
+    const hasMembership = await prisma.workspaceMember.findFirst({
+      where: { userId: DEV_USER_ID },
+    });
+    if (!hasMembership) {
+      const ws = await prisma.workspace.create({
+        data: {
+          name: "Personal",
+          slug: "personal",
+          description: "My personal workspace",
+          members: { create: { userId: DEV_USER_ID, role: "ADMIN" } },
+        },
+      });
+      console.log("Default workspace created:", ws.id);
+    }
   } catch (err) {
-    console.warn("Dev user bootstrap skipped (may already exist):", (err as Error).message);
+    console.warn("Dev bootstrap skipped (may already exist):", (err as Error).message);
   }
 }
 
