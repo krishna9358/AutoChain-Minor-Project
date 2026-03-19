@@ -11,6 +11,7 @@ import {
   type ComponentDefinition,
   type ComponentCategory,
 } from "@/components/workflow/config/componentCatalog";
+import { resolveIcon, categoryColor } from "@/components/workflow/config/iconMap";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { BACKEND_URL } from "@/app/config";
 import { useTheme } from "@/components/providers/ThemeProvider";
@@ -92,11 +93,12 @@ const IS_DEV = process.env.NEXT_PUBLIC_DEV_MODE === "true";
 const DEV_TOKEN = process.env.NEXT_PUBLIC_DEV_TOKEN || "dev-demo-token";
 
 // ─── Node type registry ──────────────────────────────────────────
-const NODE_CFG: Record<
+// Legacy keys for backward-compat with workflows saved before the catalog existed.
+// New nodes should NEVER be added here — they come from the backend catalog automatically.
+const LEGACY_NODE_CFG: Record<
   string,
   { icon: any; color: string; label: string; cat: string }
 > = {
-  // Legacy nodeType keys (UPPER_SNAKE from DB)
   WEBHOOK_TRIGGER: { icon: Globe, color: "#f59e0b", label: "Webhook", cat: "TRIGGER" },
   SCHEDULE_TRIGGER: { icon: Clock, color: "#f59e0b", label: "Schedule", cat: "TRIGGER" },
   FILE_UPLOAD_TRIGGER: { icon: FileText, color: "#f59e0b", label: "File Upload", cat: "TRIGGER" },
@@ -120,16 +122,33 @@ const NODE_CFG: Record<
   APPROVAL: { icon: Pause, color: "#eab308", label: "Approval", cat: "CONTROL" },
   RETRY: { icon: RotateCcw, color: "#6b7280", label: "Retry", cat: "CONTROL" },
   ERROR_HANDLER: { icon: AlertCircle, color: "#ef4444", label: "Error Handler", cat: "CONTROL" },
-
-  // Component catalog keys (UPPER_SNAKE derived from kebab-case IDs)
-  ENTRY_POINT: { icon: Zap, color: "#f59e0b", label: "Entry Point", cat: "INPUT" },
-  AI_AGENT: { icon: Brain, color: "#8b5cf6", label: "AI Agent", cat: "AI" },
-  TEXT_TRANSFORM: { icon: FileText, color: "#8b5cf6", label: "Text Transform", cat: "AI" },
-  SWITCH_CASE: { icon: GitBranch, color: "#06b6d4", label: "Switch / Router", cat: "LOGIC" },
-  DB_QUERY: { icon: Database, color: "#3b82f6", label: "Database Query", cat: "INTEGRATION" },
-  ARTIFACT_WRITER: { icon: FileText, color: "#10b981", label: "Artifact Writer", cat: "OUTPUT" },
-  WEBHOOK_RESPONSE: { icon: Globe, color: "#10b981", label: "Webhook Response", cat: "OUTPUT" },
 };
+
+/**
+ * Build a merged NODE_CFG from backend catalog + legacy fallbacks.
+ * Called once after catalog is fetched so every node (old or new)
+ * can be resolved to an icon / color / label.
+ */
+function buildNodeCfg(
+  catalog: ComponentDefinition[],
+): Record<string, { icon: any; color: string; label: string; cat: string }> {
+  const cfg: Record<string, { icon: any; color: string; label: string; cat: string }> = {
+    ...LEGACY_NODE_CFG,
+  };
+
+  for (const c of catalog) {
+    const entry = {
+      icon: resolveIcon(c.icon),
+      color: categoryColor(c.category),
+      label: c.name,
+      cat: c.category.toUpperCase(),
+    };
+    cfg[c.id] = entry;
+    cfg[c.id.toUpperCase().replace(/-/g, "_")] = entry;
+  }
+
+  return cfg;
+}
 
 // Category display labels
 const CAT_LABELS: Record<string, string> = {
@@ -140,9 +159,12 @@ const CAT_LABELS: Record<string, string> = {
 
 // ─── Canvas Node component ─────────────────────────────────────
 function FlowNode({ data, isConnectable }: NodeProps) {
-  const cfg = NODE_CFG[data.nodeType as string] || {
-    icon: Zap,
-    color: "#6b7280",
+  const legacyCfg = LEGACY_NODE_CFG[data.nodeType as string];
+  const cfg = legacyCfg ?? {
+    icon: data.iconName ? resolveIcon(data.iconName as string) : Zap,
+    color: data.componentId
+      ? categoryColor((data.category as string) || "core")
+      : "#6b7280",
     label: "Node",
     cat: ((data.category as string) || "ACTION").toUpperCase(),
   };
@@ -285,6 +307,9 @@ function WorkflowInner() {
   const [validationErrors, setValidationErrors] = useState<
     Record<string, string[]>
   >({});
+
+  // Dynamically built from backend catalog + legacy fallbacks
+  const NODE_CFG = useMemo(() => buildNodeCfg(components), [components]);
 
   // Workspace modal
   const [showWorkspaceModal, setShowWorkspaceModal] = useState(false);
@@ -650,7 +675,8 @@ function WorkflowInner() {
           type: "workflowNode",
           position: n.position,
           data: {
-            nodeType: n.nodeType,
+            nodeType: n.componentId || n.nodeType,
+            componentId: n.componentId || n.nodeType,
             category: n.category,
             label: n.label,
             config: n.config,
@@ -701,7 +727,7 @@ function WorkflowInner() {
       const fallback =
         NODE_CFG[componentId] ||
         NODE_CFG[
-          componentId.toUpperCase().replace(/-/g, "_") as keyof typeof NODE_CFG
+          componentId.toUpperCase().replace(/-/g, "_")
         ];
       setNodes((n) => [
         ...n,
@@ -710,11 +736,11 @@ function WorkflowInner() {
           type: "workflowNode",
           position: pos,
           data: {
-            nodeType:
-              componentId.toUpperCase().replace(/-/g, "_") || "CUSTOM_NODE",
+            nodeType: componentId,
             componentId,
             category: component?.category || fallback?.cat || "core",
             label: component?.name || fallback?.label || componentId,
+            iconName: component?.icon,
             config: component ? getConfigDefaults(component.configFields) : {},
           },
         },
@@ -1118,13 +1144,13 @@ function WorkflowInner() {
                             items: items.map((it) => ({
                               key: it.id,
                               label: it.name,
-                              icon: Workflow as any,
-                              color: "#6366f1",
+                              icon: resolveIcon(it.icon),
+                              color: categoryColor(it.category),
                               dragId: it.id,
                             })),
                           }))
                         : Object.entries(
-                            Object.entries(NODE_CFG).reduce<
+                            Object.entries(LEGACY_NODE_CFG).reduce<
                               Record<string, any[]>
                             >((acc, [key, val]) => {
                               (acc[val.cat] = acc[val.cat] || []).push({
@@ -1513,9 +1539,10 @@ function WorkflowInner() {
                       <ArrowLeft className="w-3.5 h-3.5" />
                     </button>
                     {(() => {
-                      const cfg = NODE_CFG[selNode.data.nodeType as string] || {
-                        icon: Zap,
-                        color: "#6b7280",
+                      const cfg = NODE_CFG[selNode.data.nodeType as string] ||
+                        NODE_CFG[selNode.data.componentId as string] || {
+                        icon: selNode.data.iconName ? resolveIcon(selNode.data.iconName as string) : Zap,
+                        color: categoryColor((selNode.data.category as string) || "core"),
                         label: "Node",
                         cat: ((selNode.data.category as string) || "ACTION").toUpperCase(),
                       };

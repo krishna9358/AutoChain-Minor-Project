@@ -1,6 +1,7 @@
 import { Router } from "express";
 import prisma from "../db";
 import { authMiddleware, AuthRequest } from "../middleware";
+import { resolveComponentId } from "./componentCatalog";
 
 const router = Router();
 
@@ -591,11 +592,12 @@ function generateNodeOutput(node: any): any {
     "webhook-response": { sent: true },
   };
 
-  // Try exact nodeType match, then try componentId from metadata
   const componentId = node.metadata?.componentId || "";
+  const resolvedId = resolveComponentId(node.nodeType) || resolveComponentId(componentId);
   return (
     outputs[node.nodeType] ||
     outputs[componentId] ||
+    (resolvedId ? outputs[resolvedId] : null) ||
     { result: "completed", nodeType: node.nodeType }
   );
 }
@@ -617,9 +619,11 @@ function getReasoningSummary(node: any): string | null {
   };
 
   const componentId = node.metadata?.componentId || "";
+  const resolvedId = resolveComponentId(node.nodeType) || resolveComponentId(componentId);
   return (
     summaries[node.nodeType] ||
     summaries[componentId] ||
+    (resolvedId ? summaries[resolvedId] : null) ||
     "Agent processed input and generated structured output."
   );
 }

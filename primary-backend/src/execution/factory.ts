@@ -4,6 +4,7 @@ import {
   NodeExecutionContext,
   NodeExecutionResult,
 } from "../types/nodes";
+import { resolveComponentId } from "../router/componentCatalog";
 import {
   WebhookTriggerExecutor,
   EventTriggerExecutor,
@@ -98,9 +99,14 @@ export class NodeExecutorFactory {
     this.executorMap.set("db-query", DatabaseToolExecutor);
     this.executorMap.set("if-condition", ConditionalExecutor);
     this.executorMap.set("switch-case", SwitchExecutor);
+    this.executorMap.set("loop", LoopExecutor);
     this.executorMap.set("ai-agent", AgentNodeExecutor);
+    this.executorMap.set("text-transform", AgentNodeExecutor);
+    this.executorMap.set("delay", WebhookTriggerExecutor);
     this.executorMap.set("error-handler", ErrorHandlingNodeExecutor);
     this.executorMap.set("approval", HumanApprovalNodeExecutor);
+    this.executorMap.set("artifact-writer", WebhookTriggerExecutor);
+    this.executorMap.set("webhook-response", WebhookTriggerExecutor);
   }
 
   /**
@@ -111,7 +117,11 @@ export class NodeExecutorFactory {
   ): new () => any {
     this.initializeRegistry();
 
-    const ExecutorClass = this.executorMap.get(nodeType);
+    let ExecutorClass = this.executorMap.get(nodeType);
+    if (!ExecutorClass) {
+      const canonical = resolveComponentId(nodeType);
+      if (canonical) ExecutorClass = this.executorMap.get(canonical);
+    }
     if (!ExecutorClass) {
       throw new Error(`No executor registered for node type: ${nodeType}`);
     }

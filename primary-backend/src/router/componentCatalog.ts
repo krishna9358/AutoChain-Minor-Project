@@ -687,6 +687,98 @@ const Components: WorkflowComponentDefinition[] = [
 
 const ComponentMap = new Map(Components.map((c) => [c.id, c]));
 
+// ─── Alias resolver ──────────────────────────────────────────────
+// Maps every known variant (UPPER_SNAKE, dot-notation, legacy names)
+// to the canonical kebab-case catalog ID so that external callers,
+// AI generators, and saved workflows all resolve correctly.
+const COMPONENT_ALIASES: Record<string, string> = {};
+
+function registerAliases(canonicalId: string, ...aliases: string[]) {
+  for (const alias of aliases) {
+    COMPONENT_ALIASES[alias] = canonicalId;
+    COMPONENT_ALIASES[alias.toLowerCase()] = canonicalId;
+    COMPONENT_ALIASES[alias.toUpperCase()] = canonicalId;
+  }
+}
+
+// Auto-generate UPPER_SNAKE alias for every catalog component
+for (const c of Components) {
+  const upperSnake = c.id.toUpperCase().replace(/-/g, "_");
+  COMPONENT_ALIASES[upperSnake] = c.id;
+  COMPONENT_ALIASES[c.id] = c.id;
+}
+
+// Legacy / AI-generator keys → canonical catalog IDs
+registerAliases("entry-point",
+  "trigger.manual", "trigger.webhook", "trigger.event", "trigger.schedule",
+  "WEBHOOK_TRIGGER", "SCHEDULE_TRIGGER", "FILE_UPLOAD_TRIGGER", "API_TRIGGER",
+  "ENTRY_POINT", "entry_point",
+);
+registerAliases("email-send",
+  "action.email", "tool.email", "EMAIL_SEND", "email_send", "send-email",
+);
+registerAliases("slack-send",
+  "action.slack", "tool.slack", "SLACK_SEND", "slack_send", "send-slack",
+);
+registerAliases("http-request",
+  "action.http", "tool.http", "HTTP_REQUEST", "http_request", "API_CALL", "api_call",
+);
+registerAliases("db-query",
+  "action.database", "tool.database", "DB_QUERY", "db_query", "DB_WRITE", "db_write",
+);
+registerAliases("if-condition",
+  "logic.if", "orchestrator.conditional", "IF_CONDITION", "if_condition",
+);
+registerAliases("switch-case",
+  "logic.switch", "orchestrator.switch", "SWITCH_CASE", "switch_case",
+);
+registerAliases("loop",
+  "logic.loop", "orchestrator.loop", "LOOP",
+);
+registerAliases("ai-agent",
+  "agent", "ai.agent",
+  "EXTRACTION_AGENT", "SUMMARIZATION_AGENT", "CLASSIFICATION_AGENT",
+  "REASONING_AGENT", "DECISION_AGENT", "VERIFICATION_AGENT", "COMPLIANCE_AGENT",
+  "AI_AGENT", "ai_agent",
+);
+registerAliases("text-transform",
+  "ai.text", "TEXT_TRANSFORM", "text_transform",
+);
+registerAliases("delay",
+  "control.delay", "DELAY",
+);
+registerAliases("error-handler",
+  "control.error", "error_handling", "ERROR_HANDLER", "error_handler",
+);
+registerAliases("approval",
+  "control.approval", "human.approval", "APPROVAL",
+);
+registerAliases("artifact-writer",
+  "output.artifact", "ARTIFACT_WRITER", "artifact_writer",
+);
+registerAliases("webhook-response",
+  "output.webhook", "WEBHOOK_RESPONSE", "webhook_response",
+);
+
+/**
+ * Resolve any node-type variant to its canonical catalog ID.
+ * Returns the canonical ID or `null` if completely unknown.
+ */
+export function resolveComponentId(raw: string): string | null {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+
+  if (ComponentMap.has(trimmed)) return trimmed;
+
+  const alias = COMPONENT_ALIASES[trimmed] ?? COMPONENT_ALIASES[trimmed.toLowerCase()];
+  if (alias && ComponentMap.has(alias)) return alias;
+
+  const kebab = trimmed.toLowerCase().replace(/[_.]/g, "-");
+  if (ComponentMap.has(kebab)) return kebab;
+
+  return null;
+}
+
 const PublicComponentSchema = z.object({
   id: z.string(),
   version: z.string(),
@@ -739,7 +831,8 @@ export function getComponentById(componentId: string) {
 }
 
 export function validateNodeConfig(componentId: string, config: unknown) {
-  const component = getComponentById(componentId);
+  const resolved = resolveComponentId(componentId);
+  const component = resolved ? getComponentById(resolved) : null;
 
   if (!component) {
     return {
@@ -779,9 +872,9 @@ export function validateWorkflowNodes(
   for (let i = 0; i < nodes.length; i += 1) {
     const node = nodes[i];
     const nodeId = node.id || `node-${i + 1}`;
-    const componentId = (node.componentId || node.nodeType || "").trim();
+    const rawId = (node.componentId || node.nodeType || "").trim();
 
-    if (!componentId) {
+    if (!rawId) {
       errors.push({
         nodeId,
         componentId: "",
@@ -791,12 +884,24 @@ export function validateWorkflowNodes(
       continue;
     }
 
-    const result = validateNodeConfig(componentId, node.config ?? {});
+    const canonicalId = resolveComponentId(rawId);
+
+    if (!canonicalId) {
+      errors.push({
+        nodeId,
+        componentId: rawId,
+        path: "componentId",
+        message: `Unknown component: "${rawId}". Could not resolve to any known catalog component.`,
+      });
+      continue;
+    }
+
+    const result = validateNodeConfig(canonicalId, node.config ?? {});
     if (!result.ok) {
       for (const e of result.errors) {
         errors.push({
           nodeId,
-          componentId,
+          componentId: canonicalId,
           path: e.path,
           message: e.message,
         });
@@ -806,8 +911,8 @@ export function validateWorkflowNodes(
 
     normalized.push({
       id: nodeId,
-      componentId,
-      nodeType: componentId,
+      componentId: canonicalId,
+      nodeType: canonicalId,
       config: (result.value ?? {}) as Record<string, unknown>,
     });
   }
@@ -851,6 +956,15 @@ componentCatalogRouter.get("/:componentId", (req, res) => {
   }
 
   return res.json(parsed.data);
+});
+
+componentCatalogRouter.get("/resolve/:rawId", (req, res) => {
+  const resolved = resolveComponentId(req.params.rawId);
+  if (!resolved) {
+    return res.status(404).json({ error: `Unknown component: "${req.params.rawId}"` });
+  }
+  const component = getComponentById(resolved);
+  return res.json({ canonicalId: resolved, component: component ? toPublicComponent(component) : null });
 });
 
 componentCatalogRouter.post("/validate-node-config", (req, res) => {

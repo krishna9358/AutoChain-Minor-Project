@@ -1,6 +1,7 @@
 import { Router } from "express";
 import prisma from "../db";
 import { authMiddleware, AuthRequest } from "../middleware";
+import { getComponentById } from "./componentCatalog";
 
 const router = Router();
 
@@ -25,12 +26,34 @@ router.post("/workflow", authMiddleware, async (req: AuthRequest, res) => {
 
 interface GeneratedNode {
   tempId: string;
+  componentId: string;
   nodeType: string;
   category: string;
   label: string;
   description: string;
   config: any;
   position: { x: number; y: number };
+}
+
+function catalogNode(
+  tempId: string,
+  componentId: string,
+  label: string,
+  description: string,
+  config: any,
+  position: { x: number; y: number },
+): GeneratedNode {
+  const def = getComponentById(componentId);
+  return {
+    tempId,
+    componentId,
+    nodeType: componentId,
+    category: def?.category ?? "core",
+    label,
+    description,
+    config,
+    position,
+  };
 }
 
 interface GeneratedEdge {
@@ -81,69 +104,32 @@ async function generateWorkflowFromPrompt(prompt: string): Promise<{
 
 function generateMeetingWorkflow(prompt: string) {
   const nodes: GeneratedNode[] = [
-    {
-      tempId: "node-1",
-      nodeType: "WEBHOOK_TRIGGER",
-      category: "TRIGGER",
-      label: "Meeting Recording Received",
-      description: "Triggered when a new meeting recording is uploaded",
-      config: { webhookPath: "/meeting-upload" },
-      position: { x: 300, y: 50 },
-    },
-    {
-      tempId: "node-2",
-      nodeType: "EXTRACTION_AGENT",
-      category: "AI_AGENT",
-      label: "Transcription Agent",
-      description: "Transcribe meeting audio and extract raw text",
-      config: { model: "whisper-large" },
-      position: { x: 300, y: 200 },
-    },
-    {
-      tempId: "node-3",
-      nodeType: "SUMMARIZATION_AGENT",
-      category: "AI_AGENT",
-      label: "Meeting Summarizer",
-      description: "Generate structured meeting summary with key points",
-      config: { format: "structured" },
-      position: { x: 300, y: 350 },
-    },
-    {
-      tempId: "node-4",
-      nodeType: "EXTRACTION_AGENT",
-      category: "AI_AGENT",
-      label: "Task Extractor",
-      description: "Extract action items and assign owners",
-      config: { extractType: "action_items" },
-      position: { x: 300, y: 500 },
-    },
-    {
-      tempId: "node-5",
-      nodeType: "CLASSIFICATION_AGENT",
-      category: "AI_AGENT",
-      label: "Priority Classifier",
-      description: "Classify tasks by priority and urgency",
-      config: { labels: ["high", "medium", "low"] },
-      position: { x: 300, y: 650 },
-    },
-    {
-      tempId: "node-6",
-      nodeType: "SLACK_SEND",
-      category: "ACTION",
-      label: "Send to Slack",
-      description: "Post summary and tasks to Slack channel",
-      config: { channel: "#meetings" },
-      position: { x: 100, y: 800 },
-    },
-    {
-      tempId: "node-7",
-      nodeType: "EMAIL_SEND",
-      category: "ACTION",
-      label: "Email Participants",
-      description: "Send summary email to all meeting participants",
-      config: { template: "meeting_summary" },
-      position: { x: 500, y: 800 },
-    },
+    catalogNode("node-1", "entry-point", "Meeting Recording Received",
+      "Triggered when a new meeting recording is uploaded",
+      { triggerMode: "webhook", webhookPath: "/meeting-upload" }, { x: 300, y: 50 }),
+    catalogNode("node-2", "ai-agent", "Transcription Agent",
+      "Transcribe meeting audio and extract raw text",
+      { provider: "openai", model: "gpt-4o-mini", systemPrompt: "Transcribe and extract text", userPromptTemplate: "{{payload.text}}" },
+      { x: 300, y: 200 }),
+    catalogNode("node-3", "ai-agent", "Meeting Summarizer",
+      "Generate structured meeting summary with key points",
+      { provider: "openai", model: "gpt-4o-mini", systemPrompt: "Summarize meeting notes", userPromptTemplate: "{{payload.text}}" },
+      { x: 300, y: 350 }),
+    catalogNode("node-4", "ai-agent", "Task Extractor",
+      "Extract action items and assign owners",
+      { provider: "openai", model: "gpt-4o-mini", systemPrompt: "Extract action items", userPromptTemplate: "{{payload.text}}" },
+      { x: 300, y: 500 }),
+    catalogNode("node-5", "ai-agent", "Priority Classifier",
+      "Classify tasks by priority and urgency",
+      { provider: "openai", model: "gpt-4o-mini", systemPrompt: "Classify priority", userPromptTemplate: "{{payload.text}}" },
+      { x: 300, y: 650 }),
+    catalogNode("node-6", "slack-send", "Send to Slack",
+      "Post summary and tasks to Slack channel",
+      { mode: "webhook", channel: "#meetings", message: "{{payload.summary}}" }, { x: 100, y: 800 }),
+    catalogNode("node-7", "email-send", "Email Participants",
+      "Send summary email to all meeting participants",
+      { provider: "smtp", from: "noreply@company.com", to: "team@company.com", subject: "Meeting Summary", body: "{{payload.summary}}" },
+      { x: 500, y: 800 }),
   ];
 
   const edges: GeneratedEdge[] = [
@@ -165,60 +151,28 @@ function generateMeetingWorkflow(prompt: string) {
 
 function generateSupportWorkflow(prompt: string) {
   const nodes: GeneratedNode[] = [
-    {
-      tempId: "node-1",
-      nodeType: "WEBHOOK_TRIGGER",
-      category: "TRIGGER",
-      label: "New Ticket Received",
-      description: "Triggered when new support ticket is created",
-      config: { source: "zendesk" },
-      position: { x: 300, y: 50 },
-    },
-    {
-      tempId: "node-2",
-      nodeType: "CLASSIFICATION_AGENT",
-      category: "AI_AGENT",
-      label: "Ticket Classifier",
-      description: "Classify ticket category and severity",
-      config: { categories: ["billing", "technical", "feature_request", "bug"] },
-      position: { x: 300, y: 200 },
-    },
-    {
-      tempId: "node-3",
-      nodeType: "REASONING_AGENT",
-      category: "AI_AGENT",
-      label: "Response Generator",
-      description: "Generate initial response based on KB articles",
-      config: { tone: "professional", useKB: true },
-      position: { x: 300, y: 350 },
-    },
-    {
-      tempId: "node-4",
-      nodeType: "DECISION_AGENT",
-      category: "AI_AGENT",
-      label: "Escalation Check",
-      description: "Decide if ticket needs human escalation",
-      config: { threshold: 0.8 },
-      position: { x: 300, y: 500 },
-    },
-    {
-      tempId: "node-5",
-      nodeType: "APPROVAL",
-      category: "CONTROL",
-      label: "Manager Approval",
-      description: "Require manager approval for high-severity tickets",
-      config: { approver: "manager" },
-      position: { x: 100, y: 650 },
-    },
-    {
-      tempId: "node-6",
-      nodeType: "SLACK_SEND",
-      category: "ACTION",
-      label: "Notify Support Team",
-      description: "Send escalation alert to support channel",
-      config: { channel: "#support-escalations" },
-      position: { x: 500, y: 650 },
-    },
+    catalogNode("node-1", "entry-point", "New Ticket Received",
+      "Triggered when new support ticket is created",
+      { triggerMode: "webhook", webhookPath: "/support/ticket" }, { x: 300, y: 50 }),
+    catalogNode("node-2", "ai-agent", "Ticket Classifier",
+      "Classify ticket category and severity",
+      { provider: "openai", model: "gpt-4o-mini", systemPrompt: "Classify support tickets", userPromptTemplate: "{{payload.text}}" },
+      { x: 300, y: 200 }),
+    catalogNode("node-3", "ai-agent", "Response Generator",
+      "Generate initial response based on KB articles",
+      { provider: "openai", model: "gpt-4o-mini", systemPrompt: "Draft professional support response", userPromptTemplate: "{{payload.text}}" },
+      { x: 300, y: 350 }),
+    catalogNode("node-4", "if-condition", "Escalation Check",
+      "Decide if ticket needs human escalation",
+      { leftPath: "payload.severity", operator: "equals", rightValue: "high" }, { x: 300, y: 500 }),
+    catalogNode("node-5", "approval", "Manager Approval",
+      "Require manager approval for high-severity tickets",
+      { approvers: "manager@company.com", message: "Review escalated ticket", timeoutHours: 24 },
+      { x: 100, y: 650 }),
+    catalogNode("node-6", "slack-send", "Notify Support Team",
+      "Send escalation alert to support channel",
+      { mode: "webhook", channel: "#support-escalations", message: "{{payload.summary}}" },
+      { x: 500, y: 650 }),
   ];
 
   const edges: GeneratedEdge[] = [
@@ -239,60 +193,28 @@ function generateSupportWorkflow(prompt: string) {
 
 function generateSalesWorkflow(prompt: string) {
   const nodes: GeneratedNode[] = [
-    {
-      tempId: "node-1",
-      nodeType: "WEBHOOK_TRIGGER",
-      category: "TRIGGER",
-      label: "New Lead Captured",
-      description: "Triggered when a new lead is captured from form/API",
-      config: { source: "landing_page" },
-      position: { x: 300, y: 50 },
-    },
-    {
-      tempId: "node-2",
-      nodeType: "EXTRACTION_AGENT",
-      category: "AI_AGENT",
-      label: "Lead Data Enrichment",
-      description: "Enrich lead data with company info and social profiles",
-      config: { enrichSources: ["clearbit", "linkedin"] },
-      position: { x: 300, y: 200 },
-    },
-    {
-      tempId: "node-3",
-      nodeType: "CLASSIFICATION_AGENT",
-      category: "AI_AGENT",
-      label: "Lead Scoring",
-      description: "Score lead quality based on firmographics and behavior",
-      config: { model: "lead_scoring_v2" },
-      position: { x: 300, y: 350 },
-    },
-    {
-      tempId: "node-4",
-      nodeType: "DECISION_AGENT",
-      category: "AI_AGENT",
-      label: "Routing Decision",
-      description: "Route to appropriate sales rep based on territory and score",
-      config: { routingRules: "territory_based" },
-      position: { x: 300, y: 500 },
-    },
-    {
-      tempId: "node-5",
-      nodeType: "EMAIL_SEND",
-      category: "ACTION",
-      label: "Send Outreach Email",
-      description: "Send personalized outreach email to lead",
-      config: { template: "sales_outreach" },
-      position: { x: 100, y: 650 },
-    },
-    {
-      tempId: "node-6",
-      nodeType: "SLACK_SEND",
-      category: "ACTION",
-      label: "Notify Sales Rep",
-      description: "Alert assigned sales rep via Slack",
-      config: { channel: "#sales-leads" },
-      position: { x: 500, y: 650 },
-    },
+    catalogNode("node-1", "entry-point", "New Lead Captured",
+      "Triggered when a new lead is captured from form/API",
+      { triggerMode: "webhook", webhookPath: "/leads/new" }, { x: 300, y: 50 }),
+    catalogNode("node-2", "http-request", "Lead Data Enrichment",
+      "Enrich lead data with company info and social profiles",
+      { method: "GET", url: "https://api.clearbit.com/v1/enrichment" }, { x: 300, y: 200 }),
+    catalogNode("node-3", "ai-agent", "Lead Scoring",
+      "Score lead quality based on firmographics and behavior",
+      { provider: "openai", model: "gpt-4o-mini", systemPrompt: "Score lead quality", userPromptTemplate: "{{payload.text}}" },
+      { x: 300, y: 350 }),
+    catalogNode("node-4", "ai-agent", "Routing Decision",
+      "Route to appropriate sales rep based on territory and score",
+      { provider: "openai", model: "gpt-4o-mini", systemPrompt: "Route lead to rep", userPromptTemplate: "{{payload.text}}" },
+      { x: 300, y: 500 }),
+    catalogNode("node-5", "email-send", "Send Outreach Email",
+      "Send personalized outreach email to lead",
+      { provider: "smtp", from: "sales@company.com", to: "{{payload.email}}", subject: "Welcome!", body: "Hi {{payload.name}}" },
+      { x: 100, y: 650 }),
+    catalogNode("node-6", "slack-send", "Notify Sales Rep",
+      "Alert assigned sales rep via Slack",
+      { mode: "webhook", channel: "#sales-leads", message: "New lead: {{payload.name}}" },
+      { x: 500, y: 650 }),
   ];
 
   const edges: GeneratedEdge[] = [
@@ -313,51 +235,24 @@ function generateSalesWorkflow(prompt: string) {
 
 function generateOnboardingWorkflow(prompt: string) {
   const nodes: GeneratedNode[] = [
-    {
-      tempId: "node-1",
-      nodeType: "API_TRIGGER",
-      category: "TRIGGER",
-      label: "New Hire Created in HRIS",
-      description: "Triggered when HR creates new employee record",
-      config: { source: "workday" },
-      position: { x: 300, y: 50 },
-    },
-    {
-      tempId: "node-2",
-      nodeType: "API_CALL",
-      category: "ACTION",
-      label: "Create IT Accounts",
-      description: "Provision email, Slack, and tool access",
-      config: { services: ["google_workspace", "slack", "github"] },
-      position: { x: 300, y: 200 },
-    },
-    {
-      tempId: "node-3",
-      nodeType: "EMAIL_SEND",
-      category: "ACTION",
-      label: "Welcome Email",
-      description: "Send welcome email with onboarding guide",
-      config: { template: "welcome_new_hire" },
-      position: { x: 300, y: 350 },
-    },
-    {
-      tempId: "node-4",
-      nodeType: "SLACK_SEND",
-      category: "ACTION",
-      label: "Introduce in Slack",
-      description: "Post introduction in team channel",
-      config: { channel: "#team-intros" },
-      position: { x: 300, y: 500 },
-    },
-    {
-      tempId: "node-5",
-      nodeType: "APPROVAL",
-      category: "CONTROL",
-      label: "Manager Checklist",
-      description: "Manager confirms onboarding checklist completion",
-      config: { approver: "hiring_manager" },
-      position: { x: 300, y: 650 },
-    },
+    catalogNode("node-1", "entry-point", "New Hire Created in HRIS",
+      "Triggered when HR creates new employee record",
+      { triggerMode: "api" }, { x: 300, y: 50 }),
+    catalogNode("node-2", "http-request", "Create IT Accounts",
+      "Provision email, Slack, and tool access",
+      { method: "POST", url: "https://api.internal.com/provision" }, { x: 300, y: 200 }),
+    catalogNode("node-3", "email-send", "Welcome Email",
+      "Send welcome email with onboarding guide",
+      { provider: "smtp", from: "hr@company.com", to: "{{payload.email}}", subject: "Welcome!", body: "Welcome to the team!" },
+      { x: 300, y: 350 }),
+    catalogNode("node-4", "slack-send", "Introduce in Slack",
+      "Post introduction in team channel",
+      { mode: "webhook", channel: "#team-intros", message: "Welcome {{payload.name}}!" },
+      { x: 300, y: 500 }),
+    catalogNode("node-5", "approval", "Manager Checklist",
+      "Manager confirms onboarding checklist completion",
+      { approvers: "manager@company.com", message: "Confirm onboarding complete", timeoutHours: 72 },
+      { x: 300, y: 650 }),
   ];
 
   const edges: GeneratedEdge[] = [
@@ -377,60 +272,28 @@ function generateOnboardingWorkflow(prompt: string) {
 
 function generateInvoiceWorkflow(prompt: string) {
   const nodes: GeneratedNode[] = [
-    {
-      tempId: "node-1",
-      nodeType: "FILE_UPLOAD_TRIGGER",
-      category: "TRIGGER",
-      label: "Invoice Uploaded",
-      description: "Triggered when invoice document is uploaded",
-      config: { formats: ["pdf", "jpg", "png"] },
-      position: { x: 300, y: 50 },
-    },
-    {
-      tempId: "node-2",
-      nodeType: "EXTRACTION_AGENT",
-      category: "AI_AGENT",
-      label: "Invoice Data Extractor",
-      description: "Extract vendor, amount, line items from invoice",
-      config: { model: "document_ai" },
-      position: { x: 300, y: 200 },
-    },
-    {
-      tempId: "node-3",
-      nodeType: "VERIFICATION_AGENT",
-      category: "AI_AGENT",
-      label: "Data Validator",
-      description: "Validate extracted data against PO and contracts",
-      config: { checkPO: true, checkContract: true },
-      position: { x: 300, y: 350 },
-    },
-    {
-      tempId: "node-4",
-      nodeType: "DECISION_AGENT",
-      category: "AI_AGENT",
-      label: "Approval Routing",
-      description: "Route to appropriate approver based on amount",
-      config: { thresholds: { manager: 1000, director: 10000, vp: 50000 } },
-      position: { x: 300, y: 500 },
-    },
-    {
-      tempId: "node-5",
-      nodeType: "APPROVAL",
-      category: "CONTROL",
-      label: "Approval Required",
-      description: "Human approval for invoice payment",
-      config: {},
-      position: { x: 300, y: 650 },
-    },
-    {
-      tempId: "node-6",
-      nodeType: "DB_WRITE",
-      category: "ACTION",
-      label: "Record Payment",
-      description: "Record approved payment in accounting system",
-      config: { table: "payments" },
-      position: { x: 300, y: 800 },
-    },
+    catalogNode("node-1", "entry-point", "Invoice Uploaded",
+      "Triggered when invoice document is uploaded",
+      { triggerMode: "webhook", webhookPath: "/invoices/upload" }, { x: 300, y: 50 }),
+    catalogNode("node-2", "ai-agent", "Invoice Data Extractor",
+      "Extract vendor, amount, line items from invoice",
+      { provider: "openai", model: "gpt-4o", systemPrompt: "Extract invoice data", userPromptTemplate: "{{payload.text}}" },
+      { x: 300, y: 200 }),
+    catalogNode("node-3", "ai-agent", "Data Validator",
+      "Validate extracted data against PO and contracts",
+      { provider: "openai", model: "gpt-4o-mini", systemPrompt: "Validate invoice data", userPromptTemplate: "{{payload.text}}" },
+      { x: 300, y: 350 }),
+    catalogNode("node-4", "if-condition", "Approval Routing",
+      "Route to appropriate approver based on amount",
+      { leftPath: "payload.amount", operator: "gt", rightValue: "1000" }, { x: 300, y: 500 }),
+    catalogNode("node-5", "approval", "Approval Required",
+      "Human approval for invoice payment",
+      { approvers: "finance@company.com", message: "Approve invoice {{payload.invoiceId}}", timeoutHours: 48 },
+      { x: 300, y: 650 }),
+    catalogNode("node-6", "db-query", "Record Payment",
+      "Record approved payment in accounting system",
+      { dbType: "postgresql", connectionString: "{{secrets.DB_URL}}", operation: "insert", query: "INSERT INTO payments (invoice_id, amount) VALUES ($1, $2)", params: [] },
+      { x: 300, y: 800 }),
   ];
 
   const edges: GeneratedEdge[] = [
@@ -451,51 +314,25 @@ function generateInvoiceWorkflow(prompt: string) {
 
 function generateIncidentWorkflow(prompt: string) {
   const nodes: GeneratedNode[] = [
-    {
-      tempId: "node-1",
-      nodeType: "WEBHOOK_TRIGGER",
-      category: "TRIGGER",
-      label: "Alert Received",
-      description: "Triggered by monitoring system alert (PagerDuty, Datadog)",
-      config: { source: "pagerduty" },
-      position: { x: 300, y: 50 },
-    },
-    {
-      tempId: "node-2",
-      nodeType: "CLASSIFICATION_AGENT",
-      category: "AI_AGENT",
-      label: "Severity Classifier",
-      description: "Classify incident severity and impact",
-      config: { levels: ["P1", "P2", "P3", "P4"] },
-      position: { x: 300, y: 200 },
-    },
-    {
-      tempId: "node-3",
-      nodeType: "REASONING_AGENT",
-      category: "AI_AGENT",
-      label: "Root Cause Analyzer",
-      description: "Analyze logs and metrics to suggest root cause",
-      config: { dataSources: ["logs", "metrics", "traces"] },
-      position: { x: 300, y: 350 },
-    },
-    {
-      tempId: "node-4",
-      nodeType: "SLACK_SEND",
-      category: "ACTION",
-      label: "Create Incident Channel",
-      description: "Create dedicated Slack channel for incident",
-      config: { createChannel: true, prefix: "inc-" },
-      position: { x: 300, y: 500 },
-    },
-    {
-      tempId: "node-5",
-      nodeType: "EMAIL_SEND",
-      category: "ACTION",
-      label: "Notify Stakeholders",
-      description: "Send incident notification to stakeholders",
-      config: { template: "incident_notification" },
-      position: { x: 300, y: 650 },
-    },
+    catalogNode("node-1", "entry-point", "Alert Received",
+      "Triggered by monitoring system alert (PagerDuty, Datadog)",
+      { triggerMode: "webhook", webhookPath: "/alerts/incoming" }, { x: 300, y: 50 }),
+    catalogNode("node-2", "ai-agent", "Severity Classifier",
+      "Classify incident severity and impact",
+      { provider: "openai", model: "gpt-4o-mini", systemPrompt: "Classify incident severity", userPromptTemplate: "{{payload.text}}" },
+      { x: 300, y: 200 }),
+    catalogNode("node-3", "ai-agent", "Root Cause Analyzer",
+      "Analyze logs and metrics to suggest root cause",
+      { provider: "openai", model: "gpt-4o", systemPrompt: "Analyze root cause from logs", userPromptTemplate: "{{payload.text}}" },
+      { x: 300, y: 350 }),
+    catalogNode("node-4", "slack-send", "Create Incident Channel",
+      "Create dedicated Slack channel for incident",
+      { mode: "webhook", channel: "#incidents", message: "Incident: {{payload.title}}" },
+      { x: 300, y: 500 }),
+    catalogNode("node-5", "email-send", "Notify Stakeholders",
+      "Send incident notification to stakeholders",
+      { provider: "smtp", from: "alerts@company.com", to: "oncall@company.com", subject: "Incident: {{payload.title}}", body: "{{payload.summary}}" },
+      { x: 300, y: 650 }),
   ];
 
   const edges: GeneratedEdge[] = [
@@ -515,42 +352,21 @@ function generateIncidentWorkflow(prompt: string) {
 
 function generateGenericWorkflow(prompt: string) {
   const nodes: GeneratedNode[] = [
-    {
-      tempId: "node-1",
-      nodeType: "WEBHOOK_TRIGGER",
-      category: "TRIGGER",
-      label: "Incoming Request",
-      description: "Webhook trigger for incoming data",
-      config: {},
-      position: { x: 300, y: 50 },
-    },
-    {
-      tempId: "node-2",
-      nodeType: "EXTRACTION_AGENT",
-      category: "AI_AGENT",
-      label: "Data Processor",
-      description: "Extract and process incoming data",
-      config: {},
-      position: { x: 300, y: 200 },
-    },
-    {
-      tempId: "node-3",
-      nodeType: "REASONING_AGENT",
-      category: "AI_AGENT",
-      label: "Analysis Agent",
-      description: "Analyze processed data and generate insights",
-      config: {},
-      position: { x: 300, y: 350 },
-    },
-    {
-      tempId: "node-4",
-      nodeType: "SLACK_SEND",
-      category: "ACTION",
-      label: "Send Notification",
-      description: "Send results via Slack",
-      config: { channel: "#notifications" },
-      position: { x: 300, y: 500 },
-    },
+    catalogNode("node-1", "entry-point", "Incoming Request",
+      "Webhook trigger for incoming data",
+      { triggerMode: "webhook", webhookPath: "/incoming" }, { x: 300, y: 50 }),
+    catalogNode("node-2", "ai-agent", "Data Processor",
+      "Extract and process incoming data",
+      { provider: "openai", model: "gpt-4o-mini", systemPrompt: "Process and extract data", userPromptTemplate: "{{payload.text}}" },
+      { x: 300, y: 200 }),
+    catalogNode("node-3", "ai-agent", "Analysis Agent",
+      "Analyze processed data and generate insights",
+      { provider: "openai", model: "gpt-4o-mini", systemPrompt: "Analyze data and generate insights", userPromptTemplate: "{{payload.text}}" },
+      { x: 300, y: 350 }),
+    catalogNode("node-4", "slack-send", "Send Notification",
+      "Send results via Slack",
+      { mode: "webhook", channel: "#notifications", message: "{{payload.summary}}" },
+      { x: 300, y: 500 }),
   ];
 
   const edges: GeneratedEdge[] = [
