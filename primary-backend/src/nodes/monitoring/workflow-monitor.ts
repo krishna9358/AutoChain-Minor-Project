@@ -192,7 +192,7 @@ export class WorkflowMonitorNodeExecutor extends BaseNodeExecutor {
     return {
       total_errors: totalErrors,
       total_nodes: totalNodes,
-      error_rate,
+      error_rate: errorRate,
       error_by_type: errorByType,
     };
   }
@@ -337,7 +337,7 @@ export class WorkflowMonitorNodeExecutor extends BaseNodeExecutor {
       total_executions: totalExecutions,
       successful_executions: successfulExecutions,
       failed_executions: failedExecutions,
-      success_rate,
+      success_rate: successRate,
     };
   }
 
@@ -621,7 +621,7 @@ Provide predictions in JSON format with the following structure:
         if (node.alerting.slack_connection_id) {
           await this.sendSlackAlert(
             node.alerting.slack_connection_id,
-            node.alerting.slack_channel,
+            node.alerting.slack_channel || '',
             context,
             alert
           );

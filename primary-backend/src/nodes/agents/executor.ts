@@ -104,6 +104,14 @@ export class AgentNodeExecutor extends BaseNodeExecutor {
           model: modelConfig.model,
         };
 
+      case "openrouter":
+        // OpenRouter is OpenAI-compatible - use OpenAI client with custom baseURL
+        return new OpenAI({
+          apiKey: apiKey,
+          baseURL: "https://openrouter.ai/api/v1",
+          dangerouslyAllowBrowser: false,
+        });
+
       case "local":
         // Local model client (Ollama, etc.)
         return {
@@ -152,7 +160,7 @@ export class AgentNodeExecutor extends BaseNodeExecutor {
       const connection = await connectionManager.getConnectionForExecution(
         connectionId,
         context.user_context?.user_id || "system",
-        context.user_context?.role || "admin",
+        (context.user_context?.role as any) || "admin",
       );
 
       if (!connection) {
@@ -603,15 +611,15 @@ For each step, decide which tool to use and provide the parameters. Continue unt
           // Add tool result to conversation
           messages.push({
             role: "assistant",
-            content: null,
+            content: "",
             tool_calls: [toolCall],
-          });
+          } as any);
 
           messages.push({
             role: "tool",
             tool_call_id: toolCall.id,
             content: JSON.stringify(toolResult),
-          });
+          } as any);
 
           decisions.push({
             type: "tool_executed",

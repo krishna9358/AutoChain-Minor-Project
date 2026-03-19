@@ -438,6 +438,7 @@ const Components: WorkflowComponentDefinition[] = [
           { label: "OpenAI (GPT)", value: "openai" },
           { label: "Anthropic (Claude)", value: "anthropic" },
           { label: "Google (Gemini)", value: "google" },
+          { label: "OpenRouter", value: "openrouter" },
           { label: "Custom / Self-hosted", value: "custom" },
         ],
       },
@@ -466,7 +467,7 @@ const Components: WorkflowComponentDefinition[] = [
       { key: "responseFormat", label: "Response Format", type: "select", defaultValue: "text", options: [{ label: "Text", value: "text" }, { label: "JSON", value: "json" }], description: "Whether to request structured JSON output" },
     ],
     configSchema: z.object({
-      provider: z.enum(["openai", "anthropic", "google", "custom"]).default("openai"),
+      provider: z.enum(["openai", "anthropic", "google", "openrouter", "custom"]).default("openai"),
       model: z.string().min(1),
       apiKey: z.string().min(1),
       systemPrompt: z.string().min(1),
@@ -742,8 +743,8 @@ export function validateNodeConfig(componentId: string, config: unknown) {
 
   if (!component) {
     return {
-      ok: true as const,
-      value: config ?? {},
+      ok: false as const,
+      errors: [{ path: "componentId", message: `Unknown component: "${componentId}"` }],
     };
   }
 

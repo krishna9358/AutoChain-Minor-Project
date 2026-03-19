@@ -377,6 +377,7 @@ Workflow Automation System
         text: {
           type: 'mrkdwn',
           text: `*${node.ui_form.title}*`,
+          emoji: true,
         },
       });
     }
@@ -387,6 +388,7 @@ Workflow Automation System
         text: {
           type: 'mrkdwn',
           text: node.ui_form.description,
+          emoji: true,
         },
       });
     }
@@ -397,6 +399,7 @@ Workflow Automation System
       text: {
         type: 'mrkdwn',
         text: `📅 *Deadline:* ${deadline}`,
+        emoji: true,
       },
     });
 
@@ -405,6 +408,7 @@ Workflow Automation System
       text: {
         type: 'mrkdwn',
         text: `👥 *Assigned to:* ${approvalRecord.assigned_to.join(', ')}`,
+        emoji: true,
       },
     });
 
@@ -422,7 +426,7 @@ Workflow Automation System
           style: 'primary',
         },
       ],
-    });
+    } as any);
 
     const channel = node.notification?.slack_channel || '#approvals';
 
@@ -574,7 +578,7 @@ Workflow Automation System
     approvalRecord.status = decision === 'approve' ? 'approved' : 'rejected';
     approvalRecord.decision = decision;
     approvalRecord.approver = approver;
-    approvalRecord.decision_comments = comments;
+    approvalRecord.decision_comments = comments || null;
     approvalRecord.completed_at = new Date().toISOString();
 
     // Add to approval history

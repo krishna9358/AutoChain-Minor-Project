@@ -61,6 +61,7 @@ export const NodeConfigForm: React.FC<NodeConfigFormProps> = ({
     email: Mail,
     url: Globe,
     "multi-select": Hash,
+    "api-key": Lock,
   };
 
   const inputBaseClass =
@@ -153,7 +154,7 @@ export const NodeConfigForm: React.FC<NodeConfigFormProps> = ({
               />
             )}
 
-            {(field.type === "password") && (
+            {(field.type === "password" || field.type === "api-key") && (
               <PasswordField
                 value={value}
                 onChange={(v) => updateConfig(field.key, v)}

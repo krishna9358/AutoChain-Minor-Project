@@ -85,7 +85,7 @@ export class EncryptionManager {
     let encrypted = cipher.update(plaintext, "utf8", "base64");
     encrypted += cipher.final("base64");
 
-    const authTag = cipher.getAuthTag();
+    const authTag = (cipher as any).getAuthTag();
 
     return {
       encrypted,
@@ -113,7 +113,7 @@ export class EncryptionManager {
       iv,
     );
 
-    decipher.setAuthTag(authTag);
+    (decipher as any).setAuthTag(authTag);
 
     let decrypted = decipher.update(encryptedData.encrypted, "base64", "utf8");
     decrypted += decipher.final("utf8");
@@ -310,7 +310,7 @@ export class EncryptionManager {
    */
   secureCompare(a: string, b: string): boolean {
     if (a.length !== b.length) {
-      throw new Error(`Connection not found: ${connection_id}`);
+      return false;
     }
 
     return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));

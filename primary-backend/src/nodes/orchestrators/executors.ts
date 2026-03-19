@@ -34,13 +34,13 @@ export class ConditionalExecutor extends BaseNodeExecutor {
     );
 
     // Determine which branch to take
-    const selectedBranch = evaluationResult ? node.true_branch : node.false_branch;
+    const selectedBranch = evaluationResult.result ? node.true_branch : node.false_branch;
 
     return {
       orchestrator_type: 'conditional',
       condition: node.condition,
       evaluated_condition: resolvedCondition,
-      result: evaluationResult,
+      result: evaluationResult.result,
       evaluation_mode: node.evaluation_mode,
       selected_branch: selectedBranch,
       branches: {
@@ -49,7 +49,7 @@ export class ConditionalExecutor extends BaseNodeExecutor {
       },
       variables_used: Object.keys(resolvedVariables),
       metadata: {
-        execution_path: evaluationResult ? 'true' : 'false',
+        execution_path: evaluationResult.result ? 'true' : 'false',
         evaluation_time_ms: evaluationResult.time_ms || 0,
       },
     };
@@ -210,7 +210,7 @@ export class ParallelExecutor extends BaseNodeExecutor {
     // Execute branches with concurrency control
     if (node.wait_for_all) {
       // Execute all branches and wait for completion
-      const branchPromises = node.branches.map(async (branchId: string) => {
+      const branchPromises = node.branches.map((branchId: string) => async () => {
         try {
           const branchContext = this.createBranchContext(context, branchId, node.branches);
           const result = await this.executeBranch(branchId, branchContext);
@@ -268,7 +268,7 @@ export class ParallelExecutor extends BaseNodeExecutor {
       ...context,
       variables: {
         ...context.variables,
-        branch_id,
+        branch_id: branchId,
         branch_index: allBranches.indexOf(branchId),
         total_branches: allBranches.length,
       },
@@ -338,7 +338,7 @@ export class ParallelExecutor extends BaseNodeExecutor {
 export class LoopExecutor extends BaseNodeExecutor {
   protected async executeNode(
     node: LoopNode,
-+    context: NodeExecutionContext,
+    context: NodeExecutionContext
   ): Promise<any> {
     this.validateRequiredFields(node, ["loop_type", "body_node"]);
 
@@ -642,7 +642,7 @@ export class LoopExecutor extends BaseNodeExecutor {
 export class SwitchExecutor extends BaseNodeExecutor {
   protected async executeNode(
     node: SwitchNode,
-+    context: NodeExecutionContext,
+    context: NodeExecutionContext
   ): Promise<any> {
     this.validateRequiredFields(node, ["value_expression", "cases", "default_branch"]);
 

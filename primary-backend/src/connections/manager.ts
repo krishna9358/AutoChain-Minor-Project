@@ -429,8 +429,8 @@ export class ConnectionManager {
   ): Promise<{ is_valid: boolean; message: string }> {
     try {
       if (
-        !connection.credentials.access_key ||
-        !connection.credentials.secret_key
+        !(connection.credentials as any).access_key ||
+        !(connection.credentials as any).secret_key
       ) {
         return {
           is_valid: false,

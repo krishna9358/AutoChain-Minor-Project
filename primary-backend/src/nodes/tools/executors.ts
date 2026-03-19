@@ -27,7 +27,7 @@ export class HttpToolExecutor extends BaseNodeExecutor {
     const connection = await connectionManager.getConnectionForExecution(
       node.connection_id,
       context.user_context?.user_id || "system",
-      context.user_context?.role || "admin",
+      context.user_context?.role as any || "admin",
     );
 
     if (!connection) {
@@ -117,7 +117,7 @@ export class HttpToolExecutor extends BaseNodeExecutor {
     return axios.create({
       baseURL: connection.base_url,
       headers,
-      timeout: node?.timeout || 10000,
+      timeout: config.timeout || 10000,
       maxRedirects: 5,
     });
   }
@@ -228,7 +228,15 @@ export class HttpToolExecutor extends BaseNodeExecutor {
    * Sanitize body for logging
    */
   private sanitizeBody(body: any): any {
-    return this.encryptionManager.sanitizeForLogging(body);
+    if (!body || typeof body !== 'object') return body;
+    const sensitiveKeys = ['password', 'secret', 'token', 'api_key', 'apiKey', 'authorization'];
+    const sanitized: any = Array.isArray(body) ? [] : {};
+    for (const [key, value] of Object.entries(body)) {
+      sanitized[key] = sensitiveKeys.some(k => key.toLowerCase().includes(k))
+        ? '***REDACTED***'
+        : value;
+    }
+    return sanitized;
   }
 }
 
@@ -251,7 +259,7 @@ export class DatabaseToolExecutor extends BaseNodeExecutor {
     const connection = await connectionManager.getConnectionForExecution(
       node.connection_id,
       context.user_context?.user_id || "system",
-      context.user_context?.role || "admin",
+      context.user_context?.role as any || "admin",
     );
 
     if (!connection) {
@@ -470,7 +478,7 @@ export class EmailToolExecutor extends BaseNodeExecutor {
     const connection = await connectionManager.getConnectionForExecution(
       node.connection_id,
       context.user_context?.user_id || "system",
-      context.user_context?.role || "admin",
+      context.user_context?.role as any || "admin",
     );
 
     if (!connection) {
@@ -695,7 +703,7 @@ export class SlackToolExecutor extends BaseNodeExecutor {
     const connection = await connectionManager.getConnectionForExecution(
       node.connection_id,
       context.user_context?.user_id || "system",
-      context.user_context?.role || "admin",
+      context.user_context?.role as any || "admin",
     );
 
     if (!connection) {
@@ -710,6 +718,7 @@ export class SlackToolExecutor extends BaseNodeExecutor {
         blocks: node.blocks,
         attachments: node.attachments,
         thread_ts: node.thread_ts,
+        reply_broadcast: node.reply_broadcast,
         username: node.username,
         icon_emoji: node.icon_emoji,
         icon_url: node.icon_url,
@@ -757,7 +766,7 @@ export class SlackToolExecutor extends BaseNodeExecutor {
       if (config.attachments) message.attachments = config.attachments;
       if (config.thread_ts) {
         message.thread_ts = config.thread_ts;
-        if (node?.reply_broadcast) message.reply_broadcast = true;
+        if (config.reply_broadcast) message.reply_broadcast = true;
       }
       if (config.username) message.username = config.username;
       if (config.icon_emoji) message.icon_emoji = config.icon_emoji;
@@ -892,14 +901,14 @@ export class BrowserToolExecutor extends BaseNodeExecutor {
       let screenshotData: string | undefined;
 
       // Default to text result
-      text = await page.textContent("body");
+      text = await page.textContent("body") || undefined;
 
       // Capture screenshot if requested
       if (screenshot) {
         const screenshot = await page.screenshot({
           encoding: "base64",
           fullPage: false,
-        });
+        } as any);
         screenshotData = screenshot.toString();
       }
 

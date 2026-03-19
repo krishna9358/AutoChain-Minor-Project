@@ -496,7 +496,7 @@ export type MemoryType = z.infer<typeof MemoryTypeEnum>;
 
 export const MemoryNodeSchema = BaseNodeSchema.extend({
   node_type: z.literal("memory"),
-  memory_type: MemoryType,
+  memory_type: MemoryTypeEnum,
   operation: z.enum(["store", "retrieve", "search", "delete", "update"]),
   provider: z.enum([
     "pinecone",
@@ -695,6 +695,7 @@ export const NodeExecutionContextSchema = z.object({
   variables: z.record(z.any()).optional(),
   previous_results: z.record(z.any()).optional(),
   workflow_state: z.record(z.any()).optional(),
+  environment: z.enum(["dev", "staging", "prod"]).optional(),
   user_context: z
     .object({
       user_id: z.string().optional(),

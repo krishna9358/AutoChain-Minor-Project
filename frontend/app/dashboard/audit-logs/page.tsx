@@ -458,7 +458,7 @@ export default function AuditLogsPage() {
 
                         {log.workflow && (
                           <button
-                            onClick={() => handleViewWorkflow(log.workflow.id)}
+                            onClick={() => handleViewWorkflow(log.workflow!.id)}
                             className="flex items-center space-x-1 text-xs hover:text-indigo-500 transition-colors"
                             style={{ color: "var(--text-secondary)" }}
                           >

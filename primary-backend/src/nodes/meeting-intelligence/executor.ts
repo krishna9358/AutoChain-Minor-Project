@@ -7,6 +7,7 @@ import { getConnectionManager } from '../../connections/manager';
 import { OpenAI } from 'openai';
 import axios from 'axios';
 import * as fs from 'fs/promises';
+import { createReadStream } from 'fs';
 import * as path from 'path';
 import * as tmp from 'tmp';
 
@@ -168,7 +169,7 @@ export class MeetingIntelligenceNodeExecutor extends BaseNodeExecutor {
     switch (node.input_source) {
       case 'zoom':
         return await this.fetchZoomRecording(
-          node.zoom_api_key,
+          (node as any).zoom_api_key,
           resolvedConfig.meeting_id,
           context
         );
@@ -209,7 +210,7 @@ export class MeetingIntelligenceNodeExecutor extends BaseNodeExecutor {
   ): Promise<any> {
     const connectionManager = getConnectionManager();
     const connection = await connectionManager.getConnection(
-      node.output_integrations?.zoom?.connection_id || 'zoom_prod'
+      'zoom_prod'
     );
 
     if (!connection) {
@@ -220,7 +221,7 @@ export class MeetingIntelligenceNodeExecutor extends BaseNodeExecutor {
       `https://api.zoom.us/v2/meetings/${meetingId}/recordings`,
       {
         headers: {
-          'Authorization': `Bearer ${connection.credentials.access_token || connection.credentials.jwt_token}`,
+          'Authorization': `Bearer ${connection.credentials.access_token || (connection.credentials as any).jwt_token}`,
           'Content-Type': 'application/json',
         },
       }
@@ -453,7 +454,7 @@ export class MeetingIntelligenceNodeExecutor extends BaseNodeExecutor {
     // Use Whisper for transcription
     try {
       const transcription = await openai.audio.transcriptions.create({
-        file: fs.createReadStream(recordingInfo.local_path),
+        file: createReadStream(recordingInfo.local_path),
         model: 'whisper-1',
         language: language,
         response_format: 'verbose_json',
@@ -466,7 +467,7 @@ export class MeetingIntelligenceNodeExecutor extends BaseNodeExecutor {
       confidence = this.calculateAverageConfidence(segments);
 
       // Add speaker diarization if available
-      if (transcription.speaker_labels) {
+      if ((transcription as any).speaker_labels) {
         segments = segments.map(seg => ({
           ...seg,
           speaker: seg.speaker || 'unknown',
@@ -476,7 +477,7 @@ export class MeetingIntelligenceNodeExecutor extends BaseNodeExecutor {
     } catch (error: any) {
       // Fallback to simpler transcription
       const simpleTranscription = await openai.audio.transcriptions.create({
-        file: fs.createReadStream(recordingInfo.local_path),
+        file: createReadStream(recordingInfo.local_path),
         model: 'whisper-1',
         language: language,
       });
@@ -484,7 +485,7 @@ export class MeetingIntelligenceNodeExecutor extends BaseNodeExecutor {
       transcriptionText = simpleTranscription.text;
       segments = [];
       confidence = 0.85; // Default confidence
-      language = simpleTranscription.language;
+      language = (simpleTranscription as any).language;
     }
 
     // Clean up temporary file
@@ -1070,7 +1071,7 @@ Guidelines:
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: `${priorityEmoji[task.priority]} *${task.title}*`,
+          text: `${(priorityEmoji as any)[task.priority]} *${task.title}*`,
         },
       },
       {
@@ -1226,6 +1227,8 @@ Integrations:
 - Successful Exports: ${exportResults.filter(r => r.success).length}
 - Failed Exports: ${exportResults.filter(r => !r.success).length}
 `;
+
+    const follow_up_required = tasks.length > 0 || recommendations.length > 0;
 
     return {
       summary,

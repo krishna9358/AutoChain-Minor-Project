@@ -14,7 +14,7 @@ import axios from 'axios';
  */
 export class ErrorHandlingNodeExecutor extends BaseNodeExecutor {
   protected async executeNode(
-    node: ErrorHandlingNode,
+    node: any,
     context: NodeExecutionContext
   ): Promise<any> {
     this.validateRequiredFields(node, ['error_type']);
@@ -506,8 +506,8 @@ Respond in JSON format.`;
       switch (node.alert.type) {
         case 'slack':
           await this.sendSlackAlert(
-            node.alert.connection_id,
-            node.alert.channel,
+            node.alert.connection_id || '',
+            node.alert.channel || '',
             context,
             errorDetails,
             recoveryResult
@@ -517,7 +517,7 @@ Respond in JSON format.`;
 
         case 'email':
           await this.sendEmailAlert(
-            node.alert.recipients,
+            node.alert.recipients || [],
             context,
             errorDetails,
             recoveryResult
@@ -527,7 +527,7 @@ Respond in JSON format.`;
 
         case 'teams':
           await this.sendTeamsAlert(
-            node.alert.connection_id,
+            node.alert.connection_id || '',
             context,
             errorDetails,
             recoveryResult
@@ -537,7 +537,7 @@ Respond in JSON format.`;
 
         case 'webhook':
           await this.sendWebhookAlert(
-            node.alert.connection_id,
+            node.alert.connection_id || '',
             context,
             errorDetails,
             recoveryResult
@@ -547,7 +547,7 @@ Respond in JSON format.`;
 
         case 'pagerduty':
           await this.sendPagerDutyAlert(
-            node.alert.connection_id,
+            node.alert.connection_id || '',
             context,
             errorDetails,
             recoveryResult
@@ -596,8 +596,7 @@ Respond in JSON format.`;
     const severity = this.determineErrorSeverity(errorDetails);
     const color = this.getSeverityColor(severity);
 
-    const message = node.alert.message ||
-      `⚠️ Error in workflow ${context.workflow_id}: ${errorDetails.message}`;
+    const message = `⚠️ Error in workflow ${context.workflow_id}: ${errorDetails.message}`;
 
     const blocks = [
       {
@@ -755,7 +754,7 @@ Respond in JSON format.`;
     };
 
     await axios.post(
-      connection.base_url,
+      connection.base_url || '',
       payload,
       {
         headers: {
@@ -800,7 +799,7 @@ Respond in JSON format.`;
   /**
    * Sleep for specified milliseconds
    */
-  private sleep(ms: number): Promise<void> {
+  protected sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 }

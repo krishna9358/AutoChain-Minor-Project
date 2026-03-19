@@ -36,7 +36,7 @@ import { MeetingIntelligenceNodeExecutor } from "../nodes/meeting-intelligence/e
  * Instantiates appropriate executors based on node type
  */
 export class NodeExecutorFactory {
-  private static executorMap: Map<string, new () => BaseNodeExecutor> =
+  private static executorMap: Map<string, new () => any> =
     new Map();
 
   /**
@@ -96,7 +96,7 @@ export class NodeExecutorFactory {
    */
   private static getExecutorClass(
     nodeType: string,
-  ): new () => BaseNodeExecutor {
+  ): new () => any {
     this.initializeRegistry();
 
     const ExecutorClass = this.executorMap.get(nodeType);
@@ -110,8 +110,8 @@ export class NodeExecutorFactory {
   /**
    * Create executor instance for a given node
    */
-  static createExecutor(node: AnyNode): BaseNodeExecutor {
-    const ExecutorClass = this.getExecutorClass(node.node_type);
+  static createExecutor(node: AnyNode): any {
+    const ExecutorClass = this.getExecutorClass(node.node_type as string);
     return new ExecutorClass();
   }
 
@@ -123,7 +123,7 @@ export class NodeExecutorFactory {
     context: NodeExecutionContext,
   ): Promise<NodeExecutionResult> {
     const executor = this.createExecutor(node);
-    return await executor.execute(node, context);
+    return await executor.execute(node as any, context);
   }
 
   /**
@@ -262,9 +262,9 @@ export class NodeExecutorFactory {
   /**
    * Get executor instance (singleton per node type)
    */
-  private static executorInstances: Map<string, BaseNodeExecutor> = new Map();
+  private static executorInstances: Map<string, any> = new Map();
 
-  static getExecutorInstance(nodeType: string): BaseNodeExecutor {
+  static getExecutorInstance(nodeType: string): any {
     if (this.executorInstances.has(nodeType)) {
       return this.executorInstances.get(nodeType)!;
     }
@@ -292,10 +292,10 @@ export class NodeExecutorFactory {
     const executionPromises = nodes.map(async ({ node, context }) => {
       try {
         const result = await this.executeNode(node, context);
-        results.set(node.node_id, result);
+        results.set(node.node_id as string, result);
       } catch (error) {
-        results.set(node.node_id, {
-          node_id: node.node_id,
+        results.set(node.node_id as string, {
+          node_id: node.node_id as string,
           status: "error",
           error: {
             message: error instanceof Error ? error.message : String(error),
