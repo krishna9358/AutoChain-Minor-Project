@@ -370,7 +370,7 @@ async function simulateExecution(runId: string, nodes: any[], edges: any[]) {
     if (!node) continue;
 
     // Check for approval nodes
-    if (node.nodeType === "APPROVAL") {
+    if (node.nodeType === "APPROVAL" || node.nodeType === "approval" || node.metadata?.componentId === "approval") {
       await prisma.runStep.updateMany({
         where: { runId, nodeId },
         data: {
