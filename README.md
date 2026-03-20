@@ -433,6 +433,14 @@ Required for production:
 - `OPENAI_API_KEY` - OpenAI API key
 - `KAFKA_BROKER` - Kafka broker URL
 
+**Google user OAuth (Calendar / Meet / Docs / Sheets “Connected account” in workflows):**
+- **Recommended (no .env):** Workspace **admins and editors** save the OAuth Web client in the app: **Dashboard → Integrations → Google** (stored per workspace, client secret encrypted in the database).
+- **Optional fallback:** `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_REDIRECT_URI` — used when workspace credentials are not set (e.g. single-tenant hosting).
+- Optional: `FRONTEND_URL` or `NEXT_PUBLIC_APP_URL` — Used after OAuth callback to redirect to `/dashboard/integrations/google`
+- Optional: `API_PUBLIC_URL` or `PUBLIC_BACKEND_URL` — Hint for the default redirect URI shown in the UI (defaults to `http://localhost:PORT`)
+
+After changing the Prisma schema, run `npx prisma db push` (or a migration) and `npx prisma generate` in `primary-backend`.
+
 ## 📄 License
 
 MIT License - see LICENSE file for details

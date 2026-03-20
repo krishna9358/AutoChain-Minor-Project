@@ -1,10 +1,169 @@
 import { Router } from "express";
-import { Prisma } from "@prisma/client";
+import { ApiScope, Prisma } from "@prisma/client";
 import prisma from "../db";
-import { authMiddleware, AuthRequest } from "../middleware";
+import { dualAuthMiddleware, AuthRequest } from "../middleware";
 import { resolveComponentId } from "./componentCatalog";
+import { executeGithubNode } from "../execution/github-node";
+import { executeGoogleCloudNode } from "../execution/google-cloud-node";
+import {
+  getWorkspaceSecretsMap,
+  applySecretsToWorkflowNodes,
+} from "../services/workspaceSecretResolver";
+
+/** API keys scoped to a workspace may only touch workflows in that workspace. User-wide keys require membership. */
+async function assertApiKeyCanAccessWorkflowWorkspace(
+  req: AuthRequest,
+  workflowWorkspaceId: string,
+): Promise<{ ok: true } | { ok: false; status: number; body: Record<string, unknown> }> {
+  if (req.authMethod !== "api_key") {
+    return { ok: true };
+  }
+  if (req.apiKeyWorkspaceId) {
+    if (req.apiKeyWorkspaceId !== workflowWorkspaceId) {
+      return {
+        ok: false,
+        status: 403,
+        body: { error: "This API key is restricted to a different workspace" },
+      };
+    }
+    return { ok: true };
+  }
+  const m = await prisma.workspaceMember.findFirst({
+    where: { userId: req.userId!, workspaceId: workflowWorkspaceId },
+  });
+  if (!m) {
+    return {
+      ok: false,
+      status: 403,
+      body: { error: "Access denied to this workflow's workspace" },
+    };
+  }
+  return { ok: true };
+}
+
+async function loadRunWorkspaceId(runId: string): Promise<string | null> {
+  const run = await prisma.workflowRun.findUnique({
+    where: { id: runId },
+    select: { workflow: { select: { workspaceId: true } } },
+  });
+  return run?.workflow?.workspaceId ?? null;
+}
+
+/** Each id maps to its own Google Cloud API (Calendar v3, Docs v1, Sheets v4; Meet uses Calendar conferenceData). */
+const GOOGLE_CLOUD_NODE_IDS = [
+  "google-calendar",
+  "google-meet",
+  "google-docs",
+  "google-sheets",
+] as const;
+
+async function executeIntegrationNode(
+  resolvedId: string | null,
+  node: any,
+  workflowWorkspaceId?: string | null,
+): Promise<Record<string, unknown>> {
+  const cfg = (node.config || {}) as Record<string, unknown>;
+  if (resolvedId === "github") {
+    return executeGithubNode(cfg);
+  }
+  if (resolvedId && GOOGLE_CLOUD_NODE_IDS.includes(resolvedId as (typeof GOOGLE_CLOUD_NODE_IDS)[number])) {
+    return executeGoogleCloudNode(
+      resolvedId,
+      cfg,
+      workflowWorkspaceId ? { workspaceId: workflowWorkspaceId } : undefined,
+    );
+  }
+  return generateNodeOutput(node) as Record<string, unknown>;
+}
 
 const router = Router();
+
+/** Match runtime: explicit authMode, else manual if credentialsSecret is set (legacy workflows). */
+function effectiveGoogleAuthModeForValidation(config: Record<string, any>): "oauth_connection" | "manual" {
+  const a = String(config.authMode || "").toLowerCase();
+  if (a === "manual") return "manual";
+  if (a === "oauth_connection") return "oauth_connection";
+  if (String(config.credentialsSecret ?? "").trim()) return "manual";
+  return "oauth_connection";
+}
+
+/** OAuth connection vs manual credentials for Google integration nodes. */
+function missingGoogleAuthFields(config: Record<string, any>): string[] {
+  const m: string[] = [];
+  const mode = effectiveGoogleAuthModeForValidation(config);
+  if (mode === "oauth_connection") {
+    if (!String(config.googleConnectionId ?? "").trim()) m.push("googleConnectionId");
+  } else if (mode === "manual") {
+    const sec = config.credentialsSecret;
+    if (sec == null || String(sec).trim() === "") m.push("credentialsSecret");
+  } else {
+    m.push("authMode");
+  }
+  return m;
+}
+
+/** Pre-run validation for Google Calendar / Meet / Docs / Sheets catalog nodes (mirrors catalog Zod rules). */
+function missingGoogleCloudServiceFields(
+  resolved: string,
+  config: Record<string, any>,
+): string[] {
+  const m: string[] = [];
+  if (resolved === "google-calendar") {
+    if (!String(config.calendarId ?? "primary").trim()) m.push("calendarId");
+    if (!config.operation) m.push("operation");
+    const op = config.operation;
+    if (["get_event", "delete_event", "update_event"].includes(op) && !String(config.eventId ?? "").trim()) {
+      m.push("eventId");
+    }
+    if (op === "create_event") {
+      if (!String(config.eventSummary ?? "").trim()) m.push("eventSummary");
+      if (!String(config.eventStart ?? "").trim()) m.push("eventStart");
+      if (!String(config.eventEnd ?? "").trim()) m.push("eventEnd");
+    }
+    return m;
+  }
+  if (resolved === "google-meet") {
+    if (!String(config.calendarId ?? "primary").trim()) m.push("calendarId");
+    if (!config.operation) m.push("operation");
+    if (config.operation === "create_scheduled_meeting") {
+      if (!String(config.meetingTitle ?? "").trim()) m.push("meetingTitle");
+      if (!String(config.startTime ?? "").trim()) m.push("startTime");
+      if (!String(config.endTime ?? "").trim()) m.push("endTime");
+    }
+    if (config.operation === "attach_meet_to_event" && !String(config.existingEventId ?? "").trim()) {
+      m.push("existingEventId");
+    }
+    return m;
+  }
+  if (resolved === "google-docs") {
+    if (!config.operation) m.push("operation");
+    const op = config.operation;
+    if (op === "create_document" && !String(config.newDocumentTitle ?? "").trim()) {
+      m.push("newDocumentTitle");
+    }
+    if (["get_document", "append_paragraph", "replace_all_text"].includes(op) && !String(config.documentId ?? "").trim()) {
+      m.push("documentId");
+    }
+    if (op === "append_paragraph" && !String(config.appendText ?? "").trim()) m.push("appendText");
+    if (op === "replace_all_text") {
+      if (!String(config.findText ?? "").trim()) m.push("findText");
+      if (!String(config.replaceText ?? "").trim()) m.push("replaceText");
+    }
+    return m;
+  }
+  if (resolved === "google-sheets") {
+    if (!String(config.spreadsheetId ?? "").trim()) m.push("spreadsheetId");
+    if (!config.operation) m.push("operation");
+    if (!String(config.rangeA1 ?? "").trim()) m.push("rangeA1");
+    const op = config.operation;
+    if (["append_rows", "update_values"].includes(op)) {
+      const v = config.valuesJson;
+      if (!Array.isArray(v) || v.length === 0) m.push("valuesJson");
+    }
+    return m;
+  }
+  return m;
+}
 
 // Validate node configs before execution - returns first validation error found
 function validateNodeConfigs(nodes: any[]): { nodeId: string; nodeLabel: string; missingFields: string[] } | null {
@@ -22,6 +181,51 @@ function validateNodeConfigs(nodes: any[]): { nodeId: string; nodeLabel: string;
   };
 
   for (const node of nodes) {
+    const resolved =
+      resolveComponentId(String(node.nodeType || "")) ||
+      resolveComponentId(String(node.metadata?.componentId || ""));
+
+    if (resolved === "github") {
+      const config = (node.config as Record<string, any>) || {};
+      const missing: string[] = [];
+      if (!String(config.owner ?? "").trim()) missing.push("owner");
+      if (!String(config.repo ?? "").trim()) missing.push("repo");
+      if (!config.operation) missing.push("operation");
+      if (
+        config.operation === "create_issue" &&
+        !String(config.issueTitle ?? "").trim()
+      ) {
+        missing.push("issueTitle");
+      }
+      if (missing.length > 0) {
+        return {
+          nodeId: node.id,
+          nodeLabel: node.label || node.nodeType,
+          missingFields: missing,
+        };
+      }
+      continue;
+    }
+
+    if (
+      resolved &&
+      ["google-calendar", "google-meet", "google-docs", "google-sheets"].includes(resolved)
+    ) {
+      const config = (node.config as Record<string, any>) || {};
+      const missing = [
+        ...missingGoogleAuthFields(config),
+        ...missingGoogleCloudServiceFields(resolved, config),
+      ];
+      if (missing.length > 0) {
+        return {
+          nodeId: node.id,
+          nodeLabel: node.label || node.nodeType,
+          missingFields: missing,
+        };
+      }
+      continue;
+    }
+
     const required = requiredFields[node.nodeType];
     if (!required) continue; // no validation rule for this node type
 
@@ -141,7 +345,7 @@ function enrichEntryOutput(output: any, triggerPayload: Record<string, unknown>)
 // Execute a workflow
 router.post(
   "/run/:workflowId",
-  authMiddleware,
+  dualAuthMiddleware([ApiScope.EXECUTE]),
   async (req: AuthRequest, res) => {
     try {
       const { workflowId } = req.params;
@@ -161,12 +365,20 @@ router.post(
         return res.status(404).json({ error: "Workflow not found" });
       }
 
+      const gate = await assertApiKeyCanAccessWorkflowWorkspace(req, workflow.workspaceId);
+      if (!gate.ok) {
+        return res.status(gate.status).json(gate.body);
+      }
+
       if (workflow.nodes.length === 0) {
         return res.status(400).json({ error: "Workflow has no nodes. Add at least one node before running." });
       }
 
-      // Validate node configs before creating a run
-      const configError = validateNodeConfigs(workflow.nodes);
+      const secretMap = await getWorkspaceSecretsMap(workflow.workspaceId);
+      const nodesWithSecrets = applySecretsToWorkflowNodes(workflow.nodes, secretMap);
+
+      // Validate node configs before creating a run (after {{secrets.KEY}} resolution)
+      const configError = validateNodeConfigs(nodesWithSecrets);
       if (configError) {
         return res.status(400).json({
           error: `Node "${configError.nodeLabel}" is missing required configuration: ${configError.missingFields.join(", ")}. Please configure this node before running.`,
@@ -202,7 +414,7 @@ router.post(
       );
 
       // Simulate execution (in production, use a job queue)
-      simulateExecution(run.id, workflow.nodes, workflow.edges).catch(async (err) => {
+      simulateExecution(run.id, nodesWithSecrets, workflow.edges).catch(async (err) => {
         console.error(`Workflow run ${run.id} failed unexpectedly:`, err);
         await prisma.workflowRun.update({
           where: { id: run.id },
@@ -237,14 +449,26 @@ router.post(
 );
 
 // Cancel a running workflow
-router.post("/run/:runId/cancel", authMiddleware, async (req: AuthRequest, res) => {
+router.post(
+  "/run/:runId/cancel",
+  dualAuthMiddleware([ApiScope.EXECUTE]),
+  async (req: AuthRequest, res) => {
   try {
     const run = await prisma.workflowRun.findUnique({
       where: { id: req.params.runId },
+      include: { workflow: { select: { workspaceId: true } } },
     });
 
     if (!run) {
       return res.status(404).json({ error: "Run not found" });
+    }
+
+    const gate = await assertApiKeyCanAccessWorkflowWorkspace(
+      req,
+      run.workflow.workspaceId,
+    );
+    if (!gate.ok) {
+      return res.status(gate.status).json(gate.body);
     }
 
     if (
@@ -283,13 +507,26 @@ router.post("/run/:runId/cancel", authMiddleware, async (req: AuthRequest, res) 
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
-});
+},
+);
 
 // Handle approval decision
-router.post("/run/:runId/approve", authMiddleware, async (req: AuthRequest, res) => {
+router.post(
+  "/run/:runId/approve",
+  dualAuthMiddleware([ApiScope.EXECUTE]),
+  async (req: AuthRequest, res) => {
   try {
     const { approved, comment } = req.body;
     const { runId } = req.params;
+
+    const wsId = await loadRunWorkspaceId(runId);
+    if (!wsId) {
+      return res.status(404).json({ error: "Run not found" });
+    }
+    const gate0 = await assertApiKeyCanAccessWorkflowWorkspace(req, wsId);
+    if (!gate0.ok) {
+      return res.status(gate0.status).json(gate0.body);
+    }
 
     const approval = await prisma.approval.findFirst({
       where: { runId, status: "PENDING" },
@@ -342,8 +579,10 @@ router.post("/run/:runId/approve", authMiddleware, async (req: AuthRequest, res)
 
         const nextNodes = adjacency.get(approval.nodeId) || [];
         if (nextNodes.length > 0) {
+          const secretMapResume = await getWorkspaceSecretsMap(run.workflow.workspaceId);
+          const nodesResume = applySecretsToWorkflowNodes(run.workflow.nodes, secretMapResume);
           // Continue execution from next nodes (fire-and-forget with error handling)
-          resumeExecution(runId, run.workflow.nodes, run.workflow.edges, nextNodes).catch(async (err) => {
+          resumeExecution(runId, nodesResume, run.workflow.edges, nextNodes).catch(async (err) => {
             console.error(`Resume after approval failed for run ${runId}:`, err);
             await prisma.workflowRun.update({
               where: { id: runId },
@@ -372,7 +611,8 @@ router.post("/run/:runId/approve", authMiddleware, async (req: AuthRequest, res)
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
-});
+},
+);
 
 // Simulated execution engine
 async function simulateExecution(runId: string, nodes: any[], edges: any[]) {
@@ -533,7 +773,10 @@ async function simulateExecution(runId: string, nodes: any[], edges: any[]) {
 
       const executionTimeMs = Date.now() - startTime;
 
-      let output: any = generateNodeOutput(node);
+      const resolvedExec =
+        resolveComponentId(String(node.nodeType || "")) ||
+        resolveComponentId(String(node.metadata?.componentId || ""));
+      let output: any = await executeIntegrationNode(resolvedExec, node, workspaceId);
       if (isEntryTriggerNode(node)) {
         output = enrichEntryOutput(output, triggerPayload);
       }
@@ -714,7 +957,10 @@ async function resumeExecution(runId: string, nodes: any[], edges: any[], startN
     try {
       await new Promise((resolve) => setTimeout(resolve, 500 + Math.random() * 1500));
       const executionTimeMs = Date.now() - startTime;
-      let output: any = generateNodeOutput(node);
+      const resolvedResume =
+        resolveComponentId(String(node.nodeType || "")) ||
+        resolveComponentId(String(node.metadata?.componentId || ""));
+      let output: any = await executeIntegrationNode(resolvedResume, node, workspaceId);
       if (isEntryTriggerNode(node)) {
         output = enrichEntryOutput(output, triggerPayload);
       }
@@ -841,6 +1087,54 @@ function generateNodeOutput(node: any): any {
     "approval": { approved: true, approver: "admin@company.com", comment: "Looks good" },
     "artifact-writer": { artifactId: `art-${Date.now()}`, size: 1024 },
     "webhook-response": { sent: true },
+    github: {
+      ok: true,
+      simulated: true,
+      operation: node.config?.operation || "get_repository",
+      fullName: `${node.config?.owner || "octocat"}/${node.config?.repo || "Hello-World"}`,
+      stars: 42,
+      openIssues: 3,
+      defaultBranch: "main",
+    },
+    "google-calendar": {
+      ok: true,
+      simulated: true,
+      operation: node.config?.operation || "list_events",
+      calendarId: node.config?.calendarId || "primary",
+      events: [
+        { id: "evt-sim-1", summary: "Sample event", start: "2025-03-20T10:00:00Z", end: "2025-03-20T11:00:00Z" },
+      ],
+      note: "Simulated Calendar response. Wire Google Calendar API v3 for production.",
+    },
+    "google-meet": {
+      ok: true,
+      simulated: true,
+      operation: node.config?.operation || "create_scheduled_meeting",
+      eventId: "sim-event-meet-1",
+      meetLink: "https://meet.google.com/xxx-xxxx-xxx",
+      htmlLink: "https://www.google.com/calendar/event?eid=simulated",
+      note: "Simulated Meet link. Real flows use Calendar API conferenceData (hangoutsMeet).",
+    },
+    "google-docs": {
+      ok: true,
+      simulated: true,
+      operation: node.config?.operation || "get_document",
+      documentId: node.config?.documentId || "sim-doc-id",
+      title: node.config?.newDocumentTitle || "Sample Doc",
+      textPreview: "Simulated document body. Connect Google Docs API v1 for live reads/writes.",
+    },
+    "google-sheets": {
+      ok: true,
+      simulated: true,
+      operation: node.config?.operation || "read_range",
+      spreadsheetId: node.config?.spreadsheetId || "sim-sheet-id",
+      range: node.config?.rangeA1 || "Sheet1!A1:D10",
+      values: [
+        ["Name", "Score"],
+        ["Alice", "92"],
+      ],
+      note: "Simulated Sheets values. Use spreadsheets.values.* for production.",
+    },
   };
 
   const componentId = node.metadata?.componentId || "";
@@ -880,7 +1174,10 @@ function getReasoningSummary(node: any): string | null {
 }
 
 // Get run details
-router.get("/run/:runId", authMiddleware, async (req: AuthRequest, res) => {
+router.get(
+  "/run/:runId",
+  dualAuthMiddleware([ApiScope.READ]),
+  async (req: AuthRequest, res) => {
   try {
     const run = await prisma.workflowRun.findUnique({
       where: { id: req.params.runId },
@@ -902,18 +1199,39 @@ router.get("/run/:runId", authMiddleware, async (req: AuthRequest, res) => {
       return res.status(404).json({ error: "Run not found" });
     }
 
+    const gate = await assertApiKeyCanAccessWorkflowWorkspace(
+      req,
+      run.workflow.workspaceId,
+    );
+    if (!gate.ok) {
+      return res.status(gate.status).json(gate.body);
+    }
+
     res.json(run);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
-});
+},
+);
 
 // List runs for a workflow
 router.get(
   "/runs/:workflowId",
-  authMiddleware,
+  dualAuthMiddleware([ApiScope.READ]),
   async (req: AuthRequest, res) => {
     try {
+      const wf = await prisma.workflow.findUnique({
+        where: { id: req.params.workflowId },
+        select: { workspaceId: true },
+      });
+      if (!wf) {
+        return res.status(404).json({ error: "Workflow not found" });
+      }
+      const gate = await assertApiKeyCanAccessWorkflowWorkspace(req, wf.workspaceId);
+      if (!gate.ok) {
+        return res.status(gate.status).json(gate.body);
+      }
+
       const runs = await prisma.workflowRun.findMany({
         where: { workflowId: req.params.workflowId },
         include: {
@@ -939,19 +1257,26 @@ router.get(
 );
 
 // Get all recent runs across all workflows
-router.get("/runs", authMiddleware, async (req: AuthRequest, res) => {
+router.get("/runs", dualAuthMiddleware([ApiScope.READ]), async (req: AuthRequest, res) => {
   try {
-    const membership = await prisma.workspaceMember.findFirst({
-      where: { userId: req.userId },
-    });
+    let workspaceId: string | null = null;
 
-    if (!membership) {
+    if (req.authMethod === "api_key" && req.apiKeyWorkspaceId) {
+      workspaceId = req.apiKeyWorkspaceId;
+    } else {
+      const membership = await prisma.workspaceMember.findFirst({
+        where: { userId: req.userId },
+      });
+      workspaceId = membership?.workspaceId ?? null;
+    }
+
+    if (!workspaceId) {
       return res.json([]);
     }
 
     const runs = await prisma.workflowRun.findMany({
       where: {
-        workflow: { workspaceId: membership.workspaceId },
+        workflow: { workspaceId },
       },
       include: {
         workflow: { select: { id: true, name: true } },
@@ -974,8 +1299,17 @@ router.get("/runs", authMiddleware, async (req: AuthRequest, res) => {
 });
 
 // Get step logs
-router.get("/logs/:runId", authMiddleware, async (req: AuthRequest, res) => {
+router.get("/logs/:runId", dualAuthMiddleware([ApiScope.READ]), async (req: AuthRequest, res) => {
   try {
+    const wsId = await loadRunWorkspaceId(req.params.runId);
+    if (!wsId) {
+      return res.status(404).json({ error: "Run not found" });
+    }
+    const gate = await assertApiKeyCanAccessWorkflowWorkspace(req, wsId);
+    if (!gate.ok) {
+      return res.status(gate.status).json(gate.body);
+    }
+
     const steps = await prisma.runStep.findMany({
       where: { runId: req.params.runId },
       include: {
@@ -991,8 +1325,17 @@ router.get("/logs/:runId", authMiddleware, async (req: AuthRequest, res) => {
 });
 
 // SSE endpoint for streaming run events in real-time
-router.get("/events/:runId", authMiddleware, async (req: AuthRequest, res) => {
+router.get("/events/:runId", dualAuthMiddleware([ApiScope.READ]), async (req: AuthRequest, res) => {
   const { runId } = req.params;
+
+  const wsId = await loadRunWorkspaceId(runId);
+  if (!wsId) {
+    return res.status(404).json({ error: "Run not found" });
+  }
+  const gate = await assertApiKeyCanAccessWorkflowWorkspace(req, wsId);
+  if (!gate.ok) {
+    return res.status(gate.status).json(gate.body);
+  }
 
   // Set SSE headers
   res.setHeader("Content-Type", "text/event-stream");

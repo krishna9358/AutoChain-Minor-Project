@@ -4,7 +4,7 @@ import type { NodeProps, Node } from '@xyflow/react';
 import {
   Zap, Globe, Clock, FileText, Brain, GitBranch,
   Mail, GitFork, RefreshCw, CheckCircle2,
-  Database, Archive, Send, ShieldAlert,
+  Database, Archive, Send, ShieldAlert, Github, Calendar, Video, Table2,
 } from 'lucide-react';
 import { SlackLogo } from '../icons/ServiceLogos';
 
@@ -39,6 +39,11 @@ const NODE_ICONS: Record<string, React.ElementType> = {
   'approval': CheckCircle2,
   'artifact-writer': Archive,
   'webhook-response': Send,
+  github: Github,
+  'google-calendar': Calendar,
+  'google-meet': Video,
+  'google-docs': FileText,
+  'google-sheets': Table2,
 };
 
 const NODE_COLORS: Record<string, string> = {
@@ -66,6 +71,11 @@ const CATEGORY_FOR_TYPE: Record<string, string> = {
   'approval': 'control',
   'artifact-writer': 'output',
   'webhook-response': 'output',
+  github: 'integration',
+  'google-calendar': 'integration',
+  'google-meet': 'integration',
+  'google-docs': 'integration',
+  'google-sheets': 'integration',
 };
 
 const WorkflowNode: React.FC<NodeProps<WorkflowNodeType>> = ({ data, isConnectable }) => {

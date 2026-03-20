@@ -98,8 +98,201 @@ async function generateWorkflowFromPrompt(prompt: string): Promise<{
     return generateIncidentWorkflow(prompt);
   }
 
+  if (
+    lowerPrompt.includes("github") ||
+    lowerPrompt.includes("git hub") ||
+    lowerPrompt.includes("pull request") ||
+    lowerPrompt.includes("pull-request") ||
+    lowerPrompt.includes("repo issue")
+  ) {
+    return generateGithubWorkflow(prompt);
+  }
+
+  if (
+    lowerPrompt.includes("google calendar") ||
+    lowerPrompt.includes("google meet") ||
+    lowerPrompt.includes("google docs") ||
+    lowerPrompt.includes("google sheets") ||
+    (lowerPrompt.includes("google") &&
+      (lowerPrompt.includes("sheet") ||
+        lowerPrompt.includes("spreadsheet") ||
+        lowerPrompt.includes("doc") ||
+        lowerPrompt.includes("calendar") ||
+        lowerPrompt.includes("meet")))
+  ) {
+    return generateGoogleCloudServicesWorkflow(prompt);
+  }
+
   // Default generic workflow
   return generateGenericWorkflow(prompt);
+}
+
+function generateGoogleCloudServicesWorkflow(_prompt: string) {
+  const nodes: GeneratedNode[] = [
+    catalogNode(
+      "node-1",
+      "entry-point",
+      "Trigger",
+      "Start when you want to use Calendar, Meet (via Calendar), Sheets, or Docs APIs",
+      { triggerMode: "webhook", webhookPath: "/google-cloud-services" },
+      { x: 300, y: 40 },
+    ),
+    catalogNode(
+      "node-2",
+      "google-calendar",
+      "List events",
+      "List events from the user primary calendar",
+      {
+        authMode: "manual",
+        credentialType: "oauth_access_token",
+        calendarId: "primary",
+        operation: "list_events",
+        timeMin: "2025-03-01T00:00:00Z",
+        timeMax: "2025-03-31T23:59:59Z",
+        credentialsSecret: "{{secrets.GOOGLE_CAL_OAUTH}}",
+      },
+      { x: 300, y: 150 },
+    ),
+    catalogNode(
+      "node-3",
+      "google-meet",
+      "Create Meet",
+      "Create a calendar event with a Google Meet conference link",
+      {
+        authMode: "manual",
+        credentialType: "oauth_access_token",
+        calendarId: "primary",
+        operation: "create_scheduled_meeting",
+        meetingTitle: "Workflow standup",
+        startTime: "2025-03-25T15:00:00Z",
+        endTime: "2025-03-25T15:30:00Z",
+        credentialsSecret: "{{secrets.GOOGLE_CAL_OAUTH}}",
+      },
+      { x: 300, y: 280 },
+    ),
+    catalogNode(
+      "node-4",
+      "google-sheets",
+      "Read range",
+      "Read a range from a spreadsheet (replace YOUR_SPREADSHEET_ID)",
+      {
+        authMode: "manual",
+        credentialType: "oauth_access_token",
+        spreadsheetId: "YOUR_SPREADSHEET_ID",
+        operation: "read_range",
+        rangeA1: "Sheet1!A1:C20",
+        credentialsSecret: "{{secrets.GOOGLE_SHEETS_OAUTH}}",
+      },
+      { x: 300, y: 410 },
+    ),
+    catalogNode(
+      "node-5",
+      "google-docs",
+      "Get document",
+      "Fetch a Doc by ID (replace YOUR_DOC_ID from the URL)",
+      {
+        authMode: "manual",
+        credentialType: "oauth_access_token",
+        documentId: "YOUR_DOC_ID",
+        operation: "get_document",
+        credentialsSecret: "{{secrets.GOOGLE_DOCS_OAUTH}}",
+      },
+      { x: 300, y: 540 },
+    ),
+    catalogNode(
+      "node-6",
+      "slack-send",
+      "Notify",
+      "Ping a channel when the Google steps complete",
+      {
+        mode: "webhook",
+        channel: "#ops",
+        message: "Google Calendar / Sheets / Docs pipeline finished — check run output (live if tokens set).",
+      },
+      { x: 300, y: 670 },
+    ),
+  ];
+
+  const edges: GeneratedEdge[] = [
+    { source: "node-1", target: "node-2" },
+    { source: "node-2", target: "node-3" },
+    { source: "node-3", target: "node-4" },
+    { source: "node-4", target: "node-5" },
+    { source: "node-5", target: "node-6" },
+  ];
+
+  return {
+    name: "Google Calendar, Meet, Sheets & Docs (separate APIs)",
+    description:
+      "Uses **four separate Google Cloud APIs**: Calendar v3, Calendar v3 again for Meet links, Sheets v4, Docs v1. Fine for **free Gmail** accounts once APIs are enabled. Replace placeholder IDs; paste tokens or SA JSON for live calls.",
+    nodes,
+    edges,
+  };
+}
+
+function generateGithubWorkflow(_prompt: string) {
+  const nodes: GeneratedNode[] = [
+    catalogNode(
+      "node-1",
+      "entry-point",
+      "Webhook / manual trigger",
+      "Start when an event should sync to GitHub",
+      { triggerMode: "webhook", webhookPath: "/github-sync" },
+      { x: 300, y: 50 },
+    ),
+    catalogNode(
+      "node-2",
+      "github",
+      "Fetch repository",
+      "Load repo metadata from GitHub API",
+      {
+        owner: "octocat",
+        repo: "Hello-World",
+        operation: "get_repository",
+        personalAccessToken: "{{secrets.GITHUB_TOKEN}}",
+      },
+      { x: 300, y: 220 },
+    ),
+    catalogNode(
+      "node-3",
+      "github",
+      "List open issues",
+      "Pull recent open issues for triage",
+      {
+        owner: "octocat",
+        repo: "Hello-World",
+        operation: "list_issues",
+        perPage: 5,
+        personalAccessToken: "{{secrets.GITHUB_TOKEN}}",
+      },
+      { x: 300, y: 390 },
+    ),
+    catalogNode(
+      "node-4",
+      "slack-send",
+      "Notify channel",
+      "Post a short summary to Slack",
+      {
+        mode: "webhook",
+        channel: "#engineering",
+        message: "GitHub check complete for {{payload.repo}}",
+      },
+      { x: 300, y: 560 },
+    ),
+  ];
+
+  const edges: GeneratedEdge[] = [
+    { source: "node-1", target: "node-2" },
+    { source: "node-2", target: "node-3" },
+    { source: "node-3", target: "node-4" },
+  ];
+
+  return {
+    name: "GitHub repository sync",
+    description: "Fetch repo info and open issues from GitHub, then notify your team",
+    nodes,
+    edges,
+  };
 }
 
 function generateMeetingWorkflow(prompt: string) {

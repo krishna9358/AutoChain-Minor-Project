@@ -22,7 +22,9 @@ export type ConfigFieldType =
   | "password"
   | "url"
   | "email"
-  | "multi-select";
+  | "multi-select"
+  | "google-account"
+  | "datetime";
 
 export interface ComponentConfigField {
   key: string;
@@ -36,6 +38,46 @@ export interface ComponentConfigField {
   max?: number;
   rows?: number;
   options?: Array<{ label: string; value: string }>;
+  /** When set, the field is shown only if `config[field]` matches `value` (or one of `value` if array). */
+  showWhen?: { field: string; value: string | string[] };
+}
+
+function refineGoogleNodeAuth(
+  val: { authMode?: string; googleConnectionId?: string; credentialsSecret?: string },
+  ctx: z.RefinementCtx,
+) {
+  const explicit = String(val.authMode || "").toLowerCase();
+  const mode: "oauth_connection" | "manual" =
+    explicit === "manual"
+      ? "manual"
+      : explicit === "oauth_connection"
+        ? "oauth_connection"
+        : String(val.credentialsSecret ?? "").trim()
+          ? "manual"
+          : "oauth_connection";
+  if (mode === "oauth_connection") {
+    if (!String(val.googleConnectionId ?? "").trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Select a connected Google account (Dashboard → Integrations → Google) or use Manual auth",
+        path: ["googleConnectionId"],
+      });
+    }
+  } else if (mode === "manual") {
+    if (!String(val.credentialsSecret ?? "").trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "credentialsSecret is required for manual auth (token, {{secrets.*}}, or service account JSON)",
+        path: ["credentialsSecret"],
+      });
+    }
+  } else {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "authMode must be oauth_connection or manual",
+      path: ["authMode"],
+    });
+  }
 }
 
 export interface WorkflowComponentDefinition {
@@ -332,6 +374,708 @@ const Components: WorkflowComponentDefinition[] = [
     inputSchema: z.object({ payload: z.any().optional() }),
     outputSchema: z.object({ rows: z.array(z.any()).optional(), rowCount: z.number().optional() }),
   },
+  {
+    id: "github",
+    version: "1.0.0",
+    name: "GitHub",
+    description:
+      "Calls the GitHub REST API: repository metadata, open issues, open pull requests, or create an issue. Public GET operations work without a token; mutations need a PAT.",
+    icon: "Github",
+    category: "integration",
+    tags: ["github", "git", "issues", "pull request", "repository", "api"],
+    configFields: [
+      {
+        key: "personalAccessToken",
+        label: "Personal Access Token",
+        type: "password",
+        placeholder: "ghp_… or github_pat_… or {{secrets.GITHUB_TOKEN}}",
+        description:
+          "Optional for public repo reads. Required for private repos and for **Create issue**.",
+      },
+      { key: "owner", label: "Owner / Organization", type: "text", required: true, placeholder: "octocat" },
+      { key: "repo", label: "Repository", type: "text", required: true, placeholder: "Hello-World" },
+      {
+        key: "operation",
+        label: "Operation",
+        type: "select",
+        required: true,
+        defaultValue: "get_repository",
+        options: [
+          { label: "Get repository", value: "get_repository" },
+          { label: "List open issues", value: "list_issues" },
+          { label: "List open pull requests", value: "list_pull_requests" },
+          { label: "Create issue", value: "create_issue" },
+        ],
+      },
+      {
+        key: "perPage",
+        label: "List page size",
+        type: "number",
+        defaultValue: 5,
+        min: 1,
+        max: 100,
+        description: "Max items for list issues / pull requests",
+      },
+      {
+        key: "issueTitle",
+        label: "Issue title",
+        type: "text",
+        placeholder: "Bug: …",
+        description: "Required when operation is **Create issue**",
+      },
+      {
+        key: "issueBody",
+        label: "Issue body",
+        type: "textarea",
+        rows: 4,
+        placeholder: "Describe the issue…",
+        description: "Optional body for **Create issue**",
+      },
+    ],
+    configSchema: z
+      .object({
+        personalAccessToken: z.string().optional(),
+        owner: z.string().min(1),
+        repo: z.string().min(1),
+        operation: z
+          .enum(["get_repository", "list_issues", "list_pull_requests", "create_issue"])
+          .default("get_repository"),
+        perPage: z.number().int().min(1).max(100).optional().default(5),
+        issueTitle: z.string().optional(),
+        issueBody: z.string().optional(),
+      })
+      .superRefine((val, ctx) => {
+        if (val.operation === "create_issue" && !(val.issueTitle && val.issueTitle.trim())) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "issueTitle is required when operation is create_issue",
+            path: ["issueTitle"],
+          });
+        }
+      }),
+    inputSchema: z.object({ payload: z.any().optional() }),
+    outputSchema: z.object({
+      ok: z.boolean().optional(),
+      operation: z.string().optional(),
+      fullName: z.string().optional(),
+      issues: z.array(z.any()).optional(),
+      pulls: z.array(z.any()).optional(),
+      issueNumber: z.union([z.number(), z.string()]).optional(),
+      htmlUrl: z.string().optional(),
+    }),
+  },
+  {
+    id: "google-calendar",
+    version: "1.0.0",
+    name: "Google Calendar",
+    description:
+      "Uses **Google Calendar API v3** only (separate from Sheets/Docs). Works with **free personal Google accounts**; no paid Workspace subscription required. " +
+      "**Recommended:** choose **Connected Google account** — connect once under **Dashboard → Integrations → Google** (OAuth2); the server stores a refresh token and nodes only pick which connection to use (no client secret in the browser). " +
+      "**Manual** mode: OAuth access token, `{{secrets.*}}`, or service-account JSON (share calendar with the SA email). " +
+      "Enable **Google Calendar API** in Google Cloud; OAuth scopes include `https://www.googleapis.com/auth/calendar`.",
+    icon: "Calendar",
+    category: "integration",
+    tags: ["google", "calendar", "events", "scheduling", "google-calendar-api"],
+    configFields: [
+      {
+        key: "authMode",
+        label: "Authentication",
+        type: "select",
+        required: true,
+        defaultValue: "oauth_connection",
+        options: [
+          { label: "Connected Google account (OAuth)", value: "oauth_connection" },
+          { label: "Manual — token / {{secrets.*}} / service account JSON", value: "manual" },
+        ],
+        description:
+          "Use a workspace **Google connection** (no secrets in the node) or **Manual** for tokens or service accounts.",
+      },
+      {
+        key: "googleConnectionId",
+        label: "Google account",
+        type: "google-account",
+        required: true,
+        showWhen: { field: "authMode", value: "oauth_connection" },
+        description: "Choose a connection from **Dashboard → Integrations → Google**.",
+      },
+      {
+        key: "credentialType",
+        label: "Credential type",
+        type: "select",
+        required: true,
+        defaultValue: "oauth_access_token",
+        options: [
+          { label: "OAuth access token (Bearer)", value: "oauth_access_token" },
+          { label: "Service account JSON", value: "service_account_json" },
+        ],
+        showWhen: { field: "authMode", value: "manual" },
+        description:
+          "Use OAuth for **primary** / user calendars. Use a service account only if you have shared the calendar with the SA email.",
+      },
+      {
+        key: "credentialsSecret",
+        label: "Credentials / token",
+        type: "password",
+        placeholder: "{{secrets.GOOGLE_CAL_OAUTH}} or paste SA JSON (dev only)",
+        showWhen: { field: "authMode", value: "manual" },
+        description:
+          "OAuth: short-lived **access token** (Bearer), or your app’s stored refresh flow output. Service account: full JSON key. Prefer secrets in production.",
+      },
+      {
+        key: "calendarId",
+        label: "Calendar ID",
+        type: "text",
+        required: true,
+        defaultValue: "primary",
+        placeholder: "primary or user@group.calendar.google.com",
+        description: "Use **primary** for the authenticated user’s main calendar.",
+      },
+      {
+        key: "operation",
+        label: "Operation",
+        type: "select",
+        required: true,
+        defaultValue: "list_events",
+        options: [
+          { label: "List events", value: "list_events" },
+          { label: "Get event", value: "get_event" },
+          { label: "Create event", value: "create_event" },
+          { label: "Update event", value: "update_event" },
+          { label: "Delete event", value: "delete_event" },
+        ],
+      },
+      {
+        key: "timeMin",
+        label: "List from",
+        type: "datetime",
+        description: "Lower bound for **List events** (optional). Saved as ISO 8601 UTC.",
+      },
+      {
+        key: "timeMax",
+        label: "List until",
+        type: "datetime",
+        description: "Upper bound for **List events** (optional). Saved as ISO 8601 UTC.",
+      },
+      {
+        key: "eventId",
+        label: "Event ID",
+        type: "text",
+        placeholder: "abc123fromGoogle",
+        description: "Required for **Get**, **Update**, and **Delete** event.",
+      },
+      {
+        key: "eventSummary",
+        label: "Event title / summary",
+        type: "text",
+        placeholder: "Team sync",
+        description: "Required for **Create**; optional for **Update**.",
+      },
+      {
+        key: "eventDescription",
+        label: "Event description",
+        type: "textarea",
+        rows: 3,
+        placeholder: "Agenda, links, notes…",
+      },
+      {
+        key: "eventStart",
+        label: "Start",
+        type: "datetime",
+        description: "Required for **Create event**. Stored as ISO 8601 UTC for the Calendar API.",
+      },
+      {
+        key: "eventEnd",
+        label: "End",
+        type: "datetime",
+        description: "Required for **Create event**. Must be after start.",
+      },
+      {
+        key: "timeZone",
+        label: "Time zone",
+        type: "text",
+        defaultValue: "UTC",
+        placeholder: "America/Los_Angeles",
+        description: "IANA time zone for created/updated events when using dateTime fields.",
+      },
+      {
+        key: "location",
+        label: "Location",
+        type: "text",
+        placeholder: "Conference room / Meet link",
+      },
+      {
+        key: "attendeesJson",
+        label: "Attendees (JSON array)",
+        type: "json",
+        rows: 3,
+        defaultValue: [],
+        description: 'Optional. Example: `[{"email":"a@b.com"},{"email":"c@d.com"}]`',
+      },
+    ],
+    configSchema: z
+      .object({
+        authMode: z.enum(["oauth_connection", "manual"]).default("oauth_connection"),
+        googleConnectionId: z.string().optional(),
+        credentialType: z.enum(["oauth_access_token", "service_account_json"]).default("oauth_access_token"),
+        credentialsSecret: z.string().optional(),
+        calendarId: z.string().min(1).default("primary"),
+        operation: z
+          .enum(["list_events", "get_event", "create_event", "update_event", "delete_event"])
+          .default("list_events"),
+        timeMin: z.string().optional(),
+        timeMax: z.string().optional(),
+        eventId: z.string().optional(),
+        eventSummary: z.string().optional(),
+        eventDescription: z.string().optional(),
+        eventStart: z.string().optional(),
+        eventEnd: z.string().optional(),
+        timeZone: z.string().optional().default("UTC"),
+        location: z.string().optional(),
+        attendeesJson: z.any().optional().default([]),
+      })
+      .superRefine((val, ctx) => {
+        refineGoogleNodeAuth(val, ctx);
+        if (["get_event", "delete_event", "update_event"].includes(val.operation) && !String(val.eventId ?? "").trim()) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: "eventId is required for this operation", path: ["eventId"] });
+        }
+        if (val.operation === "create_event") {
+          if (!String(val.eventSummary ?? "").trim()) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "eventSummary is required", path: ["eventSummary"] });
+          }
+          if (!String(val.eventStart ?? "").trim()) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "eventStart is required", path: ["eventStart"] });
+          }
+          if (!String(val.eventEnd ?? "").trim()) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "eventEnd is required", path: ["eventEnd"] });
+          }
+        }
+      }),
+    inputSchema: z.object({ payload: z.any().optional() }),
+    outputSchema: z.object({
+      ok: z.boolean().optional(),
+      simulated: z.boolean().optional(),
+      operation: z.string().optional(),
+      events: z.array(z.any()).optional(),
+      event: z.any().optional(),
+    }),
+  },
+  {
+    id: "google-meet",
+    version: "1.0.0",
+    name: "Google Meet",
+    description:
+      "Meet links are created with **Google Calendar API v3** only (`conferenceData` + `hangoutsMeet`). There is **no separate Google Meet REST API** for this pattern—Calendar is the correct free API. " +
+      "**Setup:** Enable **Google Calendar API** and use OAuth or a service account with calendar access, as in the Google Calendar node. " +
+      "For **Create meeting**, the node models `conferenceDataVersion: 1` and `conferenceData.createRequest` with `conferenceSolutionKey: { type: \"hangoutsMeet\" }`. " +
+      "**Connected Google account** (Dashboard → Integrations) is recommended so users never paste OAuth client secrets. **Manual** mode supports tokens and service accounts.",
+    icon: "Video",
+    category: "integration",
+    tags: ["google", "meet", "video", "conference", "calendar-api", "hangoutsMeet"],
+    configFields: [
+      {
+        key: "authMode",
+        label: "Authentication",
+        type: "select",
+        required: true,
+        defaultValue: "oauth_connection",
+        options: [
+          { label: "Connected Google account (OAuth)", value: "oauth_connection" },
+          { label: "Manual — token / {{secrets.*}} / service account JSON", value: "manual" },
+        ],
+      },
+      {
+        key: "googleConnectionId",
+        label: "Google account",
+        type: "google-account",
+        required: true,
+        showWhen: { field: "authMode", value: "oauth_connection" },
+        description: "Workspace Google connection (same Calendar OAuth scopes).",
+      },
+      {
+        key: "credentialType",
+        label: "Credential type",
+        type: "select",
+        required: true,
+        defaultValue: "oauth_access_token",
+        options: [
+          { label: "OAuth access token (Bearer)", value: "oauth_access_token" },
+          { label: "Service account JSON", value: "service_account_json" },
+        ],
+        showWhen: { field: "authMode", value: "manual" },
+      },
+      {
+        key: "credentialsSecret",
+        label: "Credentials / token",
+        type: "password",
+        placeholder: "{{secrets.GOOGLE_CAL_OAUTH}}",
+        showWhen: { field: "authMode", value: "manual" },
+        description: "Same as Calendar: OAuth access token or service-account JSON.",
+      },
+      {
+        key: "calendarId",
+        label: "Calendar ID",
+        type: "text",
+        required: true,
+        defaultValue: "primary",
+        placeholder: "primary",
+      },
+      {
+        key: "operation",
+        label: "Operation",
+        type: "select",
+        required: true,
+        defaultValue: "create_scheduled_meeting",
+        options: [
+          { label: "Create new event + Meet link", value: "create_scheduled_meeting" },
+          { label: "Attach Meet to existing calendar event", value: "attach_meet_to_event" },
+        ],
+      },
+      {
+        key: "meetingTitle",
+        label: "Meeting title",
+        type: "text",
+        required: true,
+        defaultValue: "Video call",
+        placeholder: "Project standup",
+        description: "Used when creating a **new** event with Meet.",
+      },
+      {
+        key: "startTime",
+        label: "Start",
+        type: "datetime",
+        description: "Required for **Create new event + Meet**. Stored as ISO 8601 UTC.",
+      },
+      {
+        key: "endTime",
+        label: "End",
+        type: "datetime",
+        description: "Required for **Create new event + Meet**. Must be after start.",
+      },
+      {
+        key: "existingEventId",
+        label: "Existing event ID",
+        type: "text",
+        placeholder: "Event id from Google Calendar",
+        description: "Required for **Attach Meet to existing event** (PATCH event with conferenceData).",
+      },
+      {
+        key: "attendeesJson",
+        label: "Attendees (JSON array)",
+        type: "json",
+        rows: 3,
+        defaultValue: [],
+        description: 'Optional. `[{"email":"user@company.com"}]`',
+      },
+    ],
+    configSchema: z
+      .object({
+        authMode: z.enum(["oauth_connection", "manual"]).default("oauth_connection"),
+        googleConnectionId: z.string().optional(),
+        credentialType: z.enum(["oauth_access_token", "service_account_json"]).default("oauth_access_token"),
+        credentialsSecret: z.string().optional(),
+        calendarId: z.string().min(1).default("primary"),
+        operation: z.enum(["create_scheduled_meeting", "attach_meet_to_event"]).default("create_scheduled_meeting"),
+        meetingTitle: z.string().optional().default("Video call"),
+        startTime: z.string().optional(),
+        endTime: z.string().optional(),
+        existingEventId: z.string().optional(),
+        attendeesJson: z.any().optional().default([]),
+      })
+      .superRefine((val, ctx) => {
+        refineGoogleNodeAuth(val, ctx);
+        if (val.operation === "create_scheduled_meeting") {
+          if (!String(val.startTime ?? "").trim()) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "startTime required", path: ["startTime"] });
+          if (!String(val.endTime ?? "").trim()) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "endTime required", path: ["endTime"] });
+          if (!String(val.meetingTitle ?? "").trim()) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "meetingTitle required", path: ["meetingTitle"] });
+        }
+        if (val.operation === "attach_meet_to_event" && !String(val.existingEventId ?? "").trim()) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: "existingEventId required", path: ["existingEventId"] });
+        }
+      }),
+    inputSchema: z.object({ payload: z.any().optional() }),
+    outputSchema: z.object({
+      ok: z.boolean().optional(),
+      simulated: z.boolean().optional(),
+      meetLink: z.string().optional(),
+      htmlLink: z.string().optional(),
+      eventId: z.string().optional(),
+    }),
+  },
+  {
+    id: "google-docs",
+    version: "1.0.0",
+    name: "Google Docs",
+    description:
+      "Uses **Google Docs API v1** only (`docs.googleapis.com`)—a different API from Calendar or Sheets. Works with **free personal Google accounts** when the doc is owned by or shared to that user (or to a service account). " +
+      "**Setup:** (1) Enable **Google Docs API** in Google Cloud Console. " +
+      "(2) OAuth consent + credentials for user docs, or service account with **shared** doc (Share → SA email). " +
+      "(3) Scope example: `https://www.googleapis.com/auth/documents`. " +
+      "(4) Document ID is the value in the URL: `https://docs.google.com/document/d/DOCUMENT_ID/edit`. " +
+      "**Connected Google account** (Dashboard → Integrations) is recommended. **Manual** mode uses **credentialsSecret** for tokens or SA JSON.",
+    icon: "FileText",
+    category: "integration",
+    tags: ["google", "docs", "document", "google-docs-api", "text"],
+    configFields: [
+      {
+        key: "authMode",
+        label: "Authentication",
+        type: "select",
+        required: true,
+        defaultValue: "oauth_connection",
+        options: [
+          { label: "Connected Google account (OAuth)", value: "oauth_connection" },
+          { label: "Manual — token / {{secrets.*}} / service account JSON", value: "manual" },
+        ],
+      },
+      {
+        key: "googleConnectionId",
+        label: "Google account",
+        type: "google-account",
+        required: true,
+        showWhen: { field: "authMode", value: "oauth_connection" },
+      },
+      {
+        key: "credentialType",
+        label: "Credential type",
+        type: "select",
+        required: true,
+        defaultValue: "oauth_access_token",
+        options: [
+          { label: "OAuth access token (Bearer)", value: "oauth_access_token" },
+          { label: "Service account JSON", value: "service_account_json" },
+        ],
+        showWhen: { field: "authMode", value: "manual" },
+      },
+      {
+        key: "credentialsSecret",
+        label: "Credentials / token",
+        type: "password",
+        placeholder: "{{secrets.GOOGLE_DOCS_OAUTH}}",
+        showWhen: { field: "authMode", value: "manual" },
+      },
+      {
+        key: "documentId",
+        label: "Document ID",
+        type: "text",
+        placeholder: "1abc...xyz from the Doc URL",
+        description: "Not required only for **Create document**.",
+      },
+      {
+        key: "operation",
+        label: "Operation",
+        type: "select",
+        required: true,
+        defaultValue: "get_document",
+        options: [
+          { label: "Get document (metadata + text extract)", value: "get_document" },
+          { label: "Append paragraph", value: "append_paragraph" },
+          { label: "Replace all text", value: "replace_all_text" },
+          { label: "Create document", value: "create_document" },
+        ],
+      },
+      {
+        key: "newDocumentTitle",
+        label: "New document title",
+        type: "text",
+        placeholder: "Quarterly report",
+        description: "Required for **Create document**.",
+      },
+      {
+        key: "appendText",
+        label: "Text to append",
+        type: "textarea",
+        rows: 4,
+        placeholder: "Paragraph to insert at end…",
+        description: "Used for **Append paragraph** (models insertText at document end).",
+      },
+      {
+        key: "findText",
+        label: "Find text",
+        type: "text",
+        placeholder: "Old phrase",
+        description: "Used with **Replace all text**.",
+      },
+      {
+        key: "replaceText",
+        label: "Replace with",
+        type: "text",
+        placeholder: "New phrase",
+        description: "Used with **Replace all text**.",
+      },
+    ],
+    configSchema: z
+      .object({
+        authMode: z.enum(["oauth_connection", "manual"]).default("oauth_connection"),
+        googleConnectionId: z.string().optional(),
+        credentialType: z.enum(["oauth_access_token", "service_account_json"]).default("oauth_access_token"),
+        credentialsSecret: z.string().optional(),
+        documentId: z.string().optional(),
+        operation: z
+          .enum(["get_document", "append_paragraph", "replace_all_text", "create_document"])
+          .default("get_document"),
+        newDocumentTitle: z.string().optional(),
+        appendText: z.string().optional(),
+        findText: z.string().optional(),
+        replaceText: z.string().optional(),
+      })
+      .superRefine((val, ctx) => {
+        refineGoogleNodeAuth(val, ctx);
+        if (val.operation === "create_document" && !String(val.newDocumentTitle ?? "").trim()) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: "newDocumentTitle required", path: ["newDocumentTitle"] });
+        }
+        if (["get_document", "append_paragraph", "replace_all_text"].includes(val.operation) && !String(val.documentId ?? "").trim()) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: "documentId required", path: ["documentId"] });
+        }
+        if (val.operation === "append_paragraph" && !String(val.appendText ?? "").trim()) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: "appendText required", path: ["appendText"] });
+        }
+        if (val.operation === "replace_all_text") {
+          if (!String(val.findText ?? "").trim()) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "findText required", path: ["findText"] });
+          if (!String(val.replaceText ?? "").trim()) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "replaceText required", path: ["replaceText"] });
+        }
+      }),
+    inputSchema: z.object({ payload: z.any().optional() }),
+    outputSchema: z.object({
+      ok: z.boolean().optional(),
+      simulated: z.boolean().optional(),
+      documentId: z.string().optional(),
+      title: z.string().optional(),
+      textPreview: z.string().optional(),
+    }),
+  },
+  {
+    id: "google-sheets",
+    version: "1.0.0",
+    name: "Google Sheets",
+    description:
+      "Uses **Google Sheets API v4** only (`sheets.googleapis.com`)—separate from Calendar and Docs. Works with **free personal Google accounts** for spreadsheets in Drive. " +
+      "**Setup:** (1) Enable **Google Sheets API** in Google Cloud Console. " +
+      "(2) OAuth or service account; share the spreadsheet with the SA email if using a service account. " +
+      "(3) Scope example: `https://www.googleapis.com/auth/spreadsheets`. " +
+      "(4) Spreadsheet ID is in the URL: `https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/edit`. " +
+      "Use A1 notation for ranges (e.g. `Sheet1!A1:D10`). **Connected Google account** (Dashboard → Integrations) is recommended; **Manual** uses tokens or SA JSON.",
+    icon: "Table2",
+    category: "integration",
+    tags: ["google", "sheets", "spreadsheet", "csv", "google-sheets-api"],
+    configFields: [
+      {
+        key: "authMode",
+        label: "Authentication",
+        type: "select",
+        required: true,
+        defaultValue: "oauth_connection",
+        options: [
+          { label: "Connected Google account (OAuth)", value: "oauth_connection" },
+          { label: "Manual — token / {{secrets.*}} / service account JSON", value: "manual" },
+        ],
+      },
+      {
+        key: "googleConnectionId",
+        label: "Google account",
+        type: "google-account",
+        required: true,
+        showWhen: { field: "authMode", value: "oauth_connection" },
+      },
+      {
+        key: "credentialType",
+        label: "Credential type",
+        type: "select",
+        required: true,
+        defaultValue: "oauth_access_token",
+        options: [
+          { label: "OAuth access token (Bearer)", value: "oauth_access_token" },
+          { label: "Service account JSON", value: "service_account_json" },
+        ],
+        showWhen: { field: "authMode", value: "manual" },
+      },
+      {
+        key: "credentialsSecret",
+        label: "Credentials / token",
+        type: "password",
+        placeholder: "{{secrets.GOOGLE_SHEETS_OAUTH}}",
+        showWhen: { field: "authMode", value: "manual" },
+      },
+      {
+        key: "spreadsheetId",
+        label: "Spreadsheet ID",
+        type: "text",
+        required: true,
+        placeholder: "1abc... from sheets URL",
+      },
+      {
+        key: "operation",
+        label: "Operation",
+        type: "select",
+        required: true,
+        defaultValue: "read_range",
+        options: [
+          { label: "Read range (values.get)", value: "read_range" },
+          { label: "Append rows (values.append)", value: "append_rows" },
+          { label: "Update range (values.update)", value: "update_values" },
+          { label: "Clear range", value: "clear_range" },
+        ],
+      },
+      {
+        key: "rangeA1",
+        label: "Range (A1 notation)",
+        type: "text",
+        required: true,
+        defaultValue: "Sheet1!A1:D10",
+        placeholder: "Sheet1!A1:D10",
+        description: "Sheet name can include spaces if quoted per API rules.",
+      },
+      {
+        key: "valuesJson",
+        label: "Values (JSON 2D array)",
+        type: "json",
+        rows: 5,
+        defaultValue: [["Col1", "Col2"], ["a", "b"]],
+        description: "For **Append** / **Update**: rows of cells, e.g. `[['A','B'],[1,2]]`.",
+      },
+      {
+        key: "valueInputOption",
+        label: "Value input option",
+        type: "select",
+        defaultValue: "USER_ENTERED",
+        options: [
+          { label: "USER_ENTERED (parse formulas/dates)", value: "USER_ENTERED" },
+          { label: "RAW (literal strings)", value: "RAW" },
+        ],
+        description: "Sheets API `valueInputOption` for write operations.",
+      },
+    ],
+    configSchema: z
+      .object({
+        authMode: z.enum(["oauth_connection", "manual"]).default("oauth_connection"),
+        googleConnectionId: z.string().optional(),
+        credentialType: z.enum(["oauth_access_token", "service_account_json"]).default("oauth_access_token"),
+        credentialsSecret: z.string().optional(),
+        spreadsheetId: z.string().min(1),
+        operation: z.enum(["read_range", "append_rows", "update_values", "clear_range"]).default("read_range"),
+        rangeA1: z.string().min(1).default("Sheet1!A1:D10"),
+        valuesJson: z.any().optional().default([]),
+        valueInputOption: z.enum(["USER_ENTERED", "RAW"]).default("USER_ENTERED"),
+      })
+      .superRefine((val, ctx) => {
+        refineGoogleNodeAuth(val, ctx);
+        if (["append_rows", "update_values"].includes(val.operation)) {
+          const v = val.valuesJson;
+          const ok = Array.isArray(v) && v.length > 0;
+          if (!ok) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "valuesJson must be a non-empty 2D array", path: ["valuesJson"] });
+          }
+        }
+      }),
+    inputSchema: z.object({ payload: z.any().optional() }),
+    outputSchema: z.object({
+      ok: z.boolean().optional(),
+      simulated: z.boolean().optional(),
+      operation: z.string().optional(),
+      values: z.array(z.any()).optional(),
+      updatedRange: z.string().optional(),
+      clearedRange: z.string().optional(),
+    }),
+  },
 
   // ─── LOGIC ──────────────────────────────────────────────────
   {
@@ -551,7 +1295,13 @@ const Components: WorkflowComponentDefinition[] = [
         ],
       },
       { key: "durationMs", label: "Duration (ms)", type: "number", required: true, defaultValue: 5000, min: 100, max: 86400000, description: "Wait time in milliseconds (max 24 hours)" },
-      { key: "untilTime", label: "Wait Until (ISO)", type: "text", placeholder: "2025-12-31T23:59:59Z", description: "ISO timestamp to wait until (for 'Until Specific Time' type)" },
+      {
+        key: "untilTime",
+        label: "Wait until",
+        type: "datetime",
+        showWhen: { field: "delayType", value: "until" },
+        description: "Target time (stored as ISO 8601 UTC). Used when delay type is **Until Specific Time**.",
+      },
     ],
     configSchema: z.object({
       delayType: z.enum(["fixed", "until"]).default("fixed"),
@@ -768,6 +1518,21 @@ registerAliases("artifact-writer",
 );
 registerAliases("webhook-response",
   "output.webhook", "WEBHOOK_RESPONSE", "webhook_response",
+);
+registerAliases("github",
+  "tool.github", "integration.github", "GITHUB", "github_api", "GITHUB_API",
+);
+registerAliases("google-calendar",
+  "google_calendar", "GOOGLE_CALENDAR", "tool.google.calendar", "calendar.google",
+);
+registerAliases("google-meet",
+  "google_meet", "GOOGLE_MEET", "tool.google.meet", "meet.google",
+);
+registerAliases("google-docs",
+  "google_docs", "GOOGLE_DOCS", "tool.google.docs", "docs.google",
+);
+registerAliases("google-sheets",
+  "google_sheets", "GOOGLE_SHEETS", "tool.google.sheets", "sheets.google",
 );
 
 /**

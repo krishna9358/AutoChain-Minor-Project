@@ -107,6 +107,11 @@ export class NodeExecutorFactory {
     this.executorMap.set("approval", HumanApprovalNodeExecutor);
     this.executorMap.set("artifact-writer", WebhookTriggerExecutor);
     this.executorMap.set("webhook-response", WebhookTriggerExecutor);
+    this.executorMap.set("github", WebhookTriggerExecutor);
+    this.executorMap.set("google-calendar", WebhookTriggerExecutor);
+    this.executorMap.set("google-meet", WebhookTriggerExecutor);
+    this.executorMap.set("google-docs", WebhookTriggerExecutor);
+    this.executorMap.set("google-sheets", WebhookTriggerExecutor);
   }
 
   /**

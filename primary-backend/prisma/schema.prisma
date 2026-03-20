@@ -28,6 +28,7 @@ model User {
   auditLogs  AuditLog[]
   secrets    Secret[]
   apiKeys    ApiKey[]
+  googleOAuthConnections GoogleOAuthConnection[]
 }
 
 enum Role {
@@ -41,6 +42,10 @@ model Workspace {
   name        String
   slug        String   @unique
   description String?
+  /// Google OAuth **app** credentials for this workspace (optional; env vars are fallback). Client secret stored encrypted.
+  googleOAuthClientId        String?
+  googleOAuthClientSecretEnc String?
+  googleOAuthRedirectUri     String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -51,6 +56,25 @@ model Workspace {
   secrets   Secret[]
   apiKeys   ApiKey[]
   artifacts Artifact[]
+  googleOAuthConnections GoogleOAuthConnection[]
+}
+
+/// User-delegated Google OAuth2 (refresh token) for Calendar / Docs / Sheets in workflows.
+model GoogleOAuthConnection {
+  id              String   @id @default(uuid())
+  workspaceId     String
+  userId          String
+  email           String?
+  displayName     String?
+  refreshTokenEnc String
+  scopes          String   @default("")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
 }
 
 model WorkspaceMember {

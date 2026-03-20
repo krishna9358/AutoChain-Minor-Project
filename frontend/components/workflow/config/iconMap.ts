@@ -25,6 +25,10 @@ import {
   Activity,
   Pause,
   Workflow,
+  Github,
+  Calendar,
+  Video,
+  Table2,
   type LucideIcon,
 } from "lucide-react";
 
@@ -56,6 +60,10 @@ const ICON_MAP: Record<string, LucideIcon> = {
   Activity,
   Pause,
   Workflow,
+  Github,
+  Calendar,
+  Video,
+  Table2,
 };
 
 const ICON_ALIASES: Record<string, string> = {
@@ -85,6 +93,10 @@ const ICON_ALIASES: Record<string, string> = {
   activity: "Activity",
   pause: "Pause",
   workflow: "Workflow",
+  github: "Github",
+  calendar: "Calendar",
+  video: "Video",
+  table2: "Table2",
 };
 
 /**

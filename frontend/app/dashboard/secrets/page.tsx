@@ -270,8 +270,10 @@ export default function SecretsPage() {
               Secret library
             </h1>
             <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
-              Securely store keys and reference them in nodes as{" "}
-              <code className="text-indigo-400">{"{{secrets.KEY}}"}</code>
+              Store keys here and use{" "}
+              <code className="text-indigo-400">{"{{secrets.KEY}}"}</code> in node configs —{" "}
+              <strong>workflow runs</strong> replace it with the decrypted value for this workspace (KEY must match
+              the secret&apos;s reference name).
             </p>
           </div>
           <button

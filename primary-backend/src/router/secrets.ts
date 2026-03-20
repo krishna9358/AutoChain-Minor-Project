@@ -1,43 +1,9 @@
 import { Router } from "express";
 import prisma from "../db";
 import { authMiddleware, AuthRequest } from "../middleware";
-import crypto from "crypto";
+import { encrypt, decryptStoredSecretValue } from "../services/secretCrypto";
 
 const router = Router();
-
-// Simple encryption/decryption (in production, use AWS KMS, Hashicorp Vault, or similar)
-// AES-256-GCM requires a 32-byte key. Raw env strings are rarely exactly 32 bytes — derive with SHA-256.
-// Prefer SECRET_ENCRYPTION_KEY; fall back to ENCRYPTION_KEY (used in docker-compose).
-const ENCRYPTION_PASSPHRASE =
-  process.env.SECRET_ENCRYPTION_KEY ||
-  process.env.ENCRYPTION_KEY ||
-  "default-secret-key-change-in-production";
-
-const ALGORITHM = "aes-256-gcm";
-
-function encryptionKey32(): Buffer {
-  return crypto.createHash("sha256").update(String(ENCRYPTION_PASSPHRASE), "utf8").digest();
-}
-
-function encrypt(text: string): { encrypted: string; iv: string; authTag: string } {
-  const iv = crypto.randomBytes(16);
-  const key = encryptionKey32();
-  const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
-  let encrypted = cipher.update(text, "utf8", "hex");
-  encrypted += cipher.final("hex");
-  const authTag = (cipher as any).getAuthTag();
-  return { encrypted, iv: iv.toString("hex"), authTag: authTag.toString("hex") };
-}
-
-function decrypt(encrypted: string, iv: string, authTag: string): string {
-  const key = encryptionKey32();
-  const ivBuf = Buffer.from(iv, "hex");
-  const decipher = crypto.createDecipheriv(ALGORITHM, key, ivBuf);
-  (decipher as any).setAuthTag(Buffer.from(authTag, "hex"));
-  let decrypted = decipher.update(encrypted, "hex", "utf8");
-  decrypted += decipher.final("utf8");
-  return decrypted;
-}
 
 // List secrets for workspace
 router.get("/", authMiddleware, async (req: AuthRequest, res) => {
@@ -111,18 +77,7 @@ router.get("/:id", authMiddleware, async (req: AuthRequest, res) => {
       return res.status(403).json({ error: "Access denied" });
     }
 
-    // Decrypt the value
-    let decryptedValue = null;
-    if (secret.value) {
-      try {
-        // Try to parse as JSON first (for encrypted secrets)
-        const encryptedData = JSON.parse(secret.value);
-        decryptedValue = decrypt(encryptedData.encrypted, encryptedData.iv, encryptedData.authTag);
-      } catch {
-        // Fallback for plain text secrets (shouldn't happen, but handle gracefully)
-        decryptedValue = secret.value;
-      }
-    }
+    const decryptedValue = decryptStoredSecretValue(secret.value);
 
     // Update lastUsedAt
     await prisma.secret.update({
@@ -132,8 +87,10 @@ router.get("/:id", authMiddleware, async (req: AuthRequest, res) => {
 
     res.json({
       ...secret,
-      value: decryptedValue, // Only show full value when requesting specific secret
-      valuePreview: decryptedValue ? `${decryptedValue.substring(0, 4)}${"*".repeat(Math.max(8, decryptedValue.length - 4))}` : null,
+      value: decryptedValue,
+      valuePreview: decryptedValue
+        ? `${decryptedValue.substring(0, 4)}${"*".repeat(Math.max(8, decryptedValue.length - 4))}`
+        : null,
     });
   } catch (err: any) {
     console.error("Get secret error:", err);
@@ -237,8 +194,8 @@ router.put("/:id", authMiddleware, async (req: AuthRequest, res) => {
     const updateData: any = {};
     if (name !== undefined) updateData.name = name;
     if (value !== undefined) {
-      const encrypted = encrypt(value);
-      updateData.value = JSON.stringify(encrypted);
+      const enc = encrypt(value);
+      updateData.value = JSON.stringify(enc);
     }
     if (type !== undefined) updateData.type = type;
     if (description !== undefined) updateData.description = description;
@@ -331,16 +288,7 @@ router.post("/:id/reveal", authMiddleware, async (req: AuthRequest, res) => {
       return res.status(403).json({ error: "Access denied" });
     }
 
-    // Decrypt the value
-    let decryptedValue = null;
-    if (secret.value) {
-      try {
-        const encryptedData = JSON.parse(secret.value);
-        decryptedValue = decrypt(encryptedData.encrypted, encryptedData.iv, encryptedData.authTag);
-      } catch {
-        decryptedValue = secret.value;
-      }
-    }
+    const decryptedValue = decryptStoredSecretValue(secret.value);
 
     // Update lastUsedAt
     await prisma.secret.update({

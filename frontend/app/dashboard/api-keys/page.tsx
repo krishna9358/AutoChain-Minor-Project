@@ -54,10 +54,18 @@ interface ApiKeyFormData {
 }
 
 const API_SCOPES = [
-  { value: "READ", label: "Read", description: "Read-only access to workflows and resources" },
-  { value: "WRITE", label: "Write", description: "Create and modify workflows and resources" },
-  { value: "EXECUTE", label: "Execute", description: "Trigger and run workflows" },
-  { value: "ADMIN", label: "Admin", description: "Full administrative access" },
+  {
+    value: "READ",
+    label: "Read",
+    description: "GET execution run status, logs, SSE (and future read-only APIs)",
+  },
+  { value: "WRITE", label: "Write", description: "Create and modify workflows (reserved for future routes)" },
+  {
+    value: "EXECUTE",
+    label: "Execute",
+    description: "POST start/cancel/approve workflow runs via /api/v1/execution/*",
+  },
+  { value: "ADMIN", label: "Admin", description: "All scopes (same as full access for API key auth)" },
 ];
 
 export default function ApiKeysPage() {
@@ -78,7 +86,7 @@ export default function ApiKeysPage() {
   const [formData, setFormData] = useState<ApiKeyFormData>({
     name: "",
     workspaceId: "",
-    scopes: ["READ"],
+    scopes: ["READ", "EXECUTE"],
     expiresInDays: "",
   });
   const [saving, setSaving] = useState(false);
@@ -202,7 +210,7 @@ export default function ApiKeysPage() {
     setFormData({
       name: "",
       workspaceId: "",
-      scopes: ["READ"],
+      scopes: ["READ", "EXECUTE"],
       expiresInDays: "",
     });
   };
@@ -312,6 +320,38 @@ export default function ApiKeysPage() {
           >
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
           </button>
+        </div>
+
+        <div
+          className="mt-4 rounded-xl border p-4 text-sm"
+          style={{
+            borderColor: "var(--border-subtle)",
+            background: "rgba(99, 102, 241, 0.06)",
+          }}
+        >
+          <p className="font-medium mb-2" style={{ color: "var(--text-primary)" }}>
+            External apps &amp; servers
+          </p>
+          <ul className="space-y-1.5 list-disc pl-4" style={{ color: "var(--text-muted)" }}>
+            <li>
+              Authenticate with{" "}
+              <code className="text-indigo-400 text-xs">X-Api-Key: ak_…</code> or{" "}
+              <code className="text-indigo-400 text-xs">Authorization: Bearer ak_…</code>{" "}
+              (not your login JWT).
+            </li>
+            <li>
+              <strong>EXECUTE</strong> — start/cancel/approve:{" "}
+              <code className="text-indigo-400 text-xs">POST …/execution/run/:workflowId</code>
+            </li>
+            <li>
+              <strong>READ</strong> — poll runs &amp; steps:{" "}
+              <code className="text-indigo-400 text-xs">GET …/execution/run/:runId</code>,{" "}
+              <code className="text-indigo-400 text-xs">/logs/:runId</code>, etc.
+            </li>
+            <li>
+              Workspace-scoped keys can only access workflows in that workspace.
+            </li>
+          </ul>
         </div>
       </div>
 

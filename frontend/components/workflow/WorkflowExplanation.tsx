@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { Sparkles, CheckCircle2, ArrowDown, Lightbulb, Brain, ChevronRight, Zap, FileText, GitBranch, Mail, GitFork, RefreshCw, Clock, Database, Archive, Send, ShieldAlert } from 'lucide-react';
+import { Sparkles, CheckCircle2, ArrowDown, Lightbulb, Brain, ChevronRight, Zap, FileText, GitBranch, Mail, GitFork, RefreshCw, Clock, Database, Archive, Send, ShieldAlert, Github, Calendar, Video, Table2 } from 'lucide-react';
 import { SlackLogo } from './icons/ServiceLogos';
 
 interface WorkflowStep {
@@ -265,6 +265,11 @@ export const generateWorkflowSteps = (nodes: any[]): WorkflowStep[] => {
     'slack-send': { icon: SlackLogo, color: '#3b82f6', bgColor: 'bg-blue-500' },
     'email-send': { icon: Mail, color: '#3b82f6', bgColor: 'bg-blue-500' },
     'db-query': { icon: Database, color: '#3b82f6', bgColor: 'bg-blue-500' },
+    github: { icon: Github, color: '#3b82f6', bgColor: 'bg-blue-500' },
+    'google-calendar': { icon: Calendar, color: '#3b82f6', bgColor: 'bg-blue-500' },
+    'google-meet': { icon: Video, color: '#3b82f6', bgColor: 'bg-blue-500' },
+    'google-docs': { icon: FileText, color: '#3b82f6', bgColor: 'bg-blue-500' },
+    'google-sheets': { icon: Table2, color: '#3b82f6', bgColor: 'bg-blue-500' },
     'if-condition': { icon: GitFork, color: '#10b981', bgColor: 'bg-emerald-500' },
     'switch-case': { icon: GitBranch, color: '#10b981', bgColor: 'bg-emerald-500' },
     'loop': { icon: RefreshCw, color: '#10b981', bgColor: 'bg-emerald-500' },

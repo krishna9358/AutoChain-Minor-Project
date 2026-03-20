@@ -1768,6 +1768,7 @@ function WorkflowInner() {
                             )
                           }
                           errors={validationErrors[selNode.id] || []}
+                          workspaceId={activeWorkspace?.id ?? ""}
                         />
                       ) : (
                         <div className="p-4 rounded-lg text-center" style={{ background: "var(--bg-tertiary)", color: "var(--text-muted)" }}>

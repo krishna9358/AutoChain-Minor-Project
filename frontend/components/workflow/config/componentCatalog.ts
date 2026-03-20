@@ -21,7 +21,9 @@ export type ConfigFieldType =
   | "url"
   | "email"
   | "multi-select"
-  | "code";
+  | "code"
+  | "google-account"
+  | "datetime";
 
 export interface ComponentOption {
   label: string;
@@ -271,6 +273,9 @@ export function getConfigDefaults(
         break;
       case "multi-select":
         acc[field.key] = [];
+        break;
+      case "datetime":
+        acc[field.key] = "";
         break;
       default:
         acc[field.key] = "";

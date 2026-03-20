@@ -15,6 +15,7 @@ import { componentCatalogRouter } from "./router/componentCatalog";
 import { secretsRouter } from "./router/secrets";
 import { apiKeysRouter } from "./router/apiKeys";
 import { artifactsRouter } from "./router/artifacts";
+import { googleOAuthRouter } from "./router/googleOAuth";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -81,6 +82,7 @@ app.use("/api/v1/components", componentCatalogRouter);
 app.use("/api/v1/secrets", secretsRouter);
 app.use("/api/v1/api-keys", apiKeysRouter);
 app.use("/api/v1/artifacts", artifactsRouter);
+app.use("/api/v1/integrations/google", googleOAuthRouter);
 
 ensureDevUser().then(() => {
   app.listen(PORT, () => {

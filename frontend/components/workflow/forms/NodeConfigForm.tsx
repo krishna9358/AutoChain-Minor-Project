@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import Link from "next/link";
 import {
   Type,
   AlignLeft as TextareaIcon,
@@ -15,9 +16,16 @@ import {
   EyeOff,
   Code,
   List,
+  Link2,
+  RefreshCw,
+  Loader2,
+  CalendarClock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ComponentConfigField } from "../config/componentCatalog";
+import { BACKEND_URL } from "@/app/config";
+import { getAuthHeaders } from "@/lib/auth-token";
+import { datetimeLocalToIso, isoToDatetimeLocalValue } from "@/lib/workflow-datetime";
 
 interface NodeConfigFormProps {
   nodeType: string;
@@ -25,6 +33,8 @@ interface NodeConfigFormProps {
   config: Record<string, any>;
   onChange: (config: Record<string, any>) => void;
   errors?: string[];
+  /** Required for **google-account** fields (OAuth connection picker). */
+  workspaceId?: string;
 }
 
 export const NodeConfigForm: React.FC<NodeConfigFormProps> = ({
@@ -33,6 +43,7 @@ export const NodeConfigForm: React.FC<NodeConfigFormProps> = ({
   onChange,
   fields: providedFields,
   errors,
+  workspaceId = "",
 }) => {
   const fields: ComponentConfigField[] = providedFields || [];
 
@@ -64,6 +75,8 @@ export const NodeConfigForm: React.FC<NodeConfigFormProps> = ({
     url: Globe,
     "multi-select": Hash,
     "api-key": Lock,
+    "google-account": Link2,
+    datetime: CalendarClock,
   };
 
   const inputBaseClass =
@@ -239,6 +252,46 @@ export const NodeConfigForm: React.FC<NodeConfigFormProps> = ({
               </div>
             )}
 
+            {field.type === "google-account" && (
+              <GoogleAccountField
+                workspaceId={workspaceId}
+                value={typeof value === "string" ? value : ""}
+                onChange={(v) => updateConfig(field.key, v)}
+                hasError={fieldErrors.length > 0}
+                inputBaseClass={inputBaseClass}
+              />
+            )}
+
+            {field.type === "datetime" && (
+              <div className="space-y-1">
+                <input
+                  type="datetime-local"
+                  step={60}
+                  value={isoToDatetimeLocalValue(value)}
+                  onChange={(e) => {
+                    const iso = datetimeLocalToIso(e.target.value);
+                    updateConfig(field.key, iso);
+                  }}
+                  onKeyDown={(e) => e.stopPropagation()}
+                  className={cn(inputBaseClass, isEmpty && "placeholder:opacity-40")}
+                  style={{
+                    background: "var(--input-bg, rgba(0,0,0,0.15))",
+                    border: `1px solid ${isEmpty ? "var(--border-subtle)" : "var(--border-medium)"}`,
+                    color: "var(--text-primary)",
+                    borderColor: fieldErrors.length > 0 ? "#ef4444" : undefined,
+                  }}
+                />
+                {typeof value === "string" && value.trim() !== "" && (
+                  <p
+                    className="text-[10px] font-mono leading-relaxed break-all"
+                    style={{ color: "var(--text-muted)" }}
+                  >
+                    Stored as UTC: {value}
+                  </p>
+                )}
+              </div>
+            )}
+
             {field.type === "boolean" && (
               <button
                 type="button"
@@ -305,6 +358,137 @@ export const NodeConfigForm: React.FC<NodeConfigFormProps> = ({
     </div>
   );
 };
+
+function GoogleAccountField({
+  workspaceId,
+  value,
+  onChange,
+  hasError,
+  inputBaseClass,
+}: {
+  workspaceId: string;
+  value: string;
+  onChange: (v: string) => void;
+  hasError: boolean;
+  inputBaseClass: string;
+}) {
+  const [conns, setConns] = useState<
+    { id: string; email?: string | null; displayName?: string | null }[]
+  >([]);
+  const [loading, setLoading] = useState(false);
+  const [fetchErr, setFetchErr] = useState<string | null>(null);
+
+  const load = useCallback(() => {
+    if (!workspaceId) {
+      setConns([]);
+      return;
+    }
+    setLoading(true);
+    setFetchErr(null);
+    fetch(
+      `${BACKEND_URL}/api/v1/integrations/google/connections?workspaceId=${encodeURIComponent(workspaceId)}`,
+      { headers: getAuthHeaders() },
+    )
+      .then(async (r) => {
+        const body = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(typeof body.error === "string" ? body.error : r.statusText);
+        return body as typeof conns;
+      })
+      .then(setConns)
+      .catch((e: Error) => setFetchErr(e.message || "Failed to load"))
+      .finally(() => setLoading(false));
+  }, [workspaceId]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  if (!workspaceId) {
+    return (
+      <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+        Choose an active workspace (header) to list Google connections.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex gap-2 items-stretch">
+        <div className="relative flex-1 min-w-0">
+          <select
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            onKeyDown={(e) => e.stopPropagation()}
+            disabled={loading}
+            className={cn(inputBaseClass, "appearance-none cursor-pointer pr-8 w-full")}
+            style={{
+              background: "var(--input-bg, rgba(0,0,0,0.15))",
+              border: `1px solid ${hasError ? "#ef4444" : "var(--border-medium)"}`,
+              color: "var(--text-primary)",
+            }}
+          >
+            <option value="">— Select connected account —</option>
+            {conns.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.email || c.displayName || `${c.id.slice(0, 8)}…`}
+              </option>
+            ))}
+          </select>
+          <ChevronDown
+            className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
+            style={{ color: "var(--text-muted)" }}
+          />
+        </div>
+        <button
+          type="button"
+          title="Refresh list"
+          onClick={() => load()}
+          disabled={loading}
+          className="shrink-0 px-2.5 rounded-lg border transition-colors hover:bg-white/5"
+          style={{
+            borderColor: "var(--border-medium)",
+            color: "var(--text-muted)",
+          }}
+        >
+          {loading ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <RefreshCw className="w-4 h-4" />
+          )}
+        </button>
+      </div>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px]">
+        <Link
+          href="/dashboard/integrations/google"
+          className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2"
+        >
+          Connect Google account…
+        </Link>
+        {conns.length === 0 && !loading && !fetchErr && (
+          <span style={{ color: "var(--text-muted)" }}>No connections yet for this workspace.</span>
+        )}
+      </div>
+      {value &&
+        !loading &&
+        conns.length > 0 &&
+        !conns.some((c) => c.id === value) && (
+          <p className="text-[10px] text-amber-400/95 flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span>
+              This node still references an old Google connection (reconnect, copy, or DB reset). Pick an account again.
+            </span>
+            <button
+              type="button"
+              className="underline font-medium text-amber-300"
+              onClick={() => onChange("")}
+            >
+              Clear selection
+            </button>
+          </p>
+        )}
+      {fetchErr && <p className="text-[10px] text-red-400">{fetchErr}</p>}
+    </div>
+  );
+}
 
 function PasswordField({
   value,

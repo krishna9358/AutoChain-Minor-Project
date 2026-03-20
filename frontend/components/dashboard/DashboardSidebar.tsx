@@ -7,6 +7,7 @@ import {
   Archive,
   ChevronLeft,
   ChevronRight,
+  Cloud,
   Key,
   KeyRound,
   LayoutDashboard,
@@ -38,6 +39,12 @@ export function DashboardSidebar() {
       label: "Secrets",
       Icon: Key,
       match: (p: string) => p.startsWith("/dashboard/secrets"),
+    },
+    {
+      href: "/dashboard/integrations/google",
+      label: "Google",
+      Icon: Cloud,
+      match: (p: string) => p.startsWith("/dashboard/integrations/google"),
     },
     {
       href: "/dashboard/api-keys",

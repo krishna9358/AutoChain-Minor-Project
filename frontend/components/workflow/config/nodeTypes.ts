@@ -15,6 +15,10 @@ import {
   Send,
   MessageSquare,
   ShieldCheck,
+  Github,
+  Calendar,
+  Video,
+  Table2,
 } from "lucide-react";
 import { SlackLogo } from "../icons/ServiceLogos";
 
@@ -149,6 +153,71 @@ export const NODE_TYPES: Record<string, NodeTypeConfig> = {
     borderColor: "border-blue-400",
     requiresConfig: true,
     exampleWorkflows: ["Data Processing", "Reporting"],
+  },
+  github: {
+    id: "github",
+    name: "GitHub",
+    category: "integration",
+    icon: Github,
+    description:
+      "Calls the GitHub REST API for repo metadata, issues, pull requests, or creating issues.",
+    color: "#3b82f6",
+    bgColor: "bg-blue-50",
+    borderColor: "border-blue-400",
+    requiresConfig: true,
+    exampleWorkflows: ["DevOps", "Issue triage", "Release automation"],
+  },
+  "google-calendar": {
+    id: "google-calendar",
+    name: "Google Calendar",
+    category: "integration",
+    icon: Calendar,
+    description:
+      "Google Calendar API v3 only (not Sheets/Docs). Works with free @gmail accounts. List, get, create, update, and delete events.",
+    color: "#3b82f6",
+    bgColor: "bg-blue-50",
+    borderColor: "border-blue-400",
+    requiresConfig: true,
+    exampleWorkflows: ["Scheduling", "Reminders", "Team ops"],
+  },
+  "google-meet": {
+    id: "google-meet",
+    name: "Google Meet",
+    category: "integration",
+    icon: Video,
+    description:
+      "Uses Calendar API v3 only (Meet has no separate REST API for this). conferenceData + hangoutsMeet. Same OAuth/SA as Calendar.",
+    color: "#3b82f6",
+    bgColor: "bg-blue-50",
+    borderColor: "border-blue-400",
+    requiresConfig: true,
+    exampleWorkflows: ["Video calls", "Interviews", "Standups"],
+  },
+  "google-docs": {
+    id: "google-docs",
+    name: "Google Docs",
+    category: "integration",
+    icon: FileText,
+    description:
+      "Google Docs API v1 only (docs.googleapis.com). Separate from Calendar/Sheets. Read, append, replace, or create docs.",
+    color: "#3b82f6",
+    bgColor: "bg-blue-50",
+    borderColor: "border-blue-400",
+    requiresConfig: true,
+    exampleWorkflows: ["Reports", "Contracts", "Notes"],
+  },
+  "google-sheets": {
+    id: "google-sheets",
+    name: "Google Sheets",
+    category: "integration",
+    icon: Table2,
+    description:
+      "Google Sheets API v4 only (sheets.googleapis.com). Separate from Calendar/Docs. Read, append, update, or clear ranges (A1 notation).",
+    color: "#3b82f6",
+    bgColor: "bg-blue-50",
+    borderColor: "border-blue-400",
+    requiresConfig: true,
+    exampleWorkflows: ["Reporting", "ETL", "Dashboards"],
   },
 
   // Logic
@@ -307,7 +376,9 @@ export type ConfigFieldType =
   | "email"
   | "url"
   | "multi-select"
-  | "code";
+  | "code"
+  | "google-account"
+  | "datetime";
 
 export interface ConfigField {
   key: string;
@@ -673,6 +744,486 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
     },
   ],
 
+  // GitHub
+  github: [
+    {
+      key: "personalAccessToken",
+      label: "Personal Access Token",
+      type: "password",
+      placeholder: "ghp_… or {{secrets.GITHUB_TOKEN}}",
+      description: "Optional for public repo reads; required for private repos and create issue.",
+    },
+    {
+      key: "owner",
+      label: "Owner / Organization",
+      type: "text",
+      required: true,
+      placeholder: "octocat",
+    },
+    {
+      key: "repo",
+      label: "Repository",
+      type: "text",
+      required: true,
+      placeholder: "Hello-World",
+    },
+    {
+      key: "operation",
+      label: "Operation",
+      type: "select",
+      required: true,
+      defaultValue: "get_repository",
+      options: [
+        { label: "Get repository", value: "get_repository" },
+        { label: "List open issues", value: "list_issues" },
+        { label: "List open pull requests", value: "list_pull_requests" },
+        { label: "Create issue", value: "create_issue" },
+      ],
+    },
+    {
+      key: "perPage",
+      label: "List page size",
+      type: "number",
+      defaultValue: 5,
+      min: 1,
+      max: 100,
+      description: "For list issues / pull requests",
+    },
+    {
+      key: "issueTitle",
+      label: "Issue title",
+      type: "text",
+      placeholder: "Bug: …",
+      showWhen: { field: "operation", value: "create_issue" },
+    },
+    {
+      key: "issueBody",
+      label: "Issue body",
+      type: "textarea",
+      rows: 4,
+      placeholder: "Describe the issue…",
+      showWhen: { field: "operation", value: "create_issue" },
+    },
+  ],
+
+  "google-calendar": [
+    {
+      key: "authMode",
+      label: "Authentication",
+      type: "select",
+      required: true,
+      defaultValue: "oauth_connection",
+      options: [
+        { label: "Connected Google account (OAuth)", value: "oauth_connection" },
+        { label: "Manual — token / {{secrets.*}} / service account JSON", value: "manual" },
+      ],
+    },
+    {
+      key: "googleConnectionId",
+      label: "Google account",
+      type: "google-account",
+      required: true,
+      showWhen: { field: "authMode", value: "oauth_connection" },
+    },
+    {
+      key: "credentialType",
+      label: "Credential type",
+      type: "select",
+      required: true,
+      defaultValue: "oauth_access_token",
+      options: [
+        { label: "OAuth access token (Bearer)", value: "oauth_access_token" },
+        { label: "Service account JSON", value: "service_account_json" },
+      ],
+      showWhen: { field: "authMode", value: "manual" },
+      description: "OAuth for user calendars; service account only if calendar is shared with the SA email.",
+    },
+    {
+      key: "credentialsSecret",
+      label: "Credentials / token",
+      type: "password",
+      placeholder: "{{secrets.GOOGLE_CAL_OAUTH}}",
+      showWhen: { field: "authMode", value: "manual" },
+      description: "Enable Calendar API in GCP; store token or SA JSON in Secrets when possible.",
+    },
+    {
+      key: "calendarId",
+      label: "Calendar ID",
+      type: "text",
+      required: true,
+      defaultValue: "primary",
+      placeholder: "primary",
+    },
+    {
+      key: "operation",
+      label: "Operation",
+      type: "select",
+      required: true,
+      defaultValue: "list_events",
+      options: [
+        { label: "List events", value: "list_events" },
+        { label: "Get event", value: "get_event" },
+        { label: "Create event", value: "create_event" },
+        { label: "Update event", value: "update_event" },
+        { label: "Delete event", value: "delete_event" },
+      ],
+    },
+    {
+      key: "timeMin",
+      label: "List from",
+      type: "datetime",
+      showWhen: { field: "operation", value: "list_events" },
+    },
+    {
+      key: "timeMax",
+      label: "List until",
+      type: "datetime",
+      showWhen: { field: "operation", value: "list_events" },
+    },
+    {
+      key: "eventId",
+      label: "Event ID",
+      type: "text",
+      placeholder: "From Google Calendar",
+      showWhen: {
+        field: "operation",
+        value: ["get_event", "update_event", "delete_event"],
+      },
+    },
+    {
+      key: "eventSummary",
+      label: "Event title",
+      type: "text",
+      placeholder: "Team sync",
+      showWhen: {
+        field: "operation",
+        value: ["create_event", "update_event"],
+      },
+    },
+    {
+      key: "eventDescription",
+      label: "Description",
+      type: "textarea",
+      rows: 3,
+      showWhen: {
+        field: "operation",
+        value: ["create_event", "update_event"],
+      },
+    },
+    {
+      key: "eventStart",
+      label: "Start",
+      type: "datetime",
+      showWhen: { field: "operation", value: "create_event" },
+    },
+    {
+      key: "eventEnd",
+      label: "End",
+      type: "datetime",
+      showWhen: { field: "operation", value: "create_event" },
+    },
+    {
+      key: "timeZone",
+      label: "Time zone",
+      type: "text",
+      defaultValue: "UTC",
+      placeholder: "America/Los_Angeles",
+    },
+    {
+      key: "location",
+      label: "Location",
+      type: "text",
+      showWhen: {
+        field: "operation",
+        value: ["create_event", "update_event"],
+      },
+    },
+    {
+      key: "attendeesJson",
+      label: "Attendees (JSON)",
+      type: "json",
+      rows: 3,
+      defaultValue: [],
+      showWhen: {
+        field: "operation",
+        value: ["create_event", "update_event"],
+      },
+    },
+  ],
+
+  "google-meet": [
+    {
+      key: "authMode",
+      label: "Authentication",
+      type: "select",
+      required: true,
+      defaultValue: "oauth_connection",
+      options: [
+        { label: "Connected Google account (OAuth)", value: "oauth_connection" },
+        { label: "Manual — token / {{secrets.*}} / service account JSON", value: "manual" },
+      ],
+    },
+    {
+      key: "googleConnectionId",
+      label: "Google account",
+      type: "google-account",
+      required: true,
+      showWhen: { field: "authMode", value: "oauth_connection" },
+    },
+    {
+      key: "credentialType",
+      label: "Credential type",
+      type: "select",
+      required: true,
+      defaultValue: "oauth_access_token",
+      options: [
+        { label: "OAuth access token (Bearer)", value: "oauth_access_token" },
+        { label: "Service account JSON", value: "service_account_json" },
+      ],
+      showWhen: { field: "authMode", value: "manual" },
+    },
+    {
+      key: "credentialsSecret",
+      label: "Credentials / token",
+      type: "password",
+      placeholder: "{{secrets.GOOGLE_CAL_OAUTH}}",
+      showWhen: { field: "authMode", value: "manual" },
+      description: "Meet uses Calendar API + conferenceData (hangoutsMeet).",
+    },
+    {
+      key: "calendarId",
+      label: "Calendar ID",
+      type: "text",
+      required: true,
+      defaultValue: "primary",
+    },
+    {
+      key: "operation",
+      label: "Operation",
+      type: "select",
+      required: true,
+      defaultValue: "create_scheduled_meeting",
+      options: [
+        { label: "Create new event + Meet link", value: "create_scheduled_meeting" },
+        { label: "Attach Meet to existing event", value: "attach_meet_to_event" },
+      ],
+    },
+    {
+      key: "meetingTitle",
+      label: "Meeting title",
+      type: "text",
+      required: true,
+      defaultValue: "Video call",
+      showWhen: { field: "operation", value: "create_scheduled_meeting" },
+    },
+    {
+      key: "startTime",
+      label: "Start",
+      type: "datetime",
+      showWhen: { field: "operation", value: "create_scheduled_meeting" },
+    },
+    {
+      key: "endTime",
+      label: "End",
+      type: "datetime",
+      showWhen: { field: "operation", value: "create_scheduled_meeting" },
+    },
+    {
+      key: "existingEventId",
+      label: "Existing event ID",
+      type: "text",
+      showWhen: { field: "operation", value: "attach_meet_to_event" },
+    },
+    {
+      key: "attendeesJson",
+      label: "Attendees (JSON)",
+      type: "json",
+      rows: 3,
+      defaultValue: [],
+      showWhen: { field: "operation", value: "create_scheduled_meeting" },
+    },
+  ],
+
+  "google-docs": [
+    {
+      key: "authMode",
+      label: "Authentication",
+      type: "select",
+      required: true,
+      defaultValue: "oauth_connection",
+      options: [
+        { label: "Connected Google account (OAuth)", value: "oauth_connection" },
+        { label: "Manual — token / {{secrets.*}} / service account JSON", value: "manual" },
+      ],
+    },
+    {
+      key: "googleConnectionId",
+      label: "Google account",
+      type: "google-account",
+      required: true,
+      showWhen: { field: "authMode", value: "oauth_connection" },
+    },
+    {
+      key: "credentialType",
+      label: "Credential type",
+      type: "select",
+      required: true,
+      defaultValue: "oauth_access_token",
+      options: [
+        { label: "OAuth access token (Bearer)", value: "oauth_access_token" },
+        { label: "Service account JSON", value: "service_account_json" },
+      ],
+      showWhen: { field: "authMode", value: "manual" },
+    },
+    {
+      key: "credentialsSecret",
+      label: "Credentials / token",
+      type: "password",
+      placeholder: "{{secrets.GOOGLE_DOCS_OAUTH}}",
+      showWhen: { field: "authMode", value: "manual" },
+    },
+    {
+      key: "documentId",
+      label: "Document ID",
+      type: "text",
+      placeholder: "From docs.google.com/.../d/DOC_ID/...",
+      showWhen: {
+        field: "operation",
+        value: ["get_document", "append_paragraph", "replace_all_text"],
+      },
+    },
+    {
+      key: "operation",
+      label: "Operation",
+      type: "select",
+      required: true,
+      defaultValue: "get_document",
+      options: [
+        { label: "Get document", value: "get_document" },
+        { label: "Append paragraph", value: "append_paragraph" },
+        { label: "Replace all text", value: "replace_all_text" },
+        { label: "Create document", value: "create_document" },
+      ],
+    },
+    {
+      key: "newDocumentTitle",
+      label: "New document title",
+      type: "text",
+      showWhen: { field: "operation", value: "create_document" },
+    },
+    {
+      key: "appendText",
+      label: "Text to append",
+      type: "textarea",
+      rows: 4,
+      showWhen: { field: "operation", value: "append_paragraph" },
+    },
+    {
+      key: "findText",
+      label: "Find text",
+      type: "text",
+      showWhen: { field: "operation", value: "replace_all_text" },
+    },
+    {
+      key: "replaceText",
+      label: "Replace with",
+      type: "text",
+      showWhen: { field: "operation", value: "replace_all_text" },
+    },
+  ],
+
+  "google-sheets": [
+    {
+      key: "authMode",
+      label: "Authentication",
+      type: "select",
+      required: true,
+      defaultValue: "oauth_connection",
+      options: [
+        { label: "Connected Google account (OAuth)", value: "oauth_connection" },
+        { label: "Manual — token / {{secrets.*}} / service account JSON", value: "manual" },
+      ],
+    },
+    {
+      key: "googleConnectionId",
+      label: "Google account",
+      type: "google-account",
+      required: true,
+      showWhen: { field: "authMode", value: "oauth_connection" },
+    },
+    {
+      key: "credentialType",
+      label: "Credential type",
+      type: "select",
+      required: true,
+      defaultValue: "oauth_access_token",
+      options: [
+        { label: "OAuth access token (Bearer)", value: "oauth_access_token" },
+        { label: "Service account JSON", value: "service_account_json" },
+      ],
+      showWhen: { field: "authMode", value: "manual" },
+    },
+    {
+      key: "credentialsSecret",
+      label: "Credentials / token",
+      type: "password",
+      placeholder: "{{secrets.GOOGLE_SHEETS_OAUTH}}",
+      showWhen: { field: "authMode", value: "manual" },
+    },
+    {
+      key: "spreadsheetId",
+      label: "Spreadsheet ID",
+      type: "text",
+      required: true,
+      placeholder: "From sheets URL",
+    },
+    {
+      key: "operation",
+      label: "Operation",
+      type: "select",
+      required: true,
+      defaultValue: "read_range",
+      options: [
+        { label: "Read range", value: "read_range" },
+        { label: "Append rows", value: "append_rows" },
+        { label: "Update range", value: "update_values" },
+        { label: "Clear range", value: "clear_range" },
+      ],
+    },
+    {
+      key: "rangeA1",
+      label: "Range (A1)",
+      type: "text",
+      required: true,
+      defaultValue: "Sheet1!A1:D10",
+    },
+    {
+      key: "valuesJson",
+      label: "Values (2D JSON)",
+      type: "json",
+      rows: 5,
+      defaultValue: [["A", "B"]],
+      showWhen: {
+        field: "operation",
+        value: ["append_rows", "update_values"],
+      },
+    },
+    {
+      key: "valueInputOption",
+      label: "Value input option",
+      type: "select",
+      defaultValue: "USER_ENTERED",
+      options: [
+        { label: "USER_ENTERED", value: "USER_ENTERED" },
+        { label: "RAW", value: "RAW" },
+      ],
+      showWhen: {
+        field: "operation",
+        value: ["append_rows", "update_values"],
+      },
+    },
+  ],
+
   // If / Else
   "if-condition": [
     {
@@ -951,10 +1502,9 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
     },
     {
       key: "untilTime",
-      label: "Wait Until (ISO)",
-      type: "text",
-      placeholder: "2025-12-31T23:59:59Z",
-      description: "ISO timestamp to wait until",
+      label: "Wait until",
+      type: "datetime",
+      description: "Target time (stored as ISO 8601 UTC)",
       showWhen: { field: "delayType", value: "until" },
     },
   ],

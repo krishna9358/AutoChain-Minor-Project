@@ -2,37 +2,16 @@ import { Router } from "express";
 import prisma from "../db";
 import { authMiddleware, AuthRequest } from "../middleware";
 import crypto from "crypto";
+import { hashRawApiKey } from "../services/apiKeyService";
 
 const router = Router();
 
-// Generate a new API key
+// Generate a new API key (hash must match apiKeyService.hashRawApiKey)
 function generateApiKey(): { key: string; hash: string; prefix: string } {
-  const key = `ak_${crypto.randomBytes(32).toString('hex')}`;
-  const prefix = key.substring(0, 12); // First 12 characters for display
-  const hash = crypto.createHash('sha256').update(key).digest('hex');
+  const key = `ak_${crypto.randomBytes(32).toString("hex")}`;
+  const prefix = key.substring(0, 12);
+  const hash = hashRawApiKey(key);
   return { key, hash, prefix };
-}
-
-// Verify API key (for use in authentication middleware)
-export async function verifyApiKey(keyHash: string): Promise<{ userId: string; workspaceId?: string } | null> {
-  const apiKey = await prisma.apiKey.findUnique({
-    where: { keyHash },
-    include: { user: true, workspace: true },
-  });
-
-  if (!apiKey || apiKey.isRevoked) {
-    return null;
-  }
-
-  // Check expiration
-  if (apiKey.expiresAt && apiKey.expiresAt < new Date()) {
-    return null;
-  }
-
-  return {
-    userId: apiKey.userId,
-    workspaceId: apiKey.workspaceId || undefined,
-  };
 }
 
 // List API keys
