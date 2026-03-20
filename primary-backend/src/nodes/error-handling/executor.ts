@@ -422,12 +422,16 @@ export class ErrorHandlingNodeExecutor extends BaseNodeExecutor {
     errorDetails: any
   ): Promise<any> {
     // Initialize AI agent for recovery
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
-      throw new Error('OpenAI API key not configured for agent fallback');
+      throw new Error('OpenRouter API key not configured for agent fallback');
     }
 
-    const openai = new OpenAI({ apiKey });
+    const openai = new OpenAI({
+      apiKey,
+      baseURL: 'https://openrouter.ai/api/v1',
+    });
+    const model = process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini';
 
     const recoveryPrompt = `Analyze the following error and provide recovery recommendations:
 
@@ -452,7 +456,7 @@ Respond in JSON format.`;
 
     try {
       const completion = await openai.chat.completions.create({
-        model: 'gpt-4',
+        model,
         messages: [
           { role: 'system', content: 'You are an expert error recovery agent.' },
           { role: 'user', content: recoveryPrompt },

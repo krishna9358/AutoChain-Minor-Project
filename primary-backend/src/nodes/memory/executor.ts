@@ -1055,15 +1055,20 @@ export class MemoryNodeExecutor extends BaseNodeExecutor {
     text: string,
     model: string
   ): Promise<number[]> {
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
-      throw new Error("OpenAI API key not configured for embeddings");
+      throw new Error("OpenRouter API key not configured for embeddings");
     }
 
-    const openai = new OpenAI({ apiKey });
+    const openai = new OpenAI({
+      apiKey,
+      baseURL: "https://openrouter.ai/api/v1",
+    });
+    const embeddingModel =
+      process.env.OPENROUTER_EMBEDDING_MODEL || model || "openai/text-embedding-3-large";
 
     const response = await openai.embeddings.create({
-      model: model || 'text-embedding-3-large',
+      model: embeddingModel,
       input: text,
     });
 
