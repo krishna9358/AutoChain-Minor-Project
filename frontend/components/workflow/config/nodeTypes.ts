@@ -367,6 +367,15 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
       defaultValue: {},
       description: "JSON Schema defining the expected input payload structure",
     },
+    {
+      key: "testRunPlainText",
+      label: "Test run input (plain text)",
+      type: "textarea",
+      rows: 5,
+      placeholder: "e.g. sample input data — no JSON required",
+      description:
+        "Used when you click Run in the editor: sent as triggerData.text. Webhooks and the API can still send any JSON as triggerData.",
+    },
   ],
 
   // HTTP Request

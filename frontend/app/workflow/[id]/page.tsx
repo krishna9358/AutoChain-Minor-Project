@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { NodeConfigForm } from "@/components/workflow/forms/NodeConfigForm";
 import {
   fetchComponentCatalog,
@@ -79,6 +79,7 @@ import {
   ChevronRight,
   Tag,
   Trash2,
+  Square,
 } from "lucide-react";
 import type {
   Node,
@@ -91,6 +92,22 @@ import type {
 
 const IS_DEV = process.env.NEXT_PUBLIC_DEV_MODE === "true";
 const DEV_TOKEN = process.env.NEXT_PUBLIC_DEV_TOKEN || "dev-demo-token";
+
+/** Plain text for Run button: read from Entry Point node config (`testRunPlainText`). */
+function getEntryPointTestRunPlainText(nodes: Node[]): string {
+  const entry = nodes.find((n) => {
+    const d = n.data as Record<string, unknown>;
+    const comp = String(d?.componentId || "").toLowerCase();
+    const nt = String(d?.nodeType || "")
+      .toLowerCase()
+      .replace(/_/g, "-");
+    return comp === "entry-point" || nt === "entry-point";
+  });
+  if (!entry) return "";
+  const cfg = (entry.data as { config?: Record<string, unknown> })?.config;
+  const v = cfg?.testRunPlainText;
+  return typeof v === "string" ? v : "";
+}
 
 // ─── Node type registry ──────────────────────────────────────────
 // Legacy keys for backward-compat with workflows saved before the catalog existed.
@@ -289,12 +306,14 @@ function WorkflowInner() {
     [nodes, selNodeId],
   );
 
-  // Runs
+  // Runs — viewingRunIdRef keeps the run the user chose to inspect; background
+  // polls for *other* runs (e.g. still executing) must not overwrite the UI.
+  const viewingRunIdRef = useRef<string | null>(null);
   const [runs, setRuns] = useState<any[]>([]);
   const [activeRun, setActiveRun] = useState<any>(null);
   const [runSteps, setRunSteps] = useState<any[]>([]);
   const [allRunsLoading, setAllRunsLoading] = useState(false);
-
+  const [cancelling, setCancelling] = useState(false);
   // AI generator
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiGen, setAiGen] = useState(false);
@@ -310,6 +329,20 @@ function WorkflowInner() {
 
   // Dynamically built from backend catalog + legacy fallbacks
   const NODE_CFG = useMemo(() => buildNodeCfg(components), [components]);
+
+  /** A run that is still active (can be stopped), even if the user is viewing a different run. */
+  const stoppableRunId = useMemo(() => {
+    const fromList = runs.find((r: any) =>
+      ["RUNNING", "PENDING", "WAITING_APPROVAL"].includes(r.status),
+    );
+    if (fromList) return fromList.id as string;
+    if (
+      activeRun &&
+      ["RUNNING", "PENDING", "WAITING_APPROVAL"].includes(activeRun.status)
+    )
+      return activeRun.id as string;
+    return null;
+  }, [runs, activeRun]);
 
   // Workspace modal
   const [showWorkspaceModal, setShowWorkspaceModal] = useState(false);
@@ -550,13 +583,30 @@ function WorkflowInner() {
     }
   };
 
-  const fetchRunDetails = async (runId: string) => {
+  const fetchRunDetails = async (
+    runId: string,
+    opts?: { background?: boolean },
+  ) => {
+    if (!opts?.background) {
+      viewingRunIdRef.current = runId;
+    }
     try {
       const r = await api.get(`/api/v1/execution/run/${runId}`);
-      setActiveRun(r.data);
-      setRunSteps(r.data.steps || []);
+      const data = r.data;
+
+      if (opts?.background && viewingRunIdRef.current !== runId) {
+        setRuns((prev) => {
+          const exists = prev.some((x: any) => x.id === runId);
+          if (!exists) return [...prev, data];
+          return prev.map((x: any) => (x.id === runId ? { ...x, ...data } : x));
+        });
+        return data;
+      }
+
+      setActiveRun(data);
+      setRunSteps(data.steps || []);
       const m = new Map(
-        (r.data.steps || []).map((s: any) => [s.nodeId, s.status]),
+        (data.steps || []).map((s: any) => [s.nodeId, s.status]),
       );
       setNodes((n) =>
         n.map((nd) => ({
@@ -564,18 +614,49 @@ function WorkflowInner() {
           data: { ...nd.data, runStatus: m.get(nd.id) || null },
         })),
       );
-      return r.data;
+      return data;
     } catch {
       return null;
     }
   };
 
+  const cancelStoppableRun = async () => {
+    const id = stoppableRunId;
+    if (!id) return;
+    setCancelling(true);
+    try {
+      await api.post(`/api/v1/execution/run/${id}/cancel`, {});
+      toast({ title: "Run stopped", variant: "success" });
+      try {
+        const r = await api.get(`/api/v1/workflows/${wfId}`);
+        setRuns(r.data.runs || []);
+      } catch {}
+      if (viewingRunIdRef.current) {
+        await fetchRunDetails(viewingRunIdRef.current);
+      }
+    } catch (e: any) {
+      toast({
+        title: "Stop failed",
+        description: e.message || "Could not cancel run",
+        variant: "destructive",
+      });
+    } finally {
+      setCancelling(false);
+    }
+  };
+
   const exec = async () => {
     if (isNew || !hasWorkspace) return;
+    const triggerData: Record<string, unknown> = {
+      text: getEntryPointTestRunPlainText(nodes),
+    };
     setExecuting(true);
     try {
-      const r = await api.post(`/api/v1/execution/run/${wfId}`, {});
+      const r = await api.post(`/api/v1/execution/run/${wfId}`, {
+        triggerData,
+      });
       toast({ title: "Run started", variant: "success" });
+      viewingRunIdRef.current = r.data.id;
       setActiveMode("runs");
       setActiveRun(r.data);
       setRunSteps([]);
@@ -593,14 +674,13 @@ function WorkflowInner() {
 
   const pollRunUntilDone = async (runId: string) => {
     const poll = async () => {
-      const data = await fetchRunDetails(runId);
+      const data = await fetchRunDetails(runId, { background: true });
       if (
         data &&
         ["RUNNING", "PENDING", "WAITING_APPROVAL"].includes(data.status)
       ) {
         setTimeout(poll, 1500);
       } else if (data) {
-        // Refresh runs list to include this completed run
         try {
           const r = await api.get(`/api/v1/workflows/${wfId}`);
           setRuns(r.data.runs || []);
@@ -623,6 +703,7 @@ function WorkflowInner() {
       es.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
+          if (viewingRunIdRef.current !== runId) return;
           if (data.status || data.id)
             setActiveRun((p: any) => ({ ...p, ...data }));
           if (data.nodeId) {
@@ -973,6 +1054,26 @@ function WorkflowInner() {
             )}
             Run
           </button>
+          {stoppableRunId && (
+            <button
+              type="button"
+              onClick={cancelStoppableRun}
+              disabled={cancelling || isNew}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors disabled:opacity-50 hover:bg-white/5"
+              style={{
+                borderColor: "var(--border-subtle)",
+                color: "var(--text-secondary)",
+              }}
+              title="Stop the in-progress run (even if you are viewing another run)"
+            >
+              {cancelling ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <Square className="w-3 h-3 fill-current" />
+              )}
+              Stop
+            </button>
+          )}
         </div>
       </header>
 
@@ -1674,6 +1775,25 @@ function WorkflowInner() {
                           <p className="text-sm font-medium">No configuration fields</p>
                           <p className="text-xs mt-1">This node type has no configurable settings.</p>
                         </div>
+                      )}
+                      {(String(selNode.data.componentId) === "entry-point" ||
+                        String(selNode.data.nodeType || "")
+                          .toLowerCase()
+                          .replace(/_/g, "-") === "entry-point") && (
+                        <p
+                          className="mt-3 text-[10px] font-mono break-all leading-relaxed"
+                          style={{ color: "var(--text-muted)" }}
+                        >
+                          <span className="font-sans font-medium not-italic mr-1">
+                            Preview:
+                          </span>
+                          {JSON.stringify({
+                            text: String(
+                              (selNode.data.config as Record<string, unknown>)
+                                ?.testRunPlainText ?? "",
+                            ),
+                          })}
+                        </p>
                       )}
                     </div>
                   </div>

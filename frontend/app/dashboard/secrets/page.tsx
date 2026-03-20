@@ -23,15 +23,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { BACKEND_URL } from "@/app/config";
-
-const IS_DEV = process.env.NODE_ENV === "development";
-const DEV_TOKEN = "dev-token-12345";
-
-function token() {
-  if (IS_DEV) return DEV_TOKEN;
-  const stored = localStorage.getItem("autochain-auth-token");
-  return stored ? `Bearer ${stored}` : null;
-}
+import { getAuthHeaders } from "@/lib/auth-token";
 
 interface Secret {
   id: string;
@@ -107,7 +99,7 @@ export default function SecretsPage() {
     try {
       setLoading(true);
       const res = await axios.get(`${BACKEND_URL}/api/v1/secrets`, {
-        headers: { Authorization: token()! },
+        headers: getAuthHeaders(),
       });
       setSecrets(res.data);
     } catch (err: any) {
@@ -137,7 +129,7 @@ export default function SecretsPage() {
     try {
       setSaving(true);
       await axios.post(`${BACKEND_URL}/api/v1/secrets`, formData, {
-        headers: { Authorization: token()! },
+        headers: getAuthHeaders(),
       });
       setShowCreateModal(false);
       resetForm();
@@ -155,7 +147,7 @@ export default function SecretsPage() {
     try {
       setSaving(true);
       await axios.put(`${BACKEND_URL}/api/v1/secrets/${selectedSecret.id}`, formData, {
-        headers: { Authorization: token()! },
+        headers: getAuthHeaders(),
       });
       setShowEditModal(false);
       setSelectedSecret(null);
@@ -174,7 +166,7 @@ export default function SecretsPage() {
     try {
       setDeleting(true);
       await axios.delete(`${BACKEND_URL}/api/v1/secrets/${selectedSecret.id}`, {
-        headers: { Authorization: token()! },
+        headers: getAuthHeaders(),
       });
       setShowDeleteModal(false);
       setSelectedSecret(null);
@@ -191,7 +183,7 @@ export default function SecretsPage() {
     try {
       setRevealing((prev) => new Set([...prev, secretId]));
       const res = await axios.post(`${BACKEND_URL}/api/v1/secrets/${secretId}/reveal`, {}, {
-        headers: { Authorization: token()! },
+        headers: getAuthHeaders(),
       });
       setRevealedValues((prev) => ({ ...prev, [secretId]: res.data.value }));
       setRevealedSecrets((prev) => new Set([...prev, secretId]));
@@ -269,16 +261,17 @@ export default function SecretsPage() {
   };
 
   return (
-    <div className="min-h-screen p-6" style={{ background: "var(--bg-primary)" }}>
+    <div className="p-6 max-w-[1200px] mx-auto w-full">
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-2xl font-semibold" style={{ color: "var(--text-primary)" }}>
-              Secrets Management
+              Secret library
             </h1>
             <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
-              Securely store and manage sensitive data for your workflows
+              Securely store keys and reference them in nodes as{" "}
+              <code className="text-indigo-400">{"{{secrets.KEY}}"}</code>
             </p>
           </div>
           <button
@@ -578,8 +571,11 @@ export default function SecretsPage() {
                       color: "var(--text-primary)",
                     }}
                   />
-                  <p className="text-[10px] mt-1" style={{ color: "var(--text-muted)" }}>
-                    Unique identifier used to reference this secret in workflows
+                  <p className="text-[10px] mt-1 leading-relaxed" style={{ color: "var(--text-muted)" }}>
+                    Reference name for <code className="text-indigo-400">{"{{secrets.KEY}}"}</code> — use
+                    letters, numbers, and underscores (e.g.{" "}
+                    <code className="text-indigo-400/90">STRIPE_API_KEY</code>). This is not your encryption
+                    passphrase.
                   </p>
                 </div>
 

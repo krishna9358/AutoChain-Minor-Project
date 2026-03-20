@@ -22,15 +22,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { BACKEND_URL } from "@/app/config";
-
-const IS_DEV = process.env.NODE_ENV === "development";
-const DEV_TOKEN = "dev-token-12345";
-
-function token() {
-  if (IS_DEV) return DEV_TOKEN;
-  const stored = localStorage.getItem("autochain-auth-token");
-  return stored ? `Bearer ${stored}` : null;
-}
+import { getAuthHeaders } from "@/lib/auth-token";
 
 interface ApiKey {
   id: string;
@@ -102,7 +94,7 @@ export default function ApiKeysPage() {
     try {
       setLoading(true);
       const res = await axios.get(`${BACKEND_URL}/api/v1/api-keys`, {
-        headers: { Authorization: token()! },
+        headers: getAuthHeaders(),
         params: { includeRevoked: showRevoked },
       });
       setApiKeys(res.data);
@@ -131,7 +123,7 @@ export default function ApiKeysPage() {
     try {
       setSaving(true);
       const res = await axios.post(`${BACKEND_URL}/api/v1/api-keys`, formData, {
-        headers: { Authorization: token()! },
+        headers: getAuthHeaders(),
       });
       setNewKey(res.data.key);
       setShowCreateModal(false);
@@ -150,7 +142,7 @@ export default function ApiKeysPage() {
     try {
       setSaving(true);
       await axios.put(`${BACKEND_URL}/api/v1/api-keys/${selectedKey.id}`, formData, {
-        headers: { Authorization: token()! },
+        headers: getAuthHeaders(),
       });
       setShowEditModal(false);
       setSelectedKey(null);
@@ -169,7 +161,7 @@ export default function ApiKeysPage() {
     try {
       setDeleting(true);
       await axios.delete(`${BACKEND_URL}/api/v1/api-keys/${selectedKey.id}`, {
-        headers: { Authorization: token()! },
+        headers: getAuthHeaders(),
       });
       setShowDeleteModal(false);
       setSelectedKey(null);
@@ -187,7 +179,7 @@ export default function ApiKeysPage() {
     try {
       setDeleting(true);
       await axios.post(`${BACKEND_URL}/api/v1/api-keys/${selectedKey.id}/revoke`, {}, {
-        headers: { Authorization: token()! },
+        headers: getAuthHeaders(),
       });
       setShowRevokeModal(false);
       setSelectedKey(null);
@@ -260,7 +252,7 @@ export default function ApiKeysPage() {
   };
 
   return (
-    <div className="min-h-screen p-6" style={{ background: "var(--bg-primary)" }}>
+    <div className="p-6 max-w-[1200px] mx-auto w-full">
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">

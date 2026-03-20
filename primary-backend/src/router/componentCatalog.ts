@@ -101,6 +101,15 @@ const Components: WorkflowComponentDefinition[] = [
         defaultValue: {},
         description: "JSON Schema defining the expected input payload structure",
       },
+      {
+        key: "testRunPlainText",
+        label: "Test run input (plain text)",
+        type: "textarea",
+        rows: 5,
+        placeholder: "e.g. sample input data — no JSON required",
+        description:
+          "Used when you click Run in the editor: sent as triggerData.text. Webhooks and the API can still send any JSON as triggerData.",
+      },
     ],
     configSchema: z
       .object({
@@ -108,6 +117,7 @@ const Components: WorkflowComponentDefinition[] = [
         webhookPath: z.string().optional(),
         cron: z.string().optional(),
         inputSchema: JsonRecordSchema.optional(),
+        testRunPlainText: z.string().optional(),
       })
       .superRefine((v, ctx) => {
         if (v.triggerMode === "webhook" && !v.webhookPath) {

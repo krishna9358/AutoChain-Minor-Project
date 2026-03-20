@@ -341,15 +341,46 @@ router.put("/:id", authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
-// Delete workflow
+// Delete workflow (and dependent runs / approvals / audit rows — FK-safe)
 router.delete("/:id", authMiddleware, async (req: AuthRequest, res) => {
   try {
-    await prisma.workflow.delete({
-      where: { id: req.params.id },
+    const id = req.params.id;
+
+    const workflow = await prisma.workflow.findUnique({
+      where: { id },
+      select: { id: true, workspaceId: true },
+    });
+
+    if (!workflow) {
+      return res.status(404).json({ error: "Workflow not found" });
+    }
+
+    const member = await prisma.workspaceMember.findFirst({
+      where: { userId: req.userId, workspaceId: workflow.workspaceId },
+    });
+    if (!member) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      const runs = await tx.workflowRun.findMany({
+        where: { workflowId: id },
+        select: { id: true },
+      });
+      const runIds = runs.map((r) => r.id);
+
+      if (runIds.length > 0) {
+        await tx.approval.deleteMany({ where: { runId: { in: runIds } } });
+      }
+
+      await tx.workflowRun.deleteMany({ where: { workflowId: id } });
+      await tx.auditLog.deleteMany({ where: { workflowId: id } });
+      await tx.workflow.delete({ where: { id } });
     });
 
     res.json({ success: true });
   } catch (err: any) {
+    console.error("Delete workflow error:", err);
     res.status(500).json({ error: err.message });
   }
 });

@@ -19,15 +19,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { BACKEND_URL } from "@/app/config";
-
-const IS_DEV = process.env.NODE_ENV === "development";
-const DEV_TOKEN = "dev-token-12345";
-
-function token() {
-  if (IS_DEV) return DEV_TOKEN;
-  const stored = localStorage.getItem("autochain-auth-token");
-  return stored ? `Bearer ${stored}` : null;
-}
+import { getAuthHeaders } from "@/lib/auth-token";
 
 interface AuditLog {
   id: string;
@@ -111,7 +103,7 @@ export default function AuditLogsPage() {
       if (actionFilter !== "all") params.action = actionFilter;
 
       const res = await axios.get(`${BACKEND_URL}/api/v1/audit`, {
-        headers: { Authorization: token()! },
+        headers: getAuthHeaders(),
         params,
       });
       setLogs(res.data);
@@ -226,7 +218,7 @@ export default function AuditLogsPage() {
   };
 
   return (
-    <div className="min-h-screen p-6" style={{ background: "var(--bg-primary)" }}>
+    <div className="p-6 max-w-[1200px] mx-auto w-full">
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">

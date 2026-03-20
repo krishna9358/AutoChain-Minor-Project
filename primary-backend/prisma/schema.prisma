@@ -50,6 +50,7 @@ model Workspace {
   templates Template[]
   secrets   Secret[]
   apiKeys   ApiKey[]
+  artifacts Artifact[]
 }
 
 model WorkspaceMember {
@@ -87,6 +88,7 @@ model Workflow {
   edges     WorkflowEdge[]
   runs      WorkflowRun[]
   auditLogs AuditLog[]
+  artifacts Artifact[]
 }
 
 enum WorkflowStatus {
@@ -162,9 +164,10 @@ model WorkflowRun {
   metadata    Json      @default("{}")
   createdAt   DateTime  @default(now())
 
-  workflow  Workflow   @relation(fields: [workflowId], references: [id])
+  workflow  Workflow   @relation(fields: [workflowId], references: [id], onDelete: Cascade)
   steps     RunStep[]
   approvals Approval[]
+  artifacts Artifact[]
 }
 
 enum RunStatus {
@@ -221,7 +224,7 @@ model Approval {
   decidedAt DateTime?
   createdAt DateTime       @default(now())
 
-  run  WorkflowRun @relation(fields: [runId], references: [id])
+  run  WorkflowRun @relation(fields: [runId], references: [id], onDelete: Cascade)
   user User?       @relation(fields: [userId], references: [id])
 }
 
@@ -271,6 +274,26 @@ model Template {
   workspace Workspace? @relation(fields: [workspaceId], references: [id])
 }
 
+// ─── ARTIFACTS (outputs from Artifact Writer / run results) ───────
+
+model Artifact {
+  id          String   @id @default(uuid())
+  workspaceId String
+  workflowId  String?
+  runId       String?
+  nodeId      String?
+  name        String
+  mimeType    String?
+  sizeBytes   Int?
+  publicUrl   String?
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now())
+
+  workspace Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workflow  Workflow?    @relation(fields: [workflowId], references: [id], onDelete: SetNull)
+  run       WorkflowRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
+}
+
 // ─── AUDIT LOGS ───────────────────────────────────────────────────
 
 model AuditLog {
@@ -282,7 +305,7 @@ model AuditLog {
   ipAddress  String?
   createdAt  DateTime @default(now())
 
-  workflow Workflow? @relation(fields: [workflowId], references: [id])
+  workflow Workflow? @relation(fields: [workflowId], references: [id], onDelete: SetNull)
   user     User      @relation(fields: [userId], references: [id])
 }
 

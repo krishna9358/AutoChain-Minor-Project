@@ -6,13 +6,23 @@ import crypto from "crypto";
 const router = Router();
 
 // Simple encryption/decryption (in production, use AWS KMS, Hashicorp Vault, or similar)
-const ENCRYPTION_KEY = process.env.SECRET_ENCRYPTION_KEY || "default-secret-key-change-in-production";
+// AES-256-GCM requires a 32-byte key. Raw env strings are rarely exactly 32 bytes — derive with SHA-256.
+// Prefer SECRET_ENCRYPTION_KEY; fall back to ENCRYPTION_KEY (used in docker-compose).
+const ENCRYPTION_PASSPHRASE =
+  process.env.SECRET_ENCRYPTION_KEY ||
+  process.env.ENCRYPTION_KEY ||
+  "default-secret-key-change-in-production";
+
 const ALGORITHM = "aes-256-gcm";
+
+function encryptionKey32(): Buffer {
+  return crypto.createHash("sha256").update(String(ENCRYPTION_PASSPHRASE), "utf8").digest();
+}
 
 function encrypt(text: string): { encrypted: string; iv: string; authTag: string } {
   const iv = crypto.randomBytes(16);
-  const key = Buffer.from(ENCRYPTION_KEY) as unknown as Uint8Array;
-  const cipher = crypto.createCipheriv(ALGORITHM, key, iv as unknown as Uint8Array);
+  const key = encryptionKey32();
+  const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
   let encrypted = cipher.update(text, "utf8", "hex");
   encrypted += cipher.final("hex");
   const authTag = (cipher as any).getAuthTag();
@@ -20,8 +30,8 @@ function encrypt(text: string): { encrypted: string; iv: string; authTag: string
 }
 
 function decrypt(encrypted: string, iv: string, authTag: string): string {
-  const key = Buffer.from(ENCRYPTION_KEY) as unknown as Uint8Array;
-  const ivBuf = Buffer.from(iv, "hex") as unknown as Uint8Array;
+  const key = encryptionKey32();
+  const ivBuf = Buffer.from(iv, "hex");
   const decipher = crypto.createDecipheriv(ALGORITHM, key, ivBuf);
   (decipher as any).setAuthTag(Buffer.from(authTag, "hex"));
   let decrypted = decipher.update(encrypted, "hex", "utf8");

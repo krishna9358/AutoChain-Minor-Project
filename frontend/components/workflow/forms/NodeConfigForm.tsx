@@ -130,7 +130,7 @@ export const NodeConfigForm: React.FC<NodeConfigFormProps> = ({
                 rows={field.rows || 3}
                 className={cn(
                   inputBaseClass,
-                  "resize-none leading-relaxed",
+                  "resize-y min-h-[4.5rem] leading-relaxed",
                   isEmpty && "placeholder:opacity-40",
                 )}
                 style={{

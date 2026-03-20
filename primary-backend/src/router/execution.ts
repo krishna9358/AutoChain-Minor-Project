@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { Prisma } from "@prisma/client";
 import prisma from "../db";
 import { authMiddleware, AuthRequest } from "../middleware";
 import { resolveComponentId } from "./componentCatalog";
@@ -39,6 +40,102 @@ function validateNodeConfigs(nodes: any[]): { nodeId: string; nodeLabel: string;
   }
 
   return null;
+}
+
+/** True if this node is the workflow entry / trigger (catalog or legacy). */
+function isEntryTriggerNode(n: any): boolean {
+  const cat = (n.category || "").toLowerCase();
+  const ntype = (n.nodeType || "").toLowerCase().replace(/_/g, "-");
+  const compId = (n.metadata?.componentId || "").toLowerCase();
+  return (
+    cat === "trigger" ||
+    cat === "input" ||
+    ntype === "webhook-trigger" ||
+    ntype === "entry-point" ||
+    ntype === "schedule-trigger" ||
+    ntype === "event-trigger" ||
+    compId === "entry-point"
+  );
+}
+
+/** Detect Artifact Writer across catalog IDs, aliases, and legacy nodeType strings. */
+function isArtifactWriterNode(node: any): boolean {
+  const rawType = String(node?.nodeType || "");
+  const meta = node?.metadata;
+  const rawComp =
+    meta && typeof meta === "object" && !Array.isArray(meta)
+      ? String((meta as Record<string, unknown>).componentId || "")
+      : "";
+  const nKab = rawType.toLowerCase().replace(/_/g, "-");
+  const cKab = rawComp.toLowerCase().replace(/_/g, "-");
+  const resolved =
+    resolveComponentId(rawType) || resolveComponentId(rawComp);
+  return (
+    resolved === "artifact-writer" ||
+    nKab === "artifact-writer" ||
+    cKab === "artifact-writer"
+  );
+}
+
+function buildParentMap(
+  edges: any[],
+  nodeIds: Set<string>,
+): Map<string, string[]> {
+  const parents = new Map<string, string[]>();
+  for (const edge of edges) {
+    if (!nodeIds.has(edge.sourceNodeId) || !nodeIds.has(edge.targetNodeId)) continue;
+    const arr = parents.get(edge.targetNodeId) || [];
+    arr.push(edge.sourceNodeId);
+    parents.set(edge.targetNodeId, arr);
+  }
+  return parents;
+}
+
+function normalizeTriggerPayload(raw: unknown): Record<string, unknown> {
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    return raw as Record<string, unknown>;
+  }
+  return {};
+}
+
+function computeStepInput(
+  node: any,
+  triggerPayload: Record<string, unknown>,
+  parentIds: string[],
+  outputMap: Map<string, unknown>,
+): Record<string, unknown> {
+  if (isEntryTriggerNode(node)) {
+    return { source: "trigger", data: triggerPayload };
+  }
+  if (parentIds.length === 0) {
+    return { source: "no_upstream", data: {} };
+  }
+  if (parentIds.length === 1) {
+    const pid = parentIds[0];
+    return {
+      source: "upstream",
+      upstreamNodeId: pid,
+      data: outputMap.get(pid) ?? {},
+    };
+  }
+  return {
+    source: "merge",
+    parents: parentIds.map((id) => ({
+      nodeId: id,
+      output: outputMap.get(id) ?? {},
+    })),
+  };
+}
+
+function enrichEntryOutput(output: any, triggerPayload: Record<string, unknown>) {
+  if (!output || typeof output !== "object") return output;
+  const basePayload =
+    output.payload && typeof output.payload === "object" ? output.payload : {};
+  return {
+    ...output,
+    triggerInput: triggerPayload,
+    payload: { ...basePayload, ...triggerPayload },
+  };
 }
 
 // Execute a workflow
@@ -150,7 +247,11 @@ router.post("/run/:runId/cancel", authMiddleware, async (req: AuthRequest, res) 
       return res.status(404).json({ error: "Run not found" });
     }
 
-    if (run.status !== "RUNNING" && run.status !== "WAITING_APPROVAL") {
+    if (
+      run.status !== "RUNNING" &&
+      run.status !== "PENDING" &&
+      run.status !== "WAITING_APPROVAL"
+    ) {
       return res.status(400).json({ error: `Cannot cancel run with status: ${run.status}` });
     }
 
@@ -275,6 +376,14 @@ router.post("/run/:runId/approve", authMiddleware, async (req: AuthRequest, res)
 
 // Simulated execution engine
 async function simulateExecution(runId: string, nodes: any[], edges: any[]) {
+  const runRecord = await prisma.workflowRun.findUnique({
+    where: { id: runId },
+    include: { workflow: true },
+  });
+  const triggerPayload = normalizeTriggerPayload(runRecord?.triggerData);
+  const workspaceId = runRecord?.workflow?.workspaceId;
+  const workflowIdForArtifact = runRecord?.workflowId;
+
   // Find trigger/entry-point node (supports both legacy and catalog conventions)
   const triggerNode = nodes.find((n) => {
     const cat = (n.category || "").toLowerCase();
@@ -342,6 +451,9 @@ async function simulateExecution(runId: string, nodes: any[], edges: any[]) {
     return;
   }
 
+  const parents = buildParentMap(edges, nodeIds);
+  const outputMap = new Map<string, unknown>();
+
   // BFS execution
   const WORKFLOW_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
   const workflowStartTime = Date.now();
@@ -406,6 +518,14 @@ async function simulateExecution(runId: string, nodes: any[], edges: any[]) {
     });
 
     try {
+      const parentIds = parents.get(nodeId) || [];
+      const stepInput = computeStepInput(
+        node,
+        triggerPayload,
+        parentIds,
+        outputMap,
+      );
+
       // Simulate processing delay
       await new Promise((resolve) =>
         setTimeout(resolve, 500 + Math.random() * 1500),
@@ -413,8 +533,61 @@ async function simulateExecution(runId: string, nodes: any[], edges: any[]) {
 
       const executionTimeMs = Date.now() - startTime;
 
-      // Generate simulated output based on node type
-      const output = generateNodeOutput(node);
+      let output: any = generateNodeOutput(node);
+      if (isEntryTriggerNode(node)) {
+        output = enrichEntryOutput(output, triggerPayload);
+      }
+
+      if (
+        workspaceId &&
+        workflowIdForArtifact &&
+        isArtifactWriterNode(node)
+      ) {
+        const cfg = (node.config || {}) as Record<string, any>;
+        const name =
+          typeof cfg.name === "string" && cfg.name.length > 0
+            ? cfg.name
+            : `artifact-${Date.now()}.json`;
+        try {
+          const created = await prisma.artifact.create({
+            data: {
+              workspaceId,
+              workflowId: workflowIdForArtifact,
+              runId,
+              nodeId,
+              name,
+              mimeType: cfg.format === "json" ? "application/json" : "text/plain",
+              sizeBytes: Buffer.byteLength(JSON.stringify(output), "utf8"),
+              metadata: {
+                format: cfg.format ?? "json",
+                public: cfg.public ?? false,
+              } as Prisma.InputJsonValue,
+            },
+          });
+          output = {
+            ...(typeof output === "object" && output !== null ? output : {}),
+            artifactId: created.id,
+            artifactName: created.name,
+            stored: true,
+            size: created.sizeBytes ?? undefined,
+          };
+        } catch (e: any) {
+          console.error(
+            "[execution] prisma.artifact.create failed (artifact library will stay empty until DB is fixed):",
+            e?.message || e,
+          );
+          output = {
+            ...(typeof output === "object" && output !== null ? output : {}),
+            stored: false,
+            libraryPersistFailed: true,
+            persistError:
+              e?.message ||
+              "Could not save artifact row. Run `npx prisma db push` (or migrate) so the Artifact table exists.",
+          };
+        }
+      }
+
+      outputMap.set(nodeId, output);
 
       await prisma.runStep.updateMany({
         where: { runId, nodeId },
@@ -422,8 +595,8 @@ async function simulateExecution(runId: string, nodes: any[], edges: any[]) {
           status: "COMPLETED",
           completedAt: new Date(),
           executionTimeMs,
-          inputPayload: { triggerData: "sample input data" },
-          outputPayload: output,
+          inputPayload: stepInput as Prisma.InputJsonValue,
+          outputPayload: output as Prisma.InputJsonValue,
           reasoningSummary: getReasoningSummary(node),
           agentName: node.category === "AI_AGENT" ? node.label : null,
         },
@@ -472,7 +645,16 @@ async function simulateExecution(runId: string, nodes: any[], edges: any[]) {
 }
 
 async function resumeExecution(runId: string, nodes: any[], edges: any[], startNodeIds: string[]) {
+  const runRecord = await prisma.workflowRun.findUnique({
+    where: { id: runId },
+    include: { workflow: true },
+  });
+  const triggerPayload = normalizeTriggerPayload(runRecord?.triggerData);
+  const workspaceId = runRecord?.workflow?.workspaceId;
+  const workflowIdForArtifact = runRecord?.workflowId;
+
   const nodeIds = new Set(nodes.map((n) => n.id));
+  const parents = buildParentMap(edges, nodeIds);
   const adjacency = new Map<string, string[]>();
   for (const edge of edges) {
     if (!nodeIds.has(edge.sourceNodeId) || !nodeIds.has(edge.targetNodeId)) continue;
@@ -486,12 +668,18 @@ async function resumeExecution(runId: string, nodes: any[], edges: any[], startN
   const WORKFLOW_TIMEOUT_MS = 5 * 60 * 1000;
   const workflowStartTime = Date.now();
 
-  // Get already-completed steps to skip
   const completedSteps = await prisma.runStep.findMany({
     where: { runId, status: "COMPLETED" },
-    select: { nodeId: true },
+    select: { nodeId: true, outputPayload: true },
   });
   completedSteps.forEach((s) => visited.add(s.nodeId));
+
+  const outputMap = new Map<string, unknown>();
+  for (const s of completedSteps) {
+    if (s.outputPayload !== null && s.outputPayload !== undefined) {
+      outputMap.set(s.nodeId, s.outputPayload as unknown);
+    }
+  }
 
   while (queue.length > 0) {
     const nodeId = queue.shift()!;
@@ -509,6 +697,14 @@ async function resumeExecution(runId: string, nodes: any[], edges: any[], startN
     const node = nodes.find((n) => n.id === nodeId);
     if (!node) continue;
 
+    const parentIds = parents.get(nodeId) || [];
+    const stepInput = computeStepInput(
+      node,
+      triggerPayload,
+      parentIds,
+      outputMap,
+    );
+
     const startTime = Date.now();
     await prisma.runStep.updateMany({
       where: { runId, nodeId },
@@ -518,7 +714,61 @@ async function resumeExecution(runId: string, nodes: any[], edges: any[], startN
     try {
       await new Promise((resolve) => setTimeout(resolve, 500 + Math.random() * 1500));
       const executionTimeMs = Date.now() - startTime;
-      const output = generateNodeOutput(node);
+      let output: any = generateNodeOutput(node);
+      if (isEntryTriggerNode(node)) {
+        output = enrichEntryOutput(output, triggerPayload);
+      }
+
+      if (
+        workspaceId &&
+        workflowIdForArtifact &&
+        isArtifactWriterNode(node)
+      ) {
+        const cfg = (node.config || {}) as Record<string, any>;
+        const name =
+          typeof cfg.name === "string" && cfg.name.length > 0
+            ? cfg.name
+            : `artifact-${Date.now()}.json`;
+        try {
+          const created = await prisma.artifact.create({
+            data: {
+              workspaceId,
+              workflowId: workflowIdForArtifact,
+              runId,
+              nodeId,
+              name,
+              mimeType: cfg.format === "json" ? "application/json" : "text/plain",
+              sizeBytes: Buffer.byteLength(JSON.stringify(output), "utf8"),
+              metadata: {
+                format: cfg.format ?? "json",
+                public: cfg.public ?? false,
+              } as Prisma.InputJsonValue,
+            },
+          });
+          output = {
+            ...(typeof output === "object" && output !== null ? output : {}),
+            artifactId: created.id,
+            artifactName: created.name,
+            stored: true,
+            size: created.sizeBytes ?? undefined,
+          };
+        } catch (e: any) {
+          console.error(
+            "[execution] prisma.artifact.create failed (resume path):",
+            e?.message || e,
+          );
+          output = {
+            ...(typeof output === "object" && output !== null ? output : {}),
+            stored: false,
+            libraryPersistFailed: true,
+            persistError:
+              e?.message ||
+              "Could not save artifact row. Run `npx prisma db push` (or migrate) so the Artifact table exists.",
+          };
+        }
+      }
+
+      outputMap.set(nodeId, output);
 
       await prisma.runStep.updateMany({
         where: { runId, nodeId },
@@ -526,7 +776,8 @@ async function resumeExecution(runId: string, nodes: any[], edges: any[], startN
           status: "COMPLETED",
           completedAt: new Date(),
           executionTimeMs,
-          outputPayload: output,
+          inputPayload: stepInput as Prisma.InputJsonValue,
+          outputPayload: output as Prisma.InputJsonValue,
         },
       });
 

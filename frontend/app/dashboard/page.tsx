@@ -1,15 +1,14 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "@/components/providers/ThemeProvider";
 import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { useToast } from "@/components/hooks/use-toast";
 import { workflowApi } from "@/lib/api";
-import { CreateWorkspaceModal } from "@/components/workspace/CreateWorkspaceModal";
+import { useDashboardUI } from "@/components/dashboard/DashboardUIProvider";
 import {
-  Zap,
   Plus,
   ChevronRight,
   Loader2,
@@ -20,15 +19,11 @@ import {
   Sun,
   Moon,
   LayoutTemplate,
-  Key,
   ArrowRight,
   ScrollText,
-  ChevronsUpDown,
-  Check,
   Building2,
   FolderPlus,
   ChevronDown,
-  Bell,
   MoreHorizontal,
   Trash2,
   Edit2,
@@ -256,18 +251,18 @@ function timeAgo(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString();
 }
 
-export default function DashboardPage() {
+function DashboardPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { theme, toggleTheme } = useTheme();
   const {
-    workspaces,
     activeWorkspace,
-    setActiveWorkspace,
     hasWorkspace,
     loading: wsLoading,
     refreshWorkspaces,
   } = useWorkspace();
   const { toast } = useToast();
+  const { openCreateWorkspace } = useDashboardUI();
 
   const [workflows, setWorkflows] = useState<WorkflowItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -275,25 +270,21 @@ export default function DashboardPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sortBy, setSortBy] = useState<SortBy>("updatedAt");
-  const [showCreateWs, setShowCreateWs] = useState(false);
-  const [wsSwitcherOpen, setWsSwitcherOpen] = useState(false);
   const [rowMenuOpen, setRowMenuOpen] = useState<string | null>(null);
-  const wsSwitcherRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdowns on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (
-        wsSwitcherRef.current &&
-        !wsSwitcherRef.current.contains(e.target as Node)
-      ) {
-        setWsSwitcherOpen(false);
-      }
       if (rowMenuOpen) setRowMenuOpen(null);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [rowMenuOpen]);
+
+  useEffect(() => {
+    if (searchParams.get("view") === "settings") {
+      setActiveTab("settings");
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (!hasWorkspace || !activeWorkspace) {
@@ -326,7 +317,7 @@ export default function DashboardPage() {
         description: "Create a workspace first.",
         variant: "destructive",
       });
-      setShowCreateWs(true);
+      openCreateWorkspace();
       return;
     }
     const nodes = template.nodes.map((n, i) => ({
@@ -386,11 +377,6 @@ export default function DashboardPage() {
       );
     });
 
-  const userName =
-    typeof window !== "undefined"
-      ? JSON.parse(localStorage.getItem("user") || '{"name":"Dev User"}').name
-      : "Dev User";
-
   if (wsLoading)
     return (
       <div
@@ -405,221 +391,43 @@ export default function DashboardPage() {
     );
 
   return (
-    <div
-      className="min-h-screen flex flex-col"
-      style={{ background: "var(--bg-primary)" }}
-    >
-      {/* ─── Top Navigation Bar ──── */}
+    <>
       <nav
-        className="sticky top-0 z-40 h-12 flex items-center border-b px-4 gap-0"
+        className="sticky top-0 z-20 flex items-center justify-center gap-1 h-11 px-4 border-b"
         style={{
-          background: "var(--bg-secondary)",
+          background: "var(--bg-primary)",
           borderColor: "var(--border-subtle)",
         }}
+        aria-label="Dashboard sections"
       >
-        {/* Left: Logo + Workspace Switcher */}
-        <div className="flex items-center gap-3 min-w-0 flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-lg bg-indigo-600 flex items-center justify-center">
-              <Zap className="w-3.5 h-3.5 text-white" />
-            </div>
-            <span
-              className="text-sm font-semibold hidden sm:block"
-              style={{ color: "var(--text-primary)" }}
-            >
-              AutoChain
-            </span>
-          </div>
-
-          <div
-            className="w-px h-5"
-            style={{ background: "var(--border-subtle)" }}
-          />
-
-          {/* Workspace selector */}
-          <div className="relative" ref={wsSwitcherRef}>
-            <button
-              onClick={() => setWsSwitcherOpen(!wsSwitcherOpen)}
-              className="flex items-center gap-1.5 pl-2 pr-2.5 py-1 rounded-lg text-sm font-medium transition-colors hover:bg-white/5"
-              style={{
-                background: wsSwitcherOpen
-                  ? "rgba(99,102,241,0.08)"
-                  : "transparent",
-                color: "var(--text-primary)",
-              }}
-            >
-              <div
-                className="w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold text-white shrink-0"
-                style={{ background: "rgba(99,102,241,0.8)" }}
-              >
-                {activeWorkspace
-                  ? activeWorkspace.name.charAt(0).toUpperCase()
-                  : "?"}
-              </div>
-              <span className="max-w-[120px] truncate">
-                {activeWorkspace?.name || "No Workspace"}
-              </span>
-              <ChevronsUpDown className="w-3 h-3 opacity-50" />
-            </button>
-
-            <AnimatePresence>
-              {wsSwitcherOpen && (
-                <motion.div
-                  initial={{ opacity: 0, y: -4, scale: 0.97 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -4, scale: 0.97 }}
-                  className="absolute top-full left-0 mt-1.5 w-56 rounded-xl border shadow-2xl overflow-hidden z-50"
-                  style={{
-                    background: "var(--bg-card)",
-                    borderColor: "var(--border-subtle)",
-                  }}
-                >
-                  <div className="p-1.5">
-                    <p
-                      className="px-2 py-1 text-[10px] font-semibold uppercase tracking-widest"
-                      style={{ color: "var(--text-muted)" }}
-                    >
-                      Workspaces
-                    </p>
-                    {workspaces.map((ws) => (
-                      <button
-                        key={ws.id}
-                        onClick={() => {
-                          setActiveWorkspace(ws);
-                          setWsSwitcherOpen(false);
-                          toast({
-                            title: "Switched workspace",
-                            description: `Now using "${ws.name}"`,
-                            variant: "success",
-                          });
-                        }}
-                        className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg transition-colors hover:bg-white/5"
-                        style={{
-                          background:
-                            activeWorkspace?.id === ws.id
-                              ? "rgba(99,102,241,0.06)"
-                              : "transparent",
-                        }}
-                      >
-                        <div
-                          className="w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-bold text-white shrink-0"
-                          style={{ background: "rgba(99,102,241,0.7)" }}
-                        >
-                          {ws.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="flex-1 min-w-0 text-left">
-                          <p
-                            className="text-xs font-medium truncate"
-                            style={{ color: "var(--text-primary)" }}
-                          >
-                            {ws.name}
-                          </p>
-                          {ws.slug && (
-                            <p
-                              className="text-[10px] truncate"
-                              style={{ color: "var(--text-muted)" }}
-                            >
-                              {ws.slug}
-                            </p>
-                          )}
-                        </div>
-                        {activeWorkspace?.id === ws.id && (
-                          <Check className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                  <div
-                    className="border-t p-1.5"
-                    style={{ borderColor: "var(--border-subtle)" }}
-                  >
-                    <button
-                      onClick={() => {
-                        setWsSwitcherOpen(false);
-                        setShowCreateWs(true);
-                      }}
-                      className="w-full flex items-center gap-2 px-2 py-2 rounded-lg transition-colors hover:bg-white/5"
-                      style={{ color: "var(--text-muted)" }}
-                    >
-                      <FolderPlus className="w-3.5 h-3.5" />
-                      <span className="text-xs font-medium">
-                        New Workspace
-                      </span>
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        </div>
-
-        {/* Center: Tab navigation */}
-        <div className="flex-1 flex items-center justify-center gap-1">
-          {(["workflows", "templates", "settings"] as TabId[]).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className="relative px-4 h-12 text-sm font-medium transition-colors capitalize"
-              style={{
-                color:
-                  activeTab === tab
-                    ? "var(--text-primary)"
-                    : "var(--text-muted)",
-              }}
-            >
-              {tab}
-              {activeTab === tab && (
-                <motion.div
-                  layoutId="tab-indicator"
-                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-500"
-                />
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* Right: Actions */}
-        <div className="flex items-center gap-1 flex-shrink-0">
+        {(["workflows", "templates", "settings"] as TabId[]).map((tab) => (
           <button
-            onClick={toggleTheme}
-            className="p-2 rounded-lg transition-colors hover:bg-white/5"
-            style={{ color: "var(--text-muted)" }}
-            title="Toggle theme"
+            key={tab}
+            type="button"
+            onClick={() => {
+              setActiveTab(tab);
+              router.replace("/dashboard", { scroll: false });
+            }}
+            className="relative px-4 h-11 text-sm font-medium transition-colors capitalize"
+            style={{
+              color:
+                activeTab === tab
+                  ? "var(--text-primary)"
+                  : "var(--text-muted)",
+            }}
           >
-            {theme === "dark" ? (
-              <Sun className="w-4 h-4" />
-            ) : (
-              <Moon className="w-4 h-4" />
+            {tab}
+            {activeTab === tab && (
+              <motion.div
+                layoutId="dashboard-main-tab-indicator"
+                className="absolute bottom-0 left-2 right-2 h-0.5 bg-indigo-500 rounded-full"
+              />
             )}
           </button>
-          <button
-            className="p-2 rounded-lg transition-colors hover:bg-white/5"
-            style={{ color: "var(--text-muted)" }}
-          >
-            <Bell className="w-4 h-4" />
-          </button>
-          <button
-            className="p-2 rounded-lg transition-colors hover:bg-white/5"
-            style={{ color: "var(--text-muted)" }}
-            onClick={() => setActiveTab("settings")}
-          >
-            <Settings className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => {
-              localStorage.clear();
-              router.push("/login");
-            }}
-            className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-[11px] font-bold text-white ml-1"
-            title="Sign out"
-          >
-            {userName.charAt(0).toUpperCase()}
-          </button>
-        </div>
+        ))}
       </nav>
 
-      {/* ─── Main Content ──── */}
-      <main className="flex-1 px-6 py-6 max-w-[1400px] w-full mx-auto">
+      <main className="px-6 py-6 max-w-[1400px] w-full mx-auto">
         {/* No workspace banner */}
         {!hasWorkspace && (
           <motion.div
@@ -648,7 +456,7 @@ export default function DashboardPage() {
               Create one to get started.
             </p>
             <button
-              onClick={() => setShowCreateWs(true)}
+              onClick={() => openCreateWorkspace()}
               className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors"
             >
               <FolderPlus className="w-4 h-4" />
@@ -893,12 +701,12 @@ export default function DashboardPage() {
                   </motion.div>
                 ) : (
                   <div
-                    className="rounded-xl border overflow-hidden"
+                    className="rounded-xl border overflow-visible"
                     style={{ borderColor: "var(--border-subtle)" }}
                   >
                     {/* Table header */}
                     <div
-                      className="grid border-b px-4 py-2.5"
+                      className="grid border-b px-4 py-2.5 rounded-t-xl"
                       style={{
                         gridTemplateColumns: "1fr 110px 70px 60px 120px 110px 40px",
                         borderColor: "var(--border-subtle)",
@@ -921,13 +729,16 @@ export default function DashboardPage() {
                     {/* Table rows */}
                     {filtered.map((wf, i) => {
                       const sc = STATUS_CONFIG[wf.status] || STATUS_CONFIG.DRAFT;
+                      const isLast = i === filtered.length - 1;
                       return (
                         <motion.div
                           key={wf.id}
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           transition={{ delay: i * 0.02 }}
-                          className="grid items-center px-4 py-3 border-b transition-colors cursor-pointer group"
+                          className={`grid items-center px-4 py-3 transition-colors cursor-pointer group ${
+                            isLast ? "rounded-b-xl border-b-0" : "border-b"
+                          }`}
                           style={{
                             gridTemplateColumns:
                               "1fr 110px 70px 60px 120px 110px 40px",
@@ -1022,12 +833,13 @@ export default function DashboardPage() {
                             {timeAgo(wf.createdAt)}
                           </span>
 
-                          {/* Actions */}
+                          {/* Actions — overflow-visible + high z-index so menu isn’t clipped by table */}
                           <div
-                            className="relative"
+                            className="relative z-20 overflow-visible"
                             onClick={(e) => e.stopPropagation()}
                           >
                             <button
+                              type="button"
                               onClick={() =>
                                 setRowMenuOpen(
                                   rowMenuOpen === wf.id ? null : wf.id,
@@ -1044,7 +856,7 @@ export default function DashboardPage() {
                                   initial={{ opacity: 0, scale: 0.95 }}
                                   animate={{ opacity: 1, scale: 1 }}
                                   exit={{ opacity: 0, scale: 0.95 }}
-                                  className="absolute right-0 top-full mt-1 w-40 rounded-xl border shadow-xl z-10 overflow-hidden"
+                                  className="absolute right-0 top-full mt-1 w-40 rounded-xl border shadow-2xl z-[200] overflow-hidden"
                                   style={{
                                     background: "var(--bg-card)",
                                     borderColor: "var(--border-subtle)",
@@ -1262,14 +1074,23 @@ export default function DashboardPage() {
           </div>
         )}
       </main>
+    </>
+  );
+}
 
-      {showCreateWs && (
-        <CreateWorkspaceModal
-          open={showCreateWs}
-          onOpenChange={setShowCreateWs}
-          onSuccess={() => refreshWorkspaces()}
-        />
-      )}
-    </div>
+export default function DashboardPage() {
+  return (
+    <Suspense
+      fallback={
+        <div
+          className="flex items-center justify-center py-24"
+          style={{ color: "var(--text-muted)" }}
+        >
+          <Loader2 className="w-6 h-6 animate-spin" />
+        </div>
+      }
+    >
+      <DashboardPageContent />
+    </Suspense>
   );
 }
