@@ -1,7 +1,11 @@
 import { Router } from "express";
 import prisma from "../db";
 import { authMiddleware, AuthRequest } from "../middleware";
-import { getComponentById } from "./componentCatalog";
+import {
+  getComponentById,
+  getComponentCatalog,
+  validateNodeConfig,
+} from "./componentCatalog";
 import OpenAI from "openai";
 
 const router = Router();
@@ -81,6 +85,14 @@ interface LlmWorkflowDraft {
 
 const OPENROUTER_MODEL =
   process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini";
+const OPENROUTER_FALLBACK_MODELS = (
+  process.env.OPENROUTER_FALLBACK_MODELS ||
+  "meta-llama/llama-3.3-70b-instruct:free"
+)
+  .split(",")
+  .map((m) => m.trim())
+  .filter(Boolean);
+const NODE_CONFIG_REPAIR_RETRIES = 2;
 
 function extractJsonObject(content: string): string {
   const trimmed = content.trim();
@@ -101,6 +113,40 @@ function extractJsonObject(content: string): string {
   }
 
   throw new Error("No JSON object found in LLM response");
+}
+
+function buildComponentPlanningContext(): string {
+  const catalog = getComponentCatalog();
+  const lines: string[] = [];
+  lines.push("Component planning reference:");
+  for (const component of catalog) {
+    lines.push(
+      `- ${component.id} (${component.category}): ${component.description}`,
+    );
+    for (const field of component.configFields) {
+      const attrs: string[] = [field.type];
+      if (field.required) attrs.push("required");
+      if (field.defaultValue !== undefined) {
+        attrs.push(`default=${JSON.stringify(field.defaultValue)}`);
+      }
+      if (field.showWhen) {
+        attrs.push(
+          `showWhen=${field.showWhen.field}:${JSON.stringify(field.showWhen.value)}`,
+        );
+      }
+      if (field.options?.length) {
+        const options = field.options
+          .map((o) => o.value)
+          .slice(0, 10)
+          .join("|");
+        attrs.push(`options=${options}`);
+      }
+      lines.push(
+        `  - ${field.key} [${attrs.join(", ")}]${field.description ? ` - ${field.description}` : ""}`,
+      );
+    }
+  }
+  return lines.join("\n");
 }
 
 function normalizeLlmDraft(
@@ -188,6 +234,152 @@ function normalizeLlmDraft(
   };
 }
 
+async function completeWithModelFallback(
+  client: OpenAI,
+  messages: Array<{ role: "system" | "user"; content: string }>,
+): Promise<{ content: string; model: string }> {
+  const modelsToTry = Array.from(
+    new Set([OPENROUTER_MODEL, ...OPENROUTER_FALLBACK_MODELS]),
+  );
+  let lastError: unknown;
+  for (const model of modelsToTry) {
+    const startedAt = Date.now();
+    try {
+      console.info("[workflow-generate] Trying model", { model });
+      const completion = await client.chat.completions.create({
+        model,
+        temperature: 0.2,
+        messages,
+      });
+      const content = completion.choices[0]?.message?.content;
+      if (!content) throw new Error(`LLM returned empty response for model ${model}`);
+      console.info("[workflow-generate] Model succeeded", {
+        model,
+        latencyMs: Date.now() - startedAt,
+      });
+      return { content, model };
+    } catch (error) {
+      lastError = error;
+      const maybe = error as {
+        status?: number;
+        error?: { message?: string };
+        message?: string;
+      };
+      console.warn("[workflow-generate] Model failed", {
+        model,
+        latencyMs: Date.now() - startedAt,
+        status: maybe?.status,
+        message: maybe?.error?.message || maybe?.message || String(error),
+      });
+    }
+  }
+
+  throw new Error(
+    `OpenRouter failed for all models. Last error: ${
+      (lastError as { message?: string })?.message || String(lastError)
+    }`,
+  );
+}
+
+async function repairNodeConfigWithLlm(
+  client: OpenAI,
+  node: GeneratedNode,
+  errors: Array<{ path: string; message: string }>,
+): Promise<Record<string, unknown> | null> {
+  const def = getComponentById(node.componentId);
+  if (!def) return null;
+
+  const system = [
+    "You repair workflow node configs.",
+    "Return ONLY valid JSON object for config (no markdown).",
+    "Use only known config keys and valid option values.",
+  ].join("\n");
+
+  const fieldContext = def.configFields
+    .map(
+      (f) =>
+        `- ${f.key} [${f.type}${f.required ? ", required" : ""}${f.options?.length ? `, options=${f.options.map((o) => o.value).join("|")}` : ""}]`,
+    )
+    .join("\n");
+
+  const user = [
+    `Component: ${def.id} (${def.name})`,
+    `Description: ${def.description}`,
+    "Fields:",
+    fieldContext,
+    `Current config JSON: ${JSON.stringify(node.config ?? {}, null, 2)}`,
+    `Validation errors: ${JSON.stringify(errors, null, 2)}`,
+    "Return repaired config JSON only.",
+  ].join("\n");
+
+  try {
+    const { content, model } = await completeWithModelFallback(client, [
+      { role: "system", content: system },
+      { role: "user", content: user },
+    ]);
+    const repairedJson = extractJsonObject(content);
+    const parsed = JSON.parse(repairedJson);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new Error("Repair output was not a config object");
+    }
+    console.info("[workflow-generate] Repaired node config with LLM", {
+      model,
+      componentId: def.id,
+      nodeId: node.tempId,
+    });
+    return parsed as Record<string, unknown>;
+  } catch (error) {
+    console.warn("[workflow-generate] Node config repair failed", {
+      componentId: def.id,
+      nodeId: node.tempId,
+      message: (error as { message?: string })?.message || String(error),
+    });
+    return null;
+  }
+}
+
+async function validateAndRepairGeneratedWorkflow(
+  client: OpenAI,
+  workflow: { name: string; description: string; nodes: GeneratedNode[]; edges: GeneratedEdge[] },
+): Promise<{ name: string; description: string; nodes: GeneratedNode[]; edges: GeneratedEdge[] }> {
+  const repairedNodes: GeneratedNode[] = [];
+
+  for (const node of workflow.nodes) {
+    let currentConfig = (node.config ?? {}) as Record<string, unknown>;
+    let validation = validateNodeConfig(node.componentId, currentConfig);
+    let attempt = 0;
+
+    while (!validation.ok && attempt < NODE_CONFIG_REPAIR_RETRIES) {
+      const repaired = await repairNodeConfigWithLlm(client, { ...node, config: currentConfig }, validation.errors);
+      if (!repaired) break;
+      currentConfig = repaired;
+      validation = validateNodeConfig(node.componentId, currentConfig);
+      attempt += 1;
+    }
+
+    if (!validation.ok) {
+      // If still invalid, keep original config so template fallback can still be used by caller.
+      console.warn("[workflow-generate] Node config still invalid after repair attempts", {
+        nodeId: node.tempId,
+        componentId: node.componentId,
+        errors: validation.errors,
+      });
+      repairedNodes.push(node);
+      continue;
+    }
+
+    repairedNodes.push({
+      ...node,
+      config: validation.value,
+    });
+  }
+
+  return {
+    ...workflow,
+    nodes: repairedNodes,
+  };
+}
+
 async function generateWorkflowWithLlm(prompt: string): Promise<{
   name: string;
   description: string;
@@ -203,34 +395,22 @@ async function generateWorkflowWithLlm(prompt: string): Promise<{
     apiKey,
     baseURL: "https://openrouter.ai/api/v1",
   });
-  const allowedComponents = [
-    "entry-point",
-    "http-request",
-    "slack-send",
-    "email-send",
-    "db-query",
-    "github",
-    "google-calendar",
-    "google-meet",
-    "google-docs",
-    "google-sheets",
-    "if-condition",
-    "switch-case",
-    "loop",
-    "ai-agent",
-    "text-transform",
-    "delay",
-    "error-handler",
-    "approval",
-    "artifact-writer",
-    "webhook-response",
-  ];
+  const allowedComponents = getComponentCatalog().map((c) => c.id);
+  const componentContext = buildComponentPlanningContext();
+  const plannerGuardrails = [
+    "Plan only with the listed components and field keys.",
+    "Pick minimum viable nodes first; avoid over-complicated graphs.",
+    "For each node config, include only valid keys from that component.",
+    "Use realistic defaults and preserve conditional logic requirements from showWhen.",
+    "If task implies external auth, prefer secret references like {{secrets.KEY}}.",
+    "Use branch labels on edges only for decision nodes (if/switch).",
+    "Return strictly valid JSON only.",
+  ].join("\n");
 
   const systemPrompt = [
     "You are an expert workflow planner.",
-    "Return ONLY valid JSON (no markdown).",
-    "Use only allowed componentId values.",
-    "Prefer practical defaults in config and include an entry-point node.",
+    plannerGuardrails,
+    "Prefer practical defaults in config and include an entry-point node as first node.",
     "Output shape:",
     "{",
     '  "name": "string",',
@@ -248,28 +428,35 @@ async function generateWorkflowWithLlm(prompt: string): Promise<{
     '  "edges": [{ "source": "node-1", "target": "node-2", "label": "optional" }]',
     "}",
     `Allowed componentIds: ${allowedComponents.join(", ")}`,
+    componentContext,
   ].join("\n");
 
-  const completion = await client.chat.completions.create({
-    model: OPENROUTER_MODEL,
-    temperature: 0.2,
-    messages: [
-      { role: "system", content: systemPrompt },
-      {
-        role: "user",
-        content: `Generate a workflow for this request:\n${prompt}`,
-      },
-    ],
+  const promptPreview =
+    prompt.length > 160 ? `${prompt.slice(0, 160)}...` : prompt;
+  console.info("[workflow-generate] LLM generation started", {
+    provider: "openrouter",
+    modelsToTry: Array.from(new Set([OPENROUTER_MODEL, ...OPENROUTER_FALLBACK_MODELS])),
+    promptLength: prompt.length,
+    promptPreview,
+    componentCount: allowedComponents.length,
   });
-
-  const content = completion.choices[0]?.message?.content;
-  if (!content) {
-    throw new Error("LLM returned empty response");
-  }
-
+  const { content, model } = await completeWithModelFallback(client, [
+    { role: "system", content: systemPrompt },
+    {
+      role: "user",
+      content: `Generate a workflow for this request:\n${prompt}`,
+    },
+  ]);
   const json = extractJsonObject(content);
   const parsed = JSON.parse(json) as LlmWorkflowDraft;
-  return normalizeLlmDraft(parsed, prompt);
+  const normalized = normalizeLlmDraft(parsed, prompt);
+  const validated = await validateAndRepairGeneratedWorkflow(client, normalized);
+  console.info("[workflow-generate] Generation completed", {
+    model,
+    nodeCount: validated.nodes.length,
+    edgeCount: validated.edges.length,
+  });
+  return validated;
 }
 
 async function generateWorkflowFromPrompt(prompt: string): Promise<{
@@ -283,7 +470,9 @@ async function generateWorkflowFromPrompt(prompt: string): Promise<{
     return await generateWorkflowWithLlm(prompt);
   } catch (llmError) {
     // Fall back to deterministic templates to keep UX resilient.
-    console.warn("LLM workflow generation failed, using template fallback:", llmError);
+    console.warn("[workflow-generate] LLM failed, using template fallback", {
+      message: (llmError as { message?: string })?.message || String(llmError),
+    });
   }
 
   const lowerPrompt = prompt.toLowerCase();

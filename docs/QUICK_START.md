@@ -1,12 +1,12 @@
-# Quick Start Guide - Workflow Components System
+# Quick Start Guide - Workflow Builder
 
 ## 🚀 Get Started in 5 Minutes
 
 ### 1. Open the Workflow Builder
 
-Navigate to:
+Navigate to the workflow editor from dashboard:
 ```
-http://localhost:3000/zap/create
+http://localhost:3000/dashboard
 ```
 
 ### 2. Choose Your Building Mode
@@ -28,7 +28,7 @@ You have three options:
 #### 🤖 AI Mode (Smart)
 - Describe your workflow in English
 - Click "Generate Workflow"
-- AI creates the graph for you
+- LLM generates and normalizes the graph for you
 - Best for: Complex automation
 
 ---
@@ -64,25 +64,25 @@ You have three options:
 
 ## 🎨 Understanding Node Types
 
-### 🔔 Triggers (Amber)
+### 🔔 Input (Amber)
 - Start your workflow
-- Examples: Webhook, File Upload, API, Scheduled
+- Example: Entry Point
 
-### 🧠 AI Agents (Purple)
+### 🧠 AI (Purple)
 - Intelligent processing
-- Examples: Summarization, Classification, Extraction
+- Examples: AI Agent, Text Transform
 
-### 🔧 Tools (Blue)
+### 🔧 Integrations (Blue)
 - External integrations
-- Examples: Slack, Gmail, Notion, CRM
+- Examples: HTTP, Slack, Email, GitHub, Google Calendar/Meet/Docs/Sheets
 
 ### ⚡ Logic (Green)
 - Control flow
-- Examples: Condition, Loop, Branch
+- Examples: If/Else, Switch, Loop
 
 ### 🎮 Control (Gray)
 - Manage execution
-- Examples: Approval, Delay, Verification
+- Examples: Approval, Delay, Error Handler
 
 ---
 
@@ -227,7 +227,8 @@ Click outside the panel or close it to save.
 ## 💬 Support
 
 ### Questions?
-- Check the full documentation: `WORKFLOW_COMPONENTS_SUMMARY.md`
+- Check the full documentation: `docs/NODE_REFERENCE.md`
+- Use docs index: `docs/README.md`
 - Review example workflows in Templates
 - Use "Explain Workflow" to understand any workflow
 

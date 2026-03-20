@@ -151,15 +151,11 @@ The `dev` command provides everything you need:
 ## 🎯 Core Features
 
 ### 1. AI Workflow Generator
-Describe workflows in natural language → AI generates the complete graph.
+Describe workflows in natural language and generate a complete graph.
 
-**Supported patterns:**
-- Meeting Intelligence
-- Customer Support
-- Sales Lead Qualification
-- Invoice Processing
-- Employee Onboarding
-- Incident Response
+- Uses OpenRouter for real LLM-based graph generation.
+- Validates and normalizes generated nodes/edges against supported components.
+- Falls back to deterministic template generators when model output is invalid.
 
 ### 2. Visual Workflow Builder (Design Mode)
 - Drag & drop nodes from palette
@@ -217,19 +213,19 @@ The `dev` command automatically creates all necessary environment files. However
 
 ```bash
 # Frontend
-frontend/.env.local
+frontend/.env.local (template: frontend/.env.local.example)
 
 # Backend
-primary-backend/.env
+primary-backend/.env (template: primary-backend/.env.example)
 
 # Hooks
-hooks/.env
+hooks/.env (template: hooks/.env.example)
 
 # Processor
-processor/.env
+processor/.env (template: processor/.env.example)
 
 # Worker
-worker/.env
+worker/.env (template: worker/.env.example)
 ```
 
 ### Hot Reload
@@ -405,7 +401,7 @@ Logs are available via:
 - PostgreSQL (Database)
 - Kafka (Event streaming)
 - Prisma (ORM)
-- OpenAI (AI models)
+- OpenRouter (LLM routing for generation and AI recovery paths)
 - JWT (Authentication)
 
 ### Infrastructure
@@ -430,7 +426,9 @@ docker compose -f docker-compose.prod.yml up -d
 Required for production:
 - `DATABASE_URL` - PostgreSQL connection string
 - `JWT_SECRET` - Secure random string
-- `OPENAI_API_KEY` - OpenAI API key
+- `OPENROUTER_API_KEY` - OpenRouter API key
+- `OPENROUTER_MODEL` - Chat model id (for example `openai/gpt-4o-mini`)
+- `OPENROUTER_EMBEDDING_MODEL` - Embedding model id (for example `openai/text-embedding-3-large`)
 - `KAFKA_BROKER` - Kafka broker URL
 
 **Google user OAuth (Calendar / Meet / Docs / Sheets “Connected account” in workflows):**
