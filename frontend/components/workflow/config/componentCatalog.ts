@@ -44,6 +44,14 @@ export interface ComponentConfigField {
   options?: ComponentOption[];
   /** Show this field only when another field has a specific value */
   showWhen?: { field: string; value: string | string[] };
+  /** Datetime-specific: Show seconds in time picker */
+  showSeconds?: boolean;
+  /** Datetime-specific: Use 12-hour format (AM/PM) instead of 24-hour */
+  hour12?: boolean;
+  /** Datetime-specific: Minimum allowed date (ISO 8601 format) */
+  minDate?: string;
+  /** Datetime-specific: Maximum allowed date (ISO 8601 format) */
+  maxDate?: string;
 }
 
 export interface ComponentDefinition {

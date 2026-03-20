@@ -34,7 +34,10 @@ export interface NodeTypeConfig {
   id: string;
   name: string;
   category: NodeCategory;
-  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
+  icon: React.ComponentType<{
+    className?: string;
+    style?: React.CSSProperties;
+  }>;
   description: string;
   color: string;
   bgColor: string;
@@ -97,12 +100,18 @@ export const NODE_TYPES: Record<string, NodeTypeConfig> = {
     name: "Entry Point",
     category: "input",
     icon: Zap,
-    description: "Starts a workflow via webhook, API call, schedule, or manual trigger.",
+    description:
+      "Starts a workflow via webhook, API call, schedule, or manual trigger.",
     color: "#f59e0b",
     bgColor: "bg-amber-50",
     borderColor: "border-amber-400",
     requiresConfig: true,
-    exampleWorkflows: ["Meeting Intelligence", "Customer Support", "Sales Outreach", "Incident Management"],
+    exampleWorkflows: [
+      "Meeting Intelligence",
+      "Customer Support",
+      "Sales Outreach",
+      "Incident Management",
+    ],
   },
 
   // Integration
@@ -111,7 +120,8 @@ export const NODE_TYPES: Record<string, NodeTypeConfig> = {
     name: "HTTP Request",
     category: "integration",
     icon: Globe,
-    description: "Performs an outbound HTTP request to an external API or service.",
+    description:
+      "Performs an outbound HTTP request to an external API or service.",
     color: "#3b82f6",
     bgColor: "bg-blue-50",
     borderColor: "border-blue-400",
@@ -123,7 +133,8 @@ export const NODE_TYPES: Record<string, NodeTypeConfig> = {
     name: "Slack Message",
     category: "integration",
     icon: SlackLogo,
-    description: "Sends a message to a Slack channel or user via webhook or Bot API.",
+    description:
+      "Sends a message to a Slack channel or user via webhook or Bot API.",
     color: "#3b82f6",
     bgColor: "bg-blue-50",
     borderColor: "border-blue-400",
@@ -147,7 +158,8 @@ export const NODE_TYPES: Record<string, NodeTypeConfig> = {
     name: "Database Query",
     category: "integration",
     icon: Database,
-    description: "Executes a SQL query or database operation against a connected database.",
+    description:
+      "Executes a SQL query or database operation against a connected database.",
     color: "#3b82f6",
     bgColor: "bg-blue-50",
     borderColor: "border-blue-400",
@@ -238,7 +250,8 @@ export const NODE_TYPES: Record<string, NodeTypeConfig> = {
     name: "Switch / Router",
     category: "logic",
     icon: GitBranch,
-    description: "Routes the workflow to different branches based on a value match.",
+    description:
+      "Routes the workflow to different branches based on a value match.",
     color: "#10b981",
     bgColor: "bg-emerald-50",
     borderColor: "border-emerald-400",
@@ -250,7 +263,8 @@ export const NODE_TYPES: Record<string, NodeTypeConfig> = {
     name: "Loop / Iterator",
     category: "logic",
     icon: RefreshCw,
-    description: "Iterates over an array and executes child steps for each item.",
+    description:
+      "Iterates over an array and executes child steps for each item.",
     color: "#10b981",
     bgColor: "bg-emerald-50",
     borderColor: "border-emerald-400",
@@ -264,19 +278,26 @@ export const NODE_TYPES: Record<string, NodeTypeConfig> = {
     name: "AI Agent",
     category: "ai",
     icon: Brain,
-    description: "Runs an LLM-powered agent to process, analyze, or generate content.",
+    description:
+      "Runs an LLM-powered agent to process, analyze, or generate content.",
     color: "#8b5cf6",
     bgColor: "bg-purple-50",
     borderColor: "border-purple-400",
     requiresConfig: true,
-    exampleWorkflows: ["Meeting Intelligence", "Customer Support", "Sales Outreach", "Incident Management"],
+    exampleWorkflows: [
+      "Meeting Intelligence",
+      "Customer Support",
+      "Sales Outreach",
+      "Incident Management",
+    ],
   },
   "text-transform": {
     id: "text-transform",
     name: "Text Transform",
     category: "ai",
     icon: FileText,
-    description: "Transforms text using templates, regex, or string operations.",
+    description:
+      "Transforms text using templates, regex, or string operations.",
     color: "#8b5cf6",
     bgColor: "bg-purple-50",
     borderColor: "border-purple-400",
@@ -302,7 +323,8 @@ export const NODE_TYPES: Record<string, NodeTypeConfig> = {
     name: "Error Handler",
     category: "control",
     icon: ShieldAlert,
-    description: "Catches and handles errors from upstream nodes with retry/fallback options.",
+    description:
+      "Catches and handles errors from upstream nodes with retry/fallback options.",
     color: "#6b7280",
     bgColor: "bg-gray-50",
     borderColor: "border-gray-400",
@@ -314,7 +336,8 @@ export const NODE_TYPES: Record<string, NodeTypeConfig> = {
     name: "Manual Approval",
     category: "control",
     icon: CheckCircle2,
-    description: "Pauses the workflow and waits for a human to approve or reject.",
+    description:
+      "Pauses the workflow and waits for a human to approve or reject.",
     color: "#6b7280",
     bgColor: "bg-gray-50",
     borderColor: "border-gray-400",
@@ -394,6 +417,14 @@ export interface ConfigField {
   rows?: number;
   /** Show this field only when another field has a specific value */
   showWhen?: { field: string; value: string | string[] };
+  /** Datetime-specific: Show seconds in time picker */
+  showSeconds?: boolean;
+  /** Datetime-specific: Use 12-hour format (AM/PM) instead of 24-hour */
+  hour12?: boolean;
+  /** Datetime-specific: Minimum allowed date (ISO 8601 format) */
+  minDate?: string;
+  /** Datetime-specific: Maximum allowed date (ISO 8601 format) */
+  maxDate?: string;
 }
 
 // Component-specific config schemas (mirroring backend componentCatalog configFields)
@@ -669,7 +700,8 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
       type: "textarea",
       required: true,
       rows: 6,
-      placeholder: "Hi {{payload.name}},\n\nYour report is ready.\n\nBest,\nAutoChain",
+      placeholder:
+        "Hi {{payload.name}},\n\nYour report is ready.\n\nBest,\nAutoChain",
       description: "Email body content — supports {{variable}} syntax",
     },
     {
@@ -702,7 +734,8 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
       type: "password",
       required: true,
       placeholder: "postgresql://user:pass@host:5432/db",
-      description: "Database connection URL (use {{secrets.DB_URL}} for security)",
+      description:
+        "Database connection URL (use {{secrets.DB_URL}} for security)",
     },
     {
       key: "operation",
@@ -751,7 +784,8 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
       label: "Personal Access Token",
       type: "password",
       placeholder: "ghp_… or {{secrets.GITHUB_TOKEN}}",
-      description: "Optional for public repo reads; required for private repos and create issue.",
+      description:
+        "Optional for public repo reads; required for private repos and create issue.",
     },
     {
       key: "owner",
@@ -814,8 +848,14 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
       required: true,
       defaultValue: "oauth_connection",
       options: [
-        { label: "Connected Google account (OAuth)", value: "oauth_connection" },
-        { label: "Manual — token / {{secrets.*}} / service account JSON", value: "manual" },
+        {
+          label: "Connected Google account (OAuth)",
+          value: "oauth_connection",
+        },
+        {
+          label: "Manual — token / {{secrets.*}} / service account JSON",
+          value: "manual",
+        },
       ],
     },
     {
@@ -836,7 +876,8 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
         { label: "Service account JSON", value: "service_account_json" },
       ],
       showWhen: { field: "authMode", value: "manual" },
-      description: "OAuth for user calendars; service account only if calendar is shared with the SA email.",
+      description:
+        "OAuth for user calendars; service account only if calendar is shared with the SA email.",
     },
     {
       key: "credentialsSecret",
@@ -844,7 +885,8 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
       type: "password",
       placeholder: "{{secrets.GOOGLE_CAL_OAUTH}}",
       showWhen: { field: "authMode", value: "manual" },
-      description: "Enable Calendar API in GCP; store token or SA JSON in Secrets when possible.",
+      description:
+        "Enable Calendar API in GCP; store token or SA JSON in Secrets when possible.",
     },
     {
       key: "calendarId",
@@ -959,8 +1001,14 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
       required: true,
       defaultValue: "oauth_connection",
       options: [
-        { label: "Connected Google account (OAuth)", value: "oauth_connection" },
-        { label: "Manual — token / {{secrets.*}} / service account JSON", value: "manual" },
+        {
+          label: "Connected Google account (OAuth)",
+          value: "oauth_connection",
+        },
+        {
+          label: "Manual — token / {{secrets.*}} / service account JSON",
+          value: "manual",
+        },
       ],
     },
     {
@@ -1004,8 +1052,14 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
       required: true,
       defaultValue: "create_scheduled_meeting",
       options: [
-        { label: "Create new event + Meet link", value: "create_scheduled_meeting" },
-        { label: "Attach Meet to existing event", value: "attach_meet_to_event" },
+        {
+          label: "Create new event + Meet link",
+          value: "create_scheduled_meeting",
+        },
+        {
+          label: "Attach Meet to existing event",
+          value: "attach_meet_to_event",
+        },
       ],
     },
     {
@@ -1052,8 +1106,14 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
       required: true,
       defaultValue: "oauth_connection",
       options: [
-        { label: "Connected Google account (OAuth)", value: "oauth_connection" },
-        { label: "Manual — token / {{secrets.*}} / service account JSON", value: "manual" },
+        {
+          label: "Connected Google account (OAuth)",
+          value: "oauth_connection",
+        },
+        {
+          label: "Manual — token / {{secrets.*}} / service account JSON",
+          value: "manual",
+        },
       ],
     },
     {
@@ -1140,8 +1200,14 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
       required: true,
       defaultValue: "oauth_connection",
       options: [
-        { label: "Connected Google account (OAuth)", value: "oauth_connection" },
-        { label: "Manual — token / {{secrets.*}} / service account JSON", value: "manual" },
+        {
+          label: "Connected Google account (OAuth)",
+          value: "oauth_connection",
+        },
+        {
+          label: "Manual — token / {{secrets.*}} / service account JSON",
+          value: "manual",
+        },
       ],
     },
     {
@@ -1232,7 +1298,8 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
       type: "text",
       required: true,
       placeholder: "payload.customer.tier",
-      description: "Dot-notation path to the value being evaluated (from previous step output)",
+      description:
+        "Dot-notation path to the value being evaluated (from previous step output)",
     },
     {
       key: "operator",
@@ -1259,7 +1326,8 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
       label: "Compare Against",
       type: "text",
       placeholder: "enterprise",
-      description: "The value to compare against (not needed for Is Empty / Exists)",
+      description:
+        "The value to compare against (not needed for Is Empty / Exists)",
     },
     {
       key: "caseSensitive",
@@ -1286,7 +1354,10 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
       type: "json",
       required: true,
       rows: 5,
-      defaultValue: [{ value: "typeA", label: "Type A" }, { value: "typeB", label: "Type B" }],
+      defaultValue: [
+        { value: "typeA", label: "Type A" },
+        { value: "typeB", label: "Type B" },
+      ],
       description: "Array of { value, label } objects defining each branch",
     },
     {
@@ -1349,6 +1420,7 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
         { label: "Google (Gemini)", value: "google" },
         { label: "OpenRouter", value: "openrouter" },
         { label: "Custom / Self-hosted", value: "custom" },
+        { label: "Local (Ollama)", value: "local" },
       ],
     },
     {
@@ -1366,15 +1438,37 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
         { label: "Claude 3 Haiku", value: "claude-3-haiku-20240307" },
         { label: "Gemini 1.5 Pro", value: "gemini-1.5-pro" },
         { label: "Gemini 1.5 Flash", value: "gemini-1.5-flash" },
+        { label: "Llama 3 (70B)", value: "llama3-70b" },
+        { label: "Llama 3 (8B)", value: "llama3-8b" },
+        { label: "Mistral Large", value: "mistral-large-latest" },
+        { label: "Custom Model Name", value: "custom" },
       ],
+    },
+    {
+      key: "customModelName",
+      label: "Custom Model Name",
+      type: "text",
+      placeholder: "e.g., meta-llama/Meta-Llama-3-70B",
+      description:
+        "Enter the exact model name for custom/self-hosted providers",
+      showWhen: { field: "model", value: "custom" },
+    },
+    {
+      key: "customUrl",
+      label: "Custom API URL",
+      type: "url",
+      placeholder: "https://api.example.com/v1",
+      description: "Custom API endpoint URL (for Custom/Self-hosted providers)",
+      showWhen: { field: "provider", value: ["custom", "local", "openrouter"] },
     },
     {
       key: "apiKey",
       label: "API Key",
       type: "password",
-      required: true,
+      required: false,
       placeholder: "sk-... or use {{secrets.OPENAI_KEY}}",
-      description: "Provider API key (use secret references for safety)",
+      description:
+        "Provider API key (use secret references for safety). Optional for local providers.",
     },
     {
       key: "systemPrompt",
@@ -1382,7 +1476,8 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
       type: "textarea",
       required: true,
       rows: 5,
-      placeholder: "You are a helpful assistant that summarizes customer feedback into actionable insights...",
+      placeholder:
+        "You are a helpful assistant that summarizes customer feedback into actionable insights...",
       description: "Instructions that define the agent's role and behavior",
     },
     {
@@ -1391,8 +1486,10 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
       type: "textarea",
       required: true,
       rows: 4,
-      placeholder: "Analyze the following feedback:\n\n{{payload.text}}\n\nProvide a summary and sentiment score.",
-      description: "Template for the user message — {{variable}} syntax supported",
+      placeholder:
+        "Analyze the following feedback:\n\n{{payload.text}}\n\nProvide a summary and sentiment score.",
+      description:
+        "Template for the user message — {{variable}} syntax supported",
     },
     {
       key: "temperature",
@@ -1422,6 +1519,87 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
         { label: "JSON", value: "json" },
       ],
       description: "Whether to request structured JSON output",
+    },
+    {
+      key: "memoryEnabled",
+      label: "Enable Memory",
+      type: "boolean",
+      defaultValue: false,
+      description:
+        "Enable AI agent memory to store and retrieve context across conversations",
+    },
+    {
+      key: "memoryType",
+      label: "Memory Type",
+      type: "select",
+      defaultValue: "vector",
+      options: [
+        { label: "Vector (Semantic Search)", value: "vector" },
+        { label: "Key-Value", value: "key_value" },
+        { label: "Conversation History", value: "conversation" },
+        { label: "Episodic (Events)", value: "episodic" },
+      ],
+      description: "How memory should be stored and retrieved",
+      showWhen: { field: "memoryEnabled", value: "true" },
+    },
+    {
+      key: "memoryConnectionId",
+      label: "Memory Connection ID",
+      type: "text",
+      placeholder: "e.g., pinecone_prod",
+      description: "ID of the vector database connection for memory storage",
+      showWhen: { field: "memoryEnabled", value: "true" },
+    },
+    {
+      key: "embeddingApiKey",
+      label: "Embedding API Key",
+      type: "password",
+      placeholder: "sk-... or use {{secrets.OPENAI_KEY}}",
+      description: "API key for generating embeddings (used for vector memory)",
+      showWhen: { field: "memoryType", value: "vector" },
+    },
+    {
+      key: "embeddingModel",
+      label: "Embedding Model",
+      type: "select",
+      defaultValue: "text-embedding-3-large",
+      options: [
+        { label: "text-embedding-3-large", value: "text-embedding-3-large" },
+        { label: "text-embedding-3-small", value: "text-embedding-3-small" },
+        { label: "text-embedding-ada-002", value: "text-embedding-ada-002" },
+      ],
+      description: "Model used to generate embeddings for vector memory",
+      showWhen: { field: "memoryType", value: "vector" },
+    },
+    {
+      key: "maxMemoryEntries",
+      label: "Max Memory Entries",
+      type: "number",
+      defaultValue: 1000,
+      min: 10,
+      max: 100000,
+      description: "Maximum number of entries to store in memory",
+      showWhen: { field: "memoryEnabled", value: "true" },
+    },
+    {
+      key: "knowledgeBaseEnabled",
+      label: "Enable Knowledge Base",
+      type: "boolean",
+      defaultValue: false,
+      description: "Enable knowledge base for the agent to reference documents",
+    },
+    {
+      key: "knowledgeDocuments",
+      label: "Knowledge Documents",
+      type: "multi-select",
+      options: [
+        { label: "Company Policies", value: "policies" },
+        { label: "Product Documentation", value: "product_docs" },
+        { label: "FAQ", value: "faq" },
+        { label: "Technical Guides", value: "technical" },
+      ],
+      description: "Select document collections for the knowledge base",
+      showWhen: { field: "knowledgeBaseEnabled", value: "true" },
     },
   ],
 
@@ -1456,8 +1634,10 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
       label: "Template / Pattern",
       type: "textarea",
       rows: 4,
-      placeholder: "Hello {{payload.name}}, your order #{{payload.orderId}} is ready.",
-      description: "Template string (for template op) or regex pattern (for regex op)",
+      placeholder:
+        "Hello {{payload.name}}, your order #{{payload.orderId}} is ready.",
+      description:
+        "Template string (for template op) or regex pattern (for regex op)",
     },
     {
       key: "replacement",
@@ -1588,7 +1768,8 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
       type: "textarea",
       required: true,
       rows: 3,
-      placeholder: "Please review the following order worth {{payload.total}}...",
+      placeholder:
+        "Please review the following order worth {{payload.total}}...",
       description: "Context message shown to the approver",
     },
     {
@@ -1715,13 +1896,7 @@ export const WORKFLOW_TEMPLATES = [
       "Notify via Slack",
       "Manual approval gate",
     ],
-    nodes: [
-      "entry-point",
-      "ai-agent",
-      "ai-agent",
-      "slack-send",
-      "approval",
-    ],
+    nodes: ["entry-point", "ai-agent", "ai-agent", "slack-send", "approval"],
   },
   {
     id: "customer-support",
@@ -1735,13 +1910,7 @@ export const WORKFLOW_TEMPLATES = [
       "Human approval",
       "Send email to customer",
     ],
-    nodes: [
-      "entry-point",
-      "ai-agent",
-      "ai-agent",
-      "approval",
-      "email-send",
-    ],
+    nodes: ["entry-point", "ai-agent", "ai-agent", "approval", "email-send"],
   },
   {
     id: "sales-outreach",

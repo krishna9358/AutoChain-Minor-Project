@@ -24,6 +24,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { BACKEND_URL } from "@/app/config";
 import { getAuthHeaders } from "@/lib/auth-token";
+import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 
 interface Secret {
   id: string;
@@ -63,6 +64,7 @@ const SECRET_TYPES = [
 
 export default function SecretsPage() {
   const router = useRouter();
+  const { activeWorkspace } = useWorkspace();
   const [secrets, setSecrets] = useState<Secret[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -96,10 +98,16 @@ export default function SecretsPage() {
   const [copiedSecret, setCopiedSecret] = useState<string | null>(null);
 
   const loadSecrets = useCallback(async () => {
+    if (!activeWorkspace?.id) {
+      setSecrets([]);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const res = await axios.get(`${BACKEND_URL}/api/v1/secrets`, {
         headers: getAuthHeaders(),
+        params: { workspaceId: activeWorkspace.id },
       });
       setSecrets(res.data);
     } catch (err: any) {
@@ -110,7 +118,7 @@ export default function SecretsPage() {
     } finally {
       setLoading(false);
     }
-  }, [router]);
+  }, [router, activeWorkspace?.id]);
 
   useEffect(() => {
     loadSecrets();
@@ -128,8 +136,12 @@ export default function SecretsPage() {
   const handleCreate = async () => {
     try {
       setSaving(true);
-      await axios.post(`${BACKEND_URL}/api/v1/secrets`, formData, {
+      await axios.post(
+        `${BACKEND_URL}/api/v1/secrets`,
+        { ...formData, workspaceId: activeWorkspace?.id },
+        {
         headers: getAuthHeaders(),
+        params: { workspaceId: activeWorkspace?.id },
       });
       setShowCreateModal(false);
       resetForm();
@@ -148,6 +160,7 @@ export default function SecretsPage() {
       setSaving(true);
       await axios.put(`${BACKEND_URL}/api/v1/secrets/${selectedSecret.id}`, formData, {
         headers: getAuthHeaders(),
+        params: { workspaceId: activeWorkspace?.id },
       });
       setShowEditModal(false);
       setSelectedSecret(null);
@@ -167,6 +180,7 @@ export default function SecretsPage() {
       setDeleting(true);
       await axios.delete(`${BACKEND_URL}/api/v1/secrets/${selectedSecret.id}`, {
         headers: getAuthHeaders(),
+        params: { workspaceId: activeWorkspace?.id },
       });
       setShowDeleteModal(false);
       setSelectedSecret(null);
@@ -184,6 +198,7 @@ export default function SecretsPage() {
       setRevealing((prev) => new Set([...prev, secretId]));
       const res = await axios.post(`${BACKEND_URL}/api/v1/secrets/${secretId}/reveal`, {}, {
         headers: getAuthHeaders(),
+        params: { workspaceId: activeWorkspace?.id },
       });
       setRevealedValues((prev) => ({ ...prev, [secretId]: res.data.value }));
       setRevealedSecrets((prev) => new Set([...prev, secretId]));

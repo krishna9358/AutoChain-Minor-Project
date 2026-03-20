@@ -23,6 +23,14 @@ router.get("/", authMiddleware, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: "No workspace found" });
     }
 
+    // Ensure user belongs to the requested workspace
+    const membership = await prisma.workspaceMember.findFirst({
+      where: { userId: req.userId, workspaceId: wsId },
+    });
+    if (!membership) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
     const secrets = await prisma.secret.findMany({
       where: { workspaceId: wsId },
       include: {
@@ -119,6 +127,13 @@ router.post("/", authMiddleware, async (req: AuthRequest, res) => {
 
     if (!wsId) {
       return res.status(400).json({ error: "No workspace found" });
+    }
+
+    const membership = await prisma.workspaceMember.findFirst({
+      where: { userId: req.userId, workspaceId: wsId },
+    });
+    if (!membership || membership.role === "VIEWER") {
+      return res.status(403).json({ error: "Access denied" });
     }
 
     // Check if key already exists in workspace

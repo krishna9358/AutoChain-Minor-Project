@@ -287,6 +287,8 @@ function WorkflowInner() {
   );
   const [leftOpen, setLeftOpen] = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
+  const [rightWidth, setRightWidth] = useState(360);
+  const [isResizingRight, setIsResizingRight] = useState(false);
 
   // Workflow data
   const [nodes, setNodes] = useState<Node[]>([]);
@@ -829,6 +831,27 @@ function WorkflowInner() {
     },
     [screenToFlowPosition, componentMap],
   );
+
+  useEffect(() => {
+    if (!isResizingRight) return;
+    const onMove = (event: MouseEvent) => {
+      const nextWidth = window.innerWidth - event.clientX;
+      setRightWidth(Math.max(320, Math.min(560, nextWidth)));
+    };
+    const onUp = () => setIsResizingRight(false);
+    const prevCursor = document.body.style.cursor;
+    const prevUserSelect = document.body.style.userSelect;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      document.body.style.cursor = prevCursor;
+      document.body.style.userSelect = prevUserSelect;
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [isResizingRight]);
 
   if (loading || wsLoading)
     return (
@@ -1615,15 +1638,26 @@ function WorkflowInner() {
             <motion.div
               key="right-open"
               initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 288, opacity: 1 }}
+              animate={{ width: rightWidth, opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
               transition={{ duration: 0.18, ease: "easeInOut" }}
-              className="shrink-0 border-l flex flex-col overflow-hidden"
+              className="relative shrink-0 border-l flex flex-col overflow-hidden"
               style={{
-                background: "var(--bg-secondary)",
+                background:
+                  "linear-gradient(180deg, var(--bg-secondary) 0%, color-mix(in srgb, var(--bg-secondary) 92%, #6366f1 8%) 100%)",
                 borderColor: "var(--border-subtle)",
               }}
             >
+              <div
+                className="absolute left-0 top-0 h-full w-2 cursor-col-resize group z-10"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  setIsResizingRight(true);
+                }}
+                title="Resize sidebar"
+              >
+                <div className="h-full w-px mx-auto bg-transparent group-hover:bg-indigo-500/40 transition-colors" />
+              </div>
               {selNode ? (
                 /* ── Node Properties ── */
                 <div className="flex flex-col h-full">
@@ -1748,6 +1782,18 @@ function WorkflowInner() {
                       >
                         Configuration
                       </label>
+                      {componentMap[selNode.data.componentId as string]
+                        ?.description ? (
+                        <p
+                          className="text-[11px] leading-relaxed mb-3"
+                          style={{ color: "var(--text-muted)" }}
+                        >
+                          {
+                            componentMap[selNode.data.componentId as string]
+                              .description
+                          }
+                        </p>
+                      ) : null}
                       {componentMap[selNode.data.componentId as string]?.configFields?.length ? (
                         <NodeConfigForm
                           nodeType={selNode.data.nodeType as string}

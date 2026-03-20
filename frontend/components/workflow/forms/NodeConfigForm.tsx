@@ -25,7 +25,12 @@ import { cn } from "@/lib/utils";
 import type { ComponentConfigField } from "../config/componentCatalog";
 import { BACKEND_URL } from "@/app/config";
 import { getAuthHeaders } from "@/lib/auth-token";
-import { datetimeLocalToIso, isoToDatetimeLocalValue } from "@/lib/workflow-datetime";
+import {
+  datetimeLocalToIso,
+  isoToDatetimeLocalValue,
+} from "@/lib/workflow-datetime";
+import { SecretSelector } from "./SecretSelector";
+import { DateTimePicker } from "./datepicker/DateTimePicker";
 
 interface NodeConfigFormProps {
   nodeType: string;
@@ -98,7 +103,9 @@ export const NodeConfigForm: React.FC<NodeConfigFormProps> = ({
         const Icon = FieldIcon[field.type] || Type;
         const value = config[field.key] ?? field.defaultValue ?? "";
         const isEmpty = value === "" || value === undefined || value === null;
-        const fieldErrors = (errors || []).filter((e) => e.startsWith(`${field.key}:`));
+        const fieldErrors = (errors || []).filter((e) =>
+          e.startsWith(`${field.key}:`),
+        );
 
         return (
           <div key={field.key} className="space-y-1.5">
@@ -124,7 +131,10 @@ export const NodeConfigForm: React.FC<NodeConfigFormProps> = ({
                 onChange={(e) => updateConfig(field.key, e.target.value)}
                 onKeyDown={(e) => e.stopPropagation()}
                 placeholder={field.placeholder}
-                className={cn(inputBaseClass, isEmpty && "placeholder:opacity-40")}
+                className={cn(
+                  inputBaseClass,
+                  isEmpty && "placeholder:opacity-40",
+                )}
                 style={{
                   background: "var(--input-bg, rgba(0,0,0,0.15))",
                   border: `1px solid ${isEmpty ? "var(--border-subtle)" : "var(--border-medium)"}`,
@@ -173,7 +183,10 @@ export const NodeConfigForm: React.FC<NodeConfigFormProps> = ({
                 min={field.min}
                 max={field.max}
                 step={field.max && field.max <= 2 ? 0.1 : 1}
-                className={cn(inputBaseClass, isEmpty && "placeholder:opacity-40")}
+                className={cn(
+                  inputBaseClass,
+                  isEmpty && "placeholder:opacity-40",
+                )}
                 style={{
                   background: "var(--input-bg, rgba(0,0,0,0.15))",
                   border: `1px solid ${isEmpty ? "var(--border-subtle)" : "var(--border-medium)"}`,
@@ -190,6 +203,7 @@ export const NodeConfigForm: React.FC<NodeConfigFormProps> = ({
                 placeholder={field.placeholder}
                 inputBaseClass={inputBaseClass}
                 isEmpty={isEmpty}
+                workspaceId={workspaceId}
               />
             )}
 
@@ -200,7 +214,10 @@ export const NodeConfigForm: React.FC<NodeConfigFormProps> = ({
                 onChange={(e) => updateConfig(field.key, e.target.value)}
                 onKeyDown={(e) => e.stopPropagation()}
                 placeholder={field.placeholder}
-                className={cn(inputBaseClass, isEmpty && "placeholder:opacity-40")}
+                className={cn(
+                  inputBaseClass,
+                  isEmpty && "placeholder:opacity-40",
+                )}
                 style={{
                   background: "var(--input-bg, rgba(0,0,0,0.15))",
                   border: `1px solid ${isEmpty ? "var(--border-subtle)" : "var(--border-medium)"}`,
@@ -217,7 +234,10 @@ export const NodeConfigForm: React.FC<NodeConfigFormProps> = ({
                 onChange={(e) => updateConfig(field.key, e.target.value)}
                 onKeyDown={(e) => e.stopPropagation()}
                 placeholder={field.placeholder}
-                className={cn(inputBaseClass, isEmpty && "placeholder:opacity-40")}
+                className={cn(
+                  inputBaseClass,
+                  isEmpty && "placeholder:opacity-40",
+                )}
                 style={{
                   background: "var(--input-bg, rgba(0,0,0,0.15))",
                   border: `1px solid ${isEmpty ? "var(--border-subtle)" : "var(--border-medium)"}`,
@@ -232,7 +252,10 @@ export const NodeConfigForm: React.FC<NodeConfigFormProps> = ({
                 <select
                   value={value}
                   onChange={(e) => updateConfig(field.key, e.target.value)}
-                  className={cn(inputBaseClass, "appearance-none cursor-pointer pr-8")}
+                  className={cn(
+                    inputBaseClass,
+                    "appearance-none cursor-pointer pr-8",
+                  )}
                   style={{
                     background: "var(--input-bg, rgba(0,0,0,0.15))",
                     border: "1px solid var(--border-medium)",
@@ -263,33 +286,17 @@ export const NodeConfigForm: React.FC<NodeConfigFormProps> = ({
             )}
 
             {field.type === "datetime" && (
-              <div className="space-y-1">
-                <input
-                  type="datetime-local"
-                  step={60}
-                  value={isoToDatetimeLocalValue(value)}
-                  onChange={(e) => {
-                    const iso = datetimeLocalToIso(e.target.value);
-                    updateConfig(field.key, iso);
-                  }}
-                  onKeyDown={(e) => e.stopPropagation()}
-                  className={cn(inputBaseClass, isEmpty && "placeholder:opacity-40")}
-                  style={{
-                    background: "var(--input-bg, rgba(0,0,0,0.15))",
-                    border: `1px solid ${isEmpty ? "var(--border-subtle)" : "var(--border-medium)"}`,
-                    color: "var(--text-primary)",
-                    borderColor: fieldErrors.length > 0 ? "#ef4444" : undefined,
-                  }}
-                />
-                {typeof value === "string" && value.trim() !== "" && (
-                  <p
-                    className="text-[10px] font-mono leading-relaxed break-all"
-                    style={{ color: "var(--text-muted)" }}
-                  >
-                    Stored as UTC: {value}
-                  </p>
-                )}
-              </div>
+              <DateTimePicker
+                value={value}
+                onChange={(v) => updateConfig(field.key, v)}
+                placeholder={field.placeholder || "Select date and time"}
+                mode="datetime"
+                preferredSide="left"
+                showSeconds={field.showSeconds ?? false}
+                minDate={field.minDate}
+                maxDate={field.maxDate}
+                className={cn(fieldErrors.length > 0 && "border-red-500")}
+              />
             )}
 
             {field.type === "boolean" && (
@@ -391,7 +398,10 @@ function GoogleAccountField({
     )
       .then(async (r) => {
         const body = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(typeof body.error === "string" ? body.error : r.statusText);
+        if (!r.ok)
+          throw new Error(
+            typeof body.error === "string" ? body.error : r.statusText,
+          );
         return body as typeof conns;
       })
       .then(setConns)
@@ -420,7 +430,10 @@ function GoogleAccountField({
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={(e) => e.stopPropagation()}
             disabled={loading}
-            className={cn(inputBaseClass, "appearance-none cursor-pointer pr-8 w-full")}
+            className={cn(
+              inputBaseClass,
+              "appearance-none cursor-pointer pr-8 w-full",
+            )}
             style={{
               background: "var(--input-bg, rgba(0,0,0,0.15))",
               border: `1px solid ${hasError ? "#ef4444" : "var(--border-medium)"}`,
@@ -465,7 +478,9 @@ function GoogleAccountField({
           Connect Google account…
         </Link>
         {conns.length === 0 && !loading && !fetchErr && (
-          <span style={{ color: "var(--text-muted)" }}>No connections yet for this workspace.</span>
+          <span style={{ color: "var(--text-muted)" }}>
+            No connections yet for this workspace.
+          </span>
         )}
       </div>
       {value &&
@@ -474,7 +489,8 @@ function GoogleAccountField({
         !conns.some((c) => c.id === value) && (
           <p className="text-[10px] text-amber-400/95 flex flex-wrap items-center gap-x-2 gap-y-1">
             <span>
-              This node still references an old Google connection (reconnect, copy, or DB reset). Pick an account again.
+              This node still references an old Google connection (reconnect,
+              copy, or DB reset). Pick an account again.
             </span>
             <button
               type="button"
@@ -496,40 +512,71 @@ function PasswordField({
   placeholder,
   inputBaseClass,
   isEmpty,
+  workspaceId,
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   inputBaseClass: string;
   isEmpty: boolean;
+  workspaceId?: string;
 }) {
   const [visible, setVisible] = useState(false);
+
   return (
-    <div className="relative">
-      <input
-        type={visible ? "text" : "password"}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyDown={(e) => e.stopPropagation()}
-        placeholder={placeholder}
-        className={cn(inputBaseClass, "pr-9", isEmpty && "placeholder:opacity-40")}
-        style={{
-          background: "var(--input-bg, rgba(0,0,0,0.15))",
-          border: `1px solid ${isEmpty ? "var(--border-subtle)" : "var(--border-medium)"}`,
-          color: "var(--text-primary)",
-        }}
-      />
-      <button
-        type="button"
-        onClick={() => setVisible(!visible)}
-        className="absolute right-2.5 top-1/2 -translate-y-1/2 opacity-50 hover:opacity-100 transition-opacity"
-      >
-        {visible ? (
-          <EyeOff className="w-3.5 h-3.5" style={{ color: "var(--text-muted)" }} />
-        ) : (
-          <Eye className="w-3.5 h-3.5" style={{ color: "var(--text-muted)" }} />
-        )}
-      </button>
+    <div className="flex gap-2">
+      <div className="relative flex-1">
+        <input
+          type={visible ? "text" : "password"}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={(e) => e.stopPropagation()}
+          placeholder={placeholder}
+          className={cn(
+            inputBaseClass,
+            "pr-9",
+            isEmpty && "placeholder:opacity-40",
+          )}
+          style={{
+            background: "var(--input-bg, rgba(0,0,0,0.15))",
+            border: `1px solid ${isEmpty ? "var(--border-subtle)" : "var(--border-medium)"}`,
+            color: "var(--text-primary)",
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => setVisible(!visible)}
+          className="absolute right-2.5 top-1/2 -translate-y-1/2 opacity-50 hover:opacity-100 transition-opacity"
+        >
+          {visible ? (
+            <EyeOff
+              className="w-3.5 h-3.5"
+              style={{ color: "var(--text-muted)" }}
+            />
+          ) : (
+            <Eye
+              className="w-3.5 h-3.5"
+              style={{ color: "var(--text-muted)" }}
+            />
+          )}
+        </button>
+      </div>
+      {workspaceId && (
+        <SecretSelector
+          workspaceId={workspaceId}
+          preferredSide="left"
+          onSelect={(secretRef) => {
+            // If field is empty, just set the secret reference
+            // If field has content, append it (or replace if user wants)
+            if (!value || value.startsWith("{{secrets.")) {
+              onChange(secretRef);
+            } else {
+              // Ask user or just append? For now, let's append with a space
+              onChange(value + " " + secretRef);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -546,14 +593,22 @@ function JsonEditor({
   rows: number;
 }) {
   const [raw, setRaw] = useState(() =>
-    typeof value === "object" ? JSON.stringify(value, null, 2) : String(value ?? ""),
+    typeof value === "object"
+      ? JSON.stringify(value, null, 2)
+      : String(value ?? ""),
   );
   const [hasError, setHasError] = useState(false);
   const commitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    const serialized = typeof value === "object" ? JSON.stringify(value, null, 2) : String(value ?? "");
-    if (serialized !== raw && !document.activeElement?.closest("[data-json-editor]")) {
+    const serialized =
+      typeof value === "object"
+        ? JSON.stringify(value, null, 2)
+        : String(value ?? "");
+    if (
+      serialized !== raw &&
+      !document.activeElement?.closest("[data-json-editor]")
+    ) {
       setRaw(serialized);
       setHasError(false);
     }
@@ -608,7 +663,9 @@ function JsonEditor({
         }}
       />
       {hasError && (
-        <p className="text-[10px] text-red-400 mt-1">Invalid JSON — will be saved on valid edit</p>
+        <p className="text-[10px] text-red-400 mt-1">
+          Invalid JSON — will be saved on valid edit
+        </p>
       )}
     </div>
   );

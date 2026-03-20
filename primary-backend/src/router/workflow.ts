@@ -25,6 +25,13 @@ router.post("/", authMiddleware, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: "No workspace found" });
     }
 
+    const membership = await prisma.workspaceMember.findFirst({
+      where: { userId: req.userId, workspaceId: wsId },
+    });
+    if (!membership || membership.role === "VIEWER") {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
     const inputNodes = Array.isArray(nodes) ? nodes : [];
     const nodeValidation = validateWorkflowNodes(inputNodes);
 
@@ -132,8 +139,15 @@ router.post("/", authMiddleware, async (req: AuthRequest, res) => {
 // List workflows
 router.get("/", authMiddleware, async (req: AuthRequest, res) => {
   try {
+    const requestedWorkspaceId =
+      typeof req.query.workspaceId === "string"
+        ? req.query.workspaceId.trim()
+        : "";
     const membership = await prisma.workspaceMember.findFirst({
-      where: { userId: req.userId },
+      where: requestedWorkspaceId
+        ? { userId: req.userId, workspaceId: requestedWorkspaceId }
+        : { userId: req.userId },
+      orderBy: { joinedAt: "asc" },
     });
 
     if (!membership) {
@@ -199,6 +213,21 @@ router.get("/:id", authMiddleware, async (req: AuthRequest, res) => {
       return res.status(404).json({ error: "Workflow not found" });
     }
 
+    const membership = await prisma.workspaceMember.findFirst({
+      where: { userId: req.userId, workspaceId: workflow.workspaceId },
+    });
+    if (!membership) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
+    const requestedWorkspaceId =
+      typeof req.query.workspaceId === "string"
+        ? req.query.workspaceId.trim()
+        : "";
+    if (requestedWorkspaceId && requestedWorkspaceId !== workflow.workspaceId) {
+      return res.status(404).json({ error: "Workflow not found" });
+    }
+
     res.json(workflow);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -209,6 +238,20 @@ router.get("/:id", authMiddleware, async (req: AuthRequest, res) => {
 router.put("/:id", authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { name, description, status, nodes, edges } = req.body;
+
+    const existing = await prisma.workflow.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, workspaceId: true },
+    });
+    if (!existing) {
+      return res.status(404).json({ error: "Workflow not found" });
+    }
+    const membership = await prisma.workspaceMember.findFirst({
+      where: { userId: req.userId, workspaceId: existing.workspaceId },
+    });
+    if (!membership || membership.role === "VIEWER") {
+      return res.status(403).json({ error: "Access denied" });
+    }
 
     const workflow = await prisma.workflow.update({
       where: { id: req.params.id },

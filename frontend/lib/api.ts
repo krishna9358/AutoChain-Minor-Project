@@ -3,6 +3,7 @@ import { BACKEND_URL } from "@/app/config";
 
 const IS_DEV = process.env.NEXT_PUBLIC_DEV_MODE === "true";
 const DEV_TOKEN = process.env.NEXT_PUBLIC_DEV_TOKEN || "dev-demo-token";
+const ACTIVE_WS_KEY = "autochain-active-workspace";
 
 // ─── Types ──────────────────────────────────────────────
 
@@ -70,12 +71,35 @@ const api = axios.create({
   },
 });
 
+function getActiveWorkspaceId(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(ACTIVE_WS_KEY);
+}
+
+function shouldScopeByWorkspace(url?: string): boolean {
+  if (!url) return false;
+  return (
+    url.startsWith("/api/v1/workflows") ||
+    url.startsWith("/api/v1/secrets") ||
+    url.startsWith("/api/v1/artifacts") ||
+    url.startsWith("/api/v1/api-keys")
+  );
+}
+
 api.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
     ensureDevToken();
     const token = localStorage.getItem("token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    const workspaceId = getActiveWorkspaceId();
+    if (workspaceId && shouldScopeByWorkspace(config.url)) {
+      config.params = config.params || {};
+      if (!("workspaceId" in config.params)) {
+        config.params.workspaceId = workspaceId;
+      }
     }
   }
   return config;
