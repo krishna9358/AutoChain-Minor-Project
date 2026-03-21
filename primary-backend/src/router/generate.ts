@@ -83,15 +83,50 @@ interface LlmWorkflowDraft {
   edges?: Array<{ source?: string; target?: string; label?: string }>;
 }
 
-const OPENROUTER_MODEL =
-  process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini";
-const OPENROUTER_FALLBACK_MODELS = (
-  process.env.OPENROUTER_FALLBACK_MODELS ||
-  "meta-llama/llama-3.3-70b-instruct:free"
-)
-  .split(",")
-  .map((m) => m.trim())
-  .filter(Boolean);
+// --- Provider configuration ---
+type LlmProvider = "groq" | "openrouter";
+
+interface ProviderConfig {
+  provider: LlmProvider;
+  baseURL: string;
+  apiKey: string;
+  models: string[];
+}
+
+function getProviderConfigs(): ProviderConfig[] {
+  const configs: ProviderConfig[] = [];
+
+  // Groq — primary (generous free tier, fast inference)
+  const groqKey = process.env.GROQ_API_KEY;
+  if (groqKey) {
+    const groqModel = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
+    const groqFallbacks = (process.env.GROQ_FALLBACK_MODELS || "llama-3.1-8b-instant,gemma2-9b-it")
+      .split(",").map((m) => m.trim()).filter(Boolean);
+    configs.push({
+      provider: "groq",
+      baseURL: "https://api.groq.com/openai/v1",
+      apiKey: groqKey,
+      models: Array.from(new Set([groqModel, ...groqFallbacks])),
+    });
+  }
+
+  // OpenRouter — fallback
+  const orKey = process.env.OPENROUTER_API_KEY;
+  if (orKey) {
+    const orModel = process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini";
+    const orFallbacks = (process.env.OPENROUTER_FALLBACK_MODELS || "meta-llama/llama-3.3-70b-instruct:free")
+      .split(",").map((m) => m.trim()).filter(Boolean);
+    configs.push({
+      provider: "openrouter",
+      baseURL: "https://openrouter.ai/api/v1",
+      apiKey: orKey,
+      models: Array.from(new Set([orModel, ...orFallbacks])),
+    });
+  }
+
+  return configs;
+}
+
 const NODE_CONFIG_REPAIR_RETRIES = 2;
 
 function extractJsonObject(content: string): string {
@@ -234,55 +269,76 @@ function normalizeLlmDraft(
   };
 }
 
+const RATE_LIMIT_RETRIES = 2;
+const RATE_LIMIT_BASE_DELAY_MS = 2000;
+
 async function completeWithModelFallback(
-  client: OpenAI,
   messages: Array<{ role: "system" | "user"; content: string }>,
-): Promise<{ content: string; model: string }> {
-  const modelsToTry = Array.from(
-    new Set([OPENROUTER_MODEL, ...OPENROUTER_FALLBACK_MODELS]),
-  );
+): Promise<{ content: string; model: string; provider: LlmProvider }> {
+  const providerConfigs = getProviderConfigs();
+  if (providerConfigs.length === 0) {
+    throw new Error("No LLM provider configured. Set GROQ_API_KEY or OPENROUTER_API_KEY.");
+  }
+
   let lastError: unknown;
-  for (const model of modelsToTry) {
-    const startedAt = Date.now();
-    try {
-      console.info("[workflow-generate] Trying model", { model });
-      const completion = await client.chat.completions.create({
-        model,
-        temperature: 0.2,
-        messages,
-      });
-      const content = completion.choices[0]?.message?.content;
-      if (!content) throw new Error(`LLM returned empty response for model ${model}`);
-      console.info("[workflow-generate] Model succeeded", {
-        model,
-        latencyMs: Date.now() - startedAt,
-      });
-      return { content, model };
-    } catch (error) {
-      lastError = error;
-      const maybe = error as {
-        status?: number;
-        error?: { message?: string };
-        message?: string;
-      };
-      console.warn("[workflow-generate] Model failed", {
-        model,
-        latencyMs: Date.now() - startedAt,
-        status: maybe?.status,
-        message: maybe?.error?.message || maybe?.message || String(error),
-      });
+  for (const config of providerConfigs) {
+    const client = new OpenAI({ apiKey: config.apiKey, baseURL: config.baseURL });
+
+    for (const model of config.models) {
+      for (let attempt = 0; attempt <= RATE_LIMIT_RETRIES; attempt++) {
+        const startedAt = Date.now();
+        try {
+          console.info("[workflow-generate] Trying model", { provider: config.provider, model, attempt });
+          const completion = await client.chat.completions.create({
+            model,
+            temperature: 0.2,
+            messages,
+          });
+          const content = completion.choices[0]?.message?.content;
+          if (!content) throw new Error(`LLM returned empty response for model ${model}`);
+          console.info("[workflow-generate] Model succeeded", {
+            provider: config.provider,
+            model,
+            latencyMs: Date.now() - startedAt,
+          });
+          return { content, model, provider: config.provider };
+        } catch (error) {
+          lastError = error;
+          const maybe = error as {
+            status?: number;
+            error?: { message?: string };
+            message?: string;
+          };
+          const status = maybe?.status;
+          console.warn("[workflow-generate] Model failed", {
+            provider: config.provider,
+            model,
+            attempt,
+            latencyMs: Date.now() - startedAt,
+            status,
+            message: maybe?.error?.message || maybe?.message || String(error),
+          });
+          if (status === 429 && attempt < RATE_LIMIT_RETRIES) {
+            const delay = RATE_LIMIT_BASE_DELAY_MS * Math.pow(2, attempt);
+            console.info("[workflow-generate] Rate limited, retrying after delay", { provider: config.provider, model, delayMs: delay });
+            await new Promise((resolve) => setTimeout(resolve, delay));
+            continue;
+          }
+          break;
+        }
+      }
     }
+    console.warn("[workflow-generate] All models exhausted for provider", { provider: config.provider });
   }
 
   throw new Error(
-    `OpenRouter failed for all models. Last error: ${
+    `All LLM providers failed. Last error: ${
       (lastError as { message?: string })?.message || String(lastError)
     }`,
   );
 }
 
 async function repairNodeConfigWithLlm(
-  client: OpenAI,
   node: GeneratedNode,
   errors: Array<{ path: string; message: string }>,
 ): Promise<Record<string, unknown> | null> {
@@ -313,7 +369,7 @@ async function repairNodeConfigWithLlm(
   ].join("\n");
 
   try {
-    const { content, model } = await completeWithModelFallback(client, [
+    const { content, model, provider } = await completeWithModelFallback([
       { role: "system", content: system },
       { role: "user", content: user },
     ]);
@@ -323,6 +379,7 @@ async function repairNodeConfigWithLlm(
       throw new Error("Repair output was not a config object");
     }
     console.info("[workflow-generate] Repaired node config with LLM", {
+      provider,
       model,
       componentId: def.id,
       nodeId: node.tempId,
@@ -339,7 +396,6 @@ async function repairNodeConfigWithLlm(
 }
 
 async function validateAndRepairGeneratedWorkflow(
-  client: OpenAI,
   workflow: { name: string; description: string; nodes: GeneratedNode[]; edges: GeneratedEdge[] },
 ): Promise<{ name: string; description: string; nodes: GeneratedNode[]; edges: GeneratedEdge[] }> {
   const repairedNodes: GeneratedNode[] = [];
@@ -350,7 +406,7 @@ async function validateAndRepairGeneratedWorkflow(
     let attempt = 0;
 
     while (!validation.ok && attempt < NODE_CONFIG_REPAIR_RETRIES) {
-      const repaired = await repairNodeConfigWithLlm(client, { ...node, config: currentConfig }, validation.errors);
+      const repaired = await repairNodeConfigWithLlm({ ...node, config: currentConfig }, validation.errors);
       if (!repaired) break;
       currentConfig = repaired;
       validation = validateNodeConfig(node.componentId, currentConfig);
@@ -386,15 +442,11 @@ async function generateWorkflowWithLlm(prompt: string): Promise<{
   nodes: GeneratedNode[];
   edges: GeneratedEdge[];
 }> {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    throw new Error("OPENROUTER_API_KEY is not configured");
+  const providerConfigs = getProviderConfigs();
+  if (providerConfigs.length === 0) {
+    throw new Error("No LLM provider configured. Set GROQ_API_KEY or OPENROUTER_API_KEY.");
   }
 
-  const client = new OpenAI({
-    apiKey,
-    baseURL: "https://openrouter.ai/api/v1",
-  });
   const allowedComponents = getComponentCatalog().map((c) => c.id);
   const componentContext = buildComponentPlanningContext();
   const plannerGuardrails = [
@@ -434,13 +486,12 @@ async function generateWorkflowWithLlm(prompt: string): Promise<{
   const promptPreview =
     prompt.length > 160 ? `${prompt.slice(0, 160)}...` : prompt;
   console.info("[workflow-generate] LLM generation started", {
-    provider: "openrouter",
-    modelsToTry: Array.from(new Set([OPENROUTER_MODEL, ...OPENROUTER_FALLBACK_MODELS])),
+    providers: providerConfigs.map((p) => ({ provider: p.provider, models: p.models })),
     promptLength: prompt.length,
     promptPreview,
     componentCount: allowedComponents.length,
   });
-  const { content, model } = await completeWithModelFallback(client, [
+  const { content, model, provider } = await completeWithModelFallback([
     { role: "system", content: systemPrompt },
     {
       role: "user",
@@ -450,8 +501,9 @@ async function generateWorkflowWithLlm(prompt: string): Promise<{
   const json = extractJsonObject(content);
   const parsed = JSON.parse(json) as LlmWorkflowDraft;
   const normalized = normalizeLlmDraft(parsed, prompt);
-  const validated = await validateAndRepairGeneratedWorkflow(client, normalized);
+  const validated = await validateAndRepairGeneratedWorkflow(normalized);
   console.info("[workflow-generate] Generation completed", {
+    provider,
     model,
     nodeCount: validated.nodes.length,
     edgeCount: validated.edges.length,
