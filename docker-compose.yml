@@ -111,8 +111,8 @@ services:
       - ./primary-backend/src:/app/src
       - ./primary-backend/prisma:/app/prisma
       - ./primary-backend/tsconfig.json:/app/tsconfig.json
-      - /app/node_modules
-      - /app/dist
+      - backend_node_modules:/app/node_modules
+      - backend_dist:/app/dist
     depends_on:
       postgres:
         condition: service_healthy
@@ -146,8 +146,8 @@ services:
     volumes:
       - ./hooks/src:/app/src
       - ./hooks/prisma:/app/prisma
-      - /app/node_modules
-      - /app/dist
+      - hooks_node_modules:/app/node_modules
+      - hooks_dist:/app/dist
     depends_on:
       postgres:
         condition: service_healthy
@@ -179,8 +179,8 @@ services:
     volumes:
       - ./processor/src:/app/src
       - ./processor/prisma:/app/prisma
-      - /app/node_modules
-      - /app/dist
+      - processor_node_modules:/app/node_modules
+      - processor_dist:/app/dist
     depends_on:
       postgres:
         condition: service_healthy
@@ -214,8 +214,8 @@ services:
     volumes:
       - ./worker/src:/app/src
       - ./worker/prisma:/app/prisma
-      - /app/node_modules
-      - /app/dist
+      - worker_node_modules:/app/node_modules
+      - worker_dist:/app/dist
     depends_on:
       postgres:
         condition: service_healthy
@@ -253,8 +253,8 @@ services:
       - ./frontend/components:/app/components
       - ./frontend/lib:/app/lib
       - ./frontend/public:/app/public
-      - /app/.next
-      - /app/node_modules
+      - frontend_next:/app/.next
+      - frontend_node_modules:/app/node_modules
     depends_on:
       backend:
         condition: service_healthy
@@ -275,6 +275,26 @@ volumes:
   zkdata:
     driver: local
   zklogs:
+    driver: local
+  backend_node_modules:
+    driver: local
+  backend_dist:
+    driver: local
+  hooks_node_modules:
+    driver: local
+  hooks_dist:
+    driver: local
+  processor_node_modules:
+    driver: local
+  processor_dist:
+    driver: local
+  worker_node_modules:
+    driver: local
+  worker_dist:
+    driver: local
+  frontend_node_modules:
+    driver: local
+  frontend_next:
     driver: local
 
 networks:
