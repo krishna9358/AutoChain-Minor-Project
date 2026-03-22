@@ -11,6 +11,7 @@ import {
   getWorkspaceSecretsMap,
   applySecretsToWorkflowNodes,
 } from "../services/workspaceSecretResolver";
+import { broadcastRunUpdate } from "../utils/wsBroadcast";
 
 /** API keys scoped to a workspace may only touch workflows in that workspace. User-wide keys require membership. */
 async function assertApiKeyCanAccessWorkflowWorkspace(
@@ -295,6 +296,35 @@ function buildParentMap(
     parents.set(edge.targetNodeId, arr);
   }
   return parents;
+}
+
+/**
+ * Find a fallback edge originating from a failed node.
+ * A fallback edge is identified by `condition: { type: "fallback" }` or `label`
+ * containing the word "fallback" (case-insensitive).
+ */
+function findFallbackEdge(edges: any[], failedNodeId: string): any | null {
+  return (
+    edges.find((edge) => {
+      if (edge.sourceNodeId !== failedNodeId) return false;
+      // Check condition JSON
+      if (
+        edge.condition &&
+        typeof edge.condition === "object" &&
+        (edge.condition as Record<string, unknown>).type === "fallback"
+      ) {
+        return true;
+      }
+      // Check label
+      if (
+        typeof edge.label === "string" &&
+        edge.label.toLowerCase().includes("fallback")
+      ) {
+        return true;
+      }
+      return false;
+    }) || null
+  );
 }
 
 function normalizeTriggerPayload(raw: unknown): Record<string, unknown> {
@@ -754,6 +784,14 @@ async function simulateExecution(runId: string, nodes: any[], edges: any[]) {
     // Simulate node execution
     const startTime = Date.now();
 
+    broadcastRunUpdate({
+      type: "step_started",
+      runId,
+      nodeId,
+      nodeLabel: node.label || node.nodeType || nodeId,
+      timestamp: new Date().toISOString(),
+    });
+
     await prisma.runStep.updateMany({
       where: { runId, nodeId },
       data: { status: "RUNNING", startedAt: new Date() },
@@ -820,11 +858,25 @@ async function simulateExecution(runId: string, nodes: any[], edges: any[]) {
 
         try {
           const result = await NodeExecutorFactory.executeNode(baseNode, execContext);
-          output = result.status === "error"
-            ? { error: result.error?.message || "Executor error", ...result.output }
-            : result.output;
+          if (result.status === "error") {
+            const errMsg = result.error?.message || "Executor error";
+            // Check for fallback edge before treating as a soft error
+            const fallbackEdge = findFallbackEdge(edges, nodeId);
+            if (fallbackEdge && nodeIds.has(fallbackEdge.targetNodeId)) {
+              // Throw so the catch block handles fallback routing uniformly
+              throw new Error(errMsg);
+            }
+            output = { error: errMsg, ...result.output };
+          } else {
+            output = result.output;
+          }
         } catch (execErr: any) {
-          // Executor threw; fall back to mock output
+          // If there is a fallback edge, re-throw to reach the outer catch handler
+          const fb = findFallbackEdge(edges, nodeId);
+          if (fb && nodeIds.has(fb.targetNodeId)) {
+            throw execErr;
+          }
+          // No fallback - fall back to mock output (original behavior)
           console.warn(`[execution] Executor for "${executorKey}" threw, falling back to mock: ${execErr.message}`);
           output = generateNodeOutput(node);
         }
@@ -903,6 +955,16 @@ async function simulateExecution(runId: string, nodes: any[], edges: any[]) {
         },
       });
 
+      broadcastRunUpdate({
+        type: "step_completed",
+        runId,
+        nodeId,
+        nodeLabel: node.label || node.nodeType || nodeId,
+        status: "COMPLETED",
+        executionTimeMs,
+        timestamp: new Date().toISOString(),
+      });
+
       // Queue next nodes only on success
       const nextNodes = adjacency.get(nodeId) || [];
       for (const next of nextNodes) {
@@ -926,11 +988,66 @@ async function simulateExecution(runId: string, nodes: any[], edges: any[]) {
           },
         },
       });
-      // Continue BFS - do not push next nodes so downstream is skipped
+
+      broadcastRunUpdate({
+        type: "step_failed",
+        runId,
+        nodeId,
+        nodeLabel: node.label || node.nodeType || nodeId,
+        error: nodeErr.message || "Node execution failed",
+        executionTimeMs,
+        timestamp: new Date().toISOString(),
+      });
+
+      // Self-healing: check for fallback edges and route to alternate node
+      const fallbackEdge = findFallbackEdge(edges, nodeId);
+      if (fallbackEdge && nodeIds.has(fallbackEdge.targetNodeId)) {
+        const fallbackNodeId = fallbackEdge.targetNodeId;
+        const fallbackNode = nodes.find((n) => n.id === fallbackNodeId);
+        const fallbackLabel = fallbackNode?.label || fallbackNode?.nodeType || fallbackNodeId;
+        const failedLabel = node.label || node.nodeType || nodeId;
+        const errorMsg = nodeErr.message || "Node execution failed";
+
+        console.log(
+          `[self-healing] Node "${failedLabel}" failed. Routing to fallback node "${fallbackLabel}".`,
+        );
+
+        // Create a RunStep documenting the self-healing decision
+        await prisma.runStep.create({
+          data: {
+            runId,
+            nodeId: fallbackNodeId,
+            status: "PENDING",
+            reasoningSummary: `Node "${failedLabel}" failed with error: ${errorMsg}. Self-healed by routing to fallback node "${fallbackLabel}".`,
+          },
+        });
+
+        // Pass the failed node's error info as input context for the fallback node
+        outputMap.set(nodeId, {
+          error: errorMsg,
+          fallback_triggered: true,
+          original_node: failedLabel,
+        });
+
+        broadcastRunUpdate({
+          type: "step_fallback",
+          runId,
+          nodeId: fallbackNodeId,
+          nodeLabel: fallbackLabel,
+          reasoningSummary: `Node "${failedLabel}" failed with error: ${errorMsg}. Self-healed by routing to fallback node "${fallbackLabel}".`,
+          timestamp: new Date().toISOString(),
+        });
+
+        // Queue the fallback node for execution
+        queue.push(fallbackNodeId);
+      }
+      // If no fallback edge, downstream is skipped (original behavior)
     }
   }
 
   // Check if any steps failed and reflect that in the run status
+  // Nodes that self-healed via fallback are still marked FAILED, but if all
+  // fallback paths completed we consider the overall run as COMPLETED.
   const failedSteps = await prisma.runStep.count({
     where: { runId, status: "FAILED" },
   });
@@ -942,6 +1059,13 @@ async function simulateExecution(runId: string, nodes: any[], edges: any[]) {
       completedAt: new Date(),
       ...(failedSteps > 0 && { error: `${failedSteps} node(s) failed during execution` }),
     },
+  });
+
+  broadcastRunUpdate({
+    type: failedSteps > 0 ? "run_failed" : "run_completed",
+    runId,
+    ...(failedSteps > 0 && { error: `${failedSteps} node(s) failed during execution` }),
+    timestamp: new Date().toISOString(),
   });
 }
 
@@ -1088,15 +1212,47 @@ async function resumeExecution(runId: string, nodes: any[], edges: any[], startN
       const nextNodes = adjacency.get(nodeId) || [];
       for (const next of nextNodes) queue.push(next);
     } catch (nodeErr: any) {
+      const executionTimeMs = Date.now() - startTime;
       await prisma.runStep.updateMany({
         where: { runId, nodeId },
         data: {
           status: "FAILED",
           completedAt: new Date(),
-          executionTimeMs: Date.now() - startTime,
+          executionTimeMs,
           error: nodeErr.message || "Node execution failed",
         },
       });
+
+      // Self-healing: check for fallback edges and route to alternate node
+      const fallbackEdge = findFallbackEdge(edges, nodeId);
+      if (fallbackEdge && nodeIds.has(fallbackEdge.targetNodeId)) {
+        const fallbackNodeId = fallbackEdge.targetNodeId;
+        const fallbackNode = nodes.find((n) => n.id === fallbackNodeId);
+        const fallbackLabel = fallbackNode?.label || fallbackNode?.nodeType || fallbackNodeId;
+        const failedLabel = node.label || node.nodeType || nodeId;
+        const errorMsg = nodeErr.message || "Node execution failed";
+
+        console.log(
+          `[self-healing] Node "${failedLabel}" failed (resume). Routing to fallback node "${fallbackLabel}".`,
+        );
+
+        await prisma.runStep.create({
+          data: {
+            runId,
+            nodeId: fallbackNodeId,
+            status: "PENDING",
+            reasoningSummary: `Node "${failedLabel}" failed with error: ${errorMsg}. Self-healed by routing to fallback node "${fallbackLabel}".`,
+          },
+        });
+
+        outputMap.set(nodeId, {
+          error: errorMsg,
+          fallback_triggered: true,
+          original_node: failedLabel,
+        });
+
+        queue.push(fallbackNodeId);
+      }
     }
   }
 
@@ -1502,5 +1658,287 @@ router.get("/events/:runId", dualAuthMiddleware([ApiScope.READ]), async (req: Au
     clearInterval(keepAliveInterval);
   });
 });
+
+// ─── SLA Health Monitoring ────────────────────────────────────────
+router.get(
+  "/sla-health",
+  dualAuthMiddleware([ApiScope.READ]),
+  async (req: AuthRequest, res) => {
+    try {
+      const workflowId = req.query.workflowId as string;
+      if (!workflowId) {
+        return res.status(400).json({ error: "workflowId query parameter is required" });
+      }
+
+      const workflow = await prisma.workflow.findUnique({
+        where: { id: workflowId },
+        select: { id: true, name: true, workspaceId: true, nodes: true },
+      });
+
+      if (!workflow) {
+        return res.status(404).json({ error: "Workflow not found" });
+      }
+
+      const gate = await assertApiKeyCanAccessWorkflowWorkspace(req, workflow.workspaceId);
+      if (!gate.ok) {
+        return res.status(gate.status).json(gate.body);
+      }
+
+      // Get last 20 completed/failed runs
+      const recentRuns = await prisma.workflowRun.findMany({
+        where: {
+          workflowId,
+          status: { in: ["COMPLETED", "FAILED"] },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+        select: { id: true },
+      });
+
+      if (recentRuns.length === 0) {
+        return res.json({
+          workflowId: workflow.id,
+          workflowName: workflow.name,
+          overallHealth: "healthy" as const,
+          totalRuns: 0,
+          nodeMetrics: [],
+          recentBreaches: [],
+        });
+      }
+
+      const runIds = recentRuns.map((r) => r.id);
+
+      // Get all steps for these runs that have a nodeId and execution time
+      const steps = await prisma.runStep.findMany({
+        where: {
+          runId: { in: runIds },
+          nodeId: { not: null },
+          executionTimeMs: { not: null },
+        },
+        select: {
+          runId: true,
+          nodeId: true,
+          executionTimeMs: true,
+          completedAt: true,
+          node: {
+            select: { id: true, label: true, nodeType: true, config: true },
+          },
+        },
+      });
+
+      // Group steps by nodeId
+      const nodeStepMap = new Map<
+        string,
+        {
+          node: { id: string; label: string; nodeType: string; config: any };
+          execTimes: number[];
+          stepDetails: { runId: string; executionTimeMs: number; timestamp: string }[];
+        }
+      >();
+
+      for (const step of steps) {
+        if (!step.nodeId || !step.node || step.executionTimeMs == null) continue;
+        let entry = nodeStepMap.get(step.nodeId);
+        if (!entry) {
+          entry = { node: step.node, execTimes: [], stepDetails: [] };
+          nodeStepMap.set(step.nodeId, entry);
+        }
+        entry.execTimes.push(step.executionTimeMs);
+        entry.stepDetails.push({
+          runId: step.runId,
+          executionTimeMs: step.executionTimeMs,
+          timestamp: step.completedAt?.toISOString() ?? new Date().toISOString(),
+        });
+      }
+
+      const nodeMetrics: Array<{
+        nodeId: string;
+        nodeLabel: string;
+        nodeType: string;
+        avgExecutionTimeMs: number;
+        maxExecutionTimeMs: number;
+        expectedDurationMs: number;
+        slaStatus: "healthy" | "warning" | "breach";
+        breachCount: number;
+        totalExecutions: number;
+      }> = [];
+
+      const recentBreaches: Array<{
+        runId: string;
+        nodeLabel: string;
+        executionTimeMs: number;
+        expectedMs: number;
+        exceededByMs: number;
+        timestamp: string;
+      }> = [];
+
+      let overallHealth: "healthy" | "warning" | "breach" = "healthy";
+
+      for (const [, entry] of nodeStepMap) {
+        const { node, execTimes, stepDetails } = entry;
+        const config = (node.config && typeof node.config === "object") ? node.config as Record<string, any> : {};
+        const expectedDurationMs = Number(config.expectedDurationMs) || 30000;
+
+        const avg = execTimes.reduce((a, b) => a + b, 0) / execTimes.length;
+        const max = Math.max(...execTimes);
+        const breachCount = execTimes.filter((t) => t > expectedDurationMs).length;
+
+        let slaStatus: "healthy" | "warning" | "breach" = "healthy";
+        if (avg > expectedDurationMs) {
+          slaStatus = "breach";
+        } else if (avg > expectedDurationMs * 0.8) {
+          slaStatus = "warning";
+        }
+
+        if (slaStatus === "breach") overallHealth = "breach";
+        else if (slaStatus === "warning" && overallHealth !== "breach") overallHealth = "warning";
+
+        nodeMetrics.push({
+          nodeId: node.id,
+          nodeLabel: node.label,
+          nodeType: node.nodeType,
+          avgExecutionTimeMs: Math.round(avg),
+          maxExecutionTimeMs: max,
+          expectedDurationMs,
+          slaStatus,
+          breachCount,
+          totalExecutions: execTimes.length,
+        });
+
+        for (const detail of stepDetails) {
+          if (detail.executionTimeMs > expectedDurationMs) {
+            recentBreaches.push({
+              runId: detail.runId,
+              nodeLabel: node.label,
+              executionTimeMs: detail.executionTimeMs,
+              expectedMs: expectedDurationMs,
+              exceededByMs: detail.executionTimeMs - expectedDurationMs,
+              timestamp: detail.timestamp,
+            });
+          }
+        }
+      }
+
+      recentBreaches.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+      res.json({
+        workflowId: workflow.id,
+        workflowName: workflow.name,
+        overallHealth,
+        totalRuns: recentRuns.length,
+        nodeMetrics,
+        recentBreaches: recentBreaches.slice(0, 20),
+      });
+    } catch (err: any) {
+      console.error("SLA health error:", err);
+      res.status(500).json({ error: err.message });
+    }
+  },
+);
+
+// ─── Decision Audit Trail ─────────────────────────────────────────
+router.get(
+  "/runs/:runId/decisions",
+  dualAuthMiddleware([ApiScope.READ]),
+  async (req: AuthRequest, res) => {
+    try {
+      const { runId } = req.params;
+
+      const wsId = await loadRunWorkspaceId(runId);
+      if (!wsId) {
+        return res.status(404).json({ error: "Run not found" });
+      }
+      const gate = await assertApiKeyCanAccessWorkflowWorkspace(req, wsId);
+      if (!gate.ok) {
+        return res.status(gate.status).json(gate.body);
+      }
+
+      const run = await prisma.workflowRun.findUnique({
+        where: { id: runId },
+        include: {
+          workflow: { select: { id: true, name: true, edges: true } },
+          steps: {
+            where: {
+              OR: [
+                { reasoningSummary: { not: null } },
+                { agentName: { not: null } },
+              ],
+            },
+            include: {
+              node: {
+                select: {
+                  id: true,
+                  label: true,
+                  nodeType: true,
+                  category: true,
+                },
+              },
+            },
+            orderBy: { startedAt: "asc" },
+          },
+        },
+      });
+
+      if (!run) {
+        return res.status(404).json({ error: "Run not found" });
+      }
+
+      // Build a set of node IDs that are targets of fallback edges
+      const fallbackTargetIds = new Set<string>();
+      for (const edge of (run.workflow.edges || []) as any[]) {
+        const isFallbackEdge =
+          (edge.condition &&
+            typeof edge.condition === "object" &&
+            (edge.condition as Record<string, unknown>).type === "fallback") ||
+          (typeof edge.label === "string" &&
+            edge.label.toLowerCase().includes("fallback"));
+        if (isFallbackEdge) {
+          fallbackTargetIds.add(edge.targetNodeId);
+        }
+      }
+
+      // Truncate large payloads for the summary view
+      const truncatePayload = (payload: any, maxKeys = 5): any => {
+        if (!payload || typeof payload !== "object") return payload;
+        const keys = Object.keys(payload);
+        if (keys.length <= maxKeys) return payload;
+        const truncated: Record<string, unknown> = {};
+        for (const key of keys.slice(0, maxKeys)) {
+          truncated[key] = payload[key];
+        }
+        truncated["__truncated"] = `${keys.length - maxKeys} more fields`;
+        return truncated;
+      };
+
+      const decisions = run.steps.map((step) => ({
+        stepId: step.id,
+        nodeId: step.nodeId || "",
+        nodeLabel: step.node?.label || step.node?.nodeType || "Unknown",
+        agentName: step.agentName || "System",
+        status: step.status,
+        reasoningSummary: step.reasoningSummary || "",
+        inputSummary: truncatePayload(step.inputPayload as any),
+        outputSummary: truncatePayload(step.outputPayload as any),
+        executionTimeMs: step.executionTimeMs || 0,
+        retryCount: step.retryCount,
+        timestamp:
+          step.startedAt?.toISOString() || step.createdAt.toISOString(),
+        isFallback: step.nodeId
+          ? fallbackTargetIds.has(step.nodeId)
+          : false,
+      }));
+
+      res.json({
+        runId: run.id,
+        workflowName: run.workflow.name,
+        totalDecisions: decisions.length,
+        decisions,
+      });
+    } catch (err: any) {
+      console.error("Decision trail error:", err);
+      res.status(500).json({ error: err.message });
+    }
+  },
+);
 
 export const executionRouter = router;

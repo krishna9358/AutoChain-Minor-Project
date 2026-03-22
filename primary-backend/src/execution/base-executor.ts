@@ -185,6 +185,10 @@ export abstract class BaseNodeExecutor {
   ): NodeExecutionResult {
     const errorDetails = this.parseError(error);
 
+    // When retries are exhausted, signal that fallback routing should be attempted
+    const maxRetries = node.retry_policy?.retries || 0;
+    const retriesExhausted = retryCount > maxRetries && maxRetries > 0;
+
     return {
       node_id: node.node_id,
       status: "error",
@@ -200,6 +204,7 @@ export abstract class BaseNodeExecutor {
       metadata: {
         ...node.metadata,
         error_type: errorDetails.type,
+        fallback_recommended: retriesExhausted,
       },
     };
   }

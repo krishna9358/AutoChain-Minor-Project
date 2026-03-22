@@ -4,10 +4,12 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Activity,
   Archive,
   ChevronLeft,
   ChevronRight,
   Cloud,
+  FileSearch,
   Key,
   KeyRound,
   LayoutDashboard,
@@ -57,6 +59,18 @@ export function DashboardSidebar() {
       label: "Audit logs",
       Icon: ScrollText,
       match: (p: string) => p.startsWith("/dashboard/audit-logs"),
+    },
+    {
+      href: "/dashboard/decision-trail",
+      label: "Decision Trail",
+      Icon: FileSearch,
+      match: (p: string) => p.startsWith("/dashboard/decision-trail"),
+    },
+    {
+      href: "/dashboard/sla-monitor",
+      label: "SLA Monitor",
+      Icon: Activity,
+      match: (p: string) => p.startsWith("/dashboard/sla-monitor"),
     },
   ];
 

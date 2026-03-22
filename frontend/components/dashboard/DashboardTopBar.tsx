@@ -17,6 +17,7 @@ import {
   ChevronsUpDown,
   Check,
   FolderPlus,
+  LogOut,
 } from "lucide-react";
 
 export function DashboardTopBar() {
@@ -235,16 +236,27 @@ export function DashboardTopBar() {
         >
           <Settings className="w-4 h-4" />
         </button>
+        <div
+          className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-[11px] font-bold text-white ml-1"
+          title={userName}
+        >
+          {userName.charAt(0).toUpperCase()}
+        </div>
         <button
           type="button"
           onClick={() => {
-            localStorage.clear();
+            localStorage.removeItem("token");
+            localStorage.removeItem("autochain-auth-token");
+            localStorage.removeItem("user");
+            document.cookie =
+              "autochain-auth-token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/";
             router.push("/login");
           }}
-          className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-[11px] font-bold text-white ml-1"
+          className="p-2 rounded-lg transition-colors hover:bg-red-500/10"
+          style={{ color: "var(--text-muted)" }}
           title="Sign out"
         >
-          {userName.charAt(0).toUpperCase()}
+          <LogOut className="w-4 h-4" />
         </button>
       </div>
     </header>

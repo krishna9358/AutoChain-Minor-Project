@@ -1760,7 +1760,7 @@ export const NODE_CONFIG_SCHEMA: Record<string, ConfigField[]> = {
       type: "text",
       required: true,
       placeholder: "manager@company.com, lead@company.com",
-      description: "Comma-separated list of users who can approve",
+      description: "Comma-separated list of users who can approve. Email notifications coming soon — approvals are currently handled in-app only.",
     },
     {
       key: "message",

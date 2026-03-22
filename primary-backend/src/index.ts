@@ -1,8 +1,11 @@
 import express from "express";
+import { createServer } from "http";
+import { WebSocketServer } from "ws";
 import cors from "cors";
 import bcrypt from "bcryptjs";
 import prisma from "./db";
 import { DEV_USER_ID } from "./middleware";
+import { registerClient } from "./utils/wsBroadcast";
 import { userRouter } from "./router/user";
 import { workflowRouter } from "./router/workflow";
 import { workspaceRouter } from "./router/workspace";
@@ -19,7 +22,14 @@ import { artifactsRouter } from "./router/artifacts";
 import { googleOAuthRouter } from "./router/googleOAuth";
 
 const app = express();
+const server = createServer(app);
+const wss = new WebSocketServer({ server, path: "/ws" });
 const PORT = process.env.PORT || 3001;
+
+wss.on("connection", (ws) => {
+  registerClient(ws);
+  ws.send(JSON.stringify({ type: "connected", timestamp: new Date().toISOString() }));
+});
 
 async function ensureDevUser() {
   if (process.env.NODE_ENV === "production") return;
@@ -93,7 +103,7 @@ app.use("/api/v1/artifacts", artifactsRouter);
 app.use("/api/v1/integrations/google", googleOAuthRouter);
 
 ensureDevUser().then(() => {
-  app.listen(PORT, () => {
+  server.listen(PORT, () => {
     console.log(`AutoChain AI Backend running on port ${PORT}`);
   });
 });
