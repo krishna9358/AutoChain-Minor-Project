@@ -4,7 +4,8 @@ import {
   NodeExecutionContext,
 } from '../../types/nodes';
 import { getConnectionManager } from '../../connections/manager';
-import { OpenAI } from 'openai';
+import { embed } from "ai";
+import { getAIProvider } from "../../utils/aiProvider";
 import { Pinecone, Index, RecordMetadata } from '@pinecone-database/pinecone';
 import weaviate, { WeaviateClient, ObjectsBatcher } from 'weaviate-ts-client';
 import { ChromaClient, Collection } from 'chromadb';
@@ -1055,24 +1056,16 @@ export class MemoryNodeExecutor extends BaseNodeExecutor {
     text: string,
     model: string
   ): Promise<number[]> {
-    const apiKey = process.env.OPENROUTER_API_KEY;
-    if (!apiKey) {
-      throw new Error("OpenRouter API key not configured for embeddings");
-    }
-
-    const openai = new OpenAI({
-      apiKey,
-      baseURL: "https://openrouter.ai/api/v1",
-    });
+    const provider = getAIProvider();
     const embeddingModel =
       process.env.OPENROUTER_EMBEDDING_MODEL || model || "openai/text-embedding-3-large";
 
-    const response = await openai.embeddings.create({
-      model: embeddingModel,
-      input: text,
+    const { embedding } = await embed({
+      model: provider.embedding(embeddingModel),
+      value: text,
     });
 
-    return response.data[0].embedding;
+    return embedding;
   }
 
   /**

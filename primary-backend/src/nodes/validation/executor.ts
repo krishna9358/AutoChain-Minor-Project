@@ -3,7 +3,8 @@ import {
   ValidationNode,
   NodeExecutionContext,
 } from "../../types/nodes";
-import OpenAI from "openai";
+import { generateText } from "ai";
+import { getAIProvider, getDefaultModel } from "../../utils/aiProvider";
 import { safeEval } from "../../utils/safeEval";
 
 /**
@@ -273,17 +274,6 @@ export class ValidationNodeExecutor extends BaseNodeExecutor {
   ): Promise<any> {
     const startTime = Date.now();
 
-    // Initialize AI client
-    const apiKey = aiConfig?.api_key?.startsWith('env.')
-      ? process.env[aiConfig.api_key.substring(4)]
-      : aiConfig?.api_key;
-
-    if (!apiKey) {
-      throw new Error("AI API key not configured for validation");
-    }
-
-    const openai = new OpenAI({ apiKey });
-
     // Get data to validate
     const data = context.input_data;
     const validationRules = typeof rules === 'string' ? rules : JSON.stringify(rules);
@@ -312,17 +302,19 @@ Respond in JSON format with the following structure:
 ${JSON.stringify(data, null, 2)}`;
 
     try {
-      const completion = await openai.chat.completions.create({
-        model: aiConfig.model || 'gpt-4',
+      const provider = getAIProvider();
+      const model = aiConfig?.model || getDefaultModel();
+
+      const { text } = await generateText({
+        model: provider(model),
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
         ],
         temperature: 0.3,
-        response_format: { type: 'json_object' },
       });
 
-      const result = JSON.parse(completion.choices[0].message.content || "{}");
+      const result = JSON.parse(text || "{}");
 
       return {
         passed: result.passed || false,
@@ -330,7 +322,7 @@ ${JSON.stringify(data, null, 2)}`;
         details: {
           explanation: result.explanation || '',
           validation_type: 'ai',
-          model: aiConfig.model,
+          model,
         },
         errors: result.issues || [],
         duration_ms: Date.now() - startTime,

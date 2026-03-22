@@ -1,7 +1,8 @@
 import { BaseNodeExecutor } from "../../execution/base-executor";
 import { AgentNode, NodeExecutionContext } from "../../types/nodes";
 import { getConnectionManager } from "../../connections/manager";
-import OpenAI from "openai";
+import { generateText } from "ai";
+import { createOpenAI } from "@ai-sdk/openai";
 import axios from "axios";
 
 /**
@@ -67,61 +68,87 @@ export class AgentNodeExecutor extends BaseNodeExecutor {
   }
 
   /**
-   * Initialize AI model client based on configuration
+   * Initialize AI model provider using Vercel AI SDK's createOpenAI.
+   * Works with any OpenAI-compatible endpoint (OpenAI, Groq, OpenRouter, Ollama, etc.).
    */
   private initializeModelClient(modelConfig: any): any {
-    const apiKey = this.resolveApiKey(modelConfig.api_key);
+    const provider = modelConfig.provider || "custom";
 
-    switch (modelConfig.provider) {
+    switch (provider) {
       case "openai":
-        return new OpenAI({
-          apiKey: apiKey,
-          dangerouslyAllowBrowser: false,
+        return createOpenAI({
+          apiKey: this.resolveApiKey(modelConfig.api_key),
+          compatibility: "compatible",
         });
 
       case "anthropic":
-        // Anthropic client initialization
-        return {
-          provider: "anthropic",
-          apiKey: apiKey,
-          model: modelConfig.model,
-        };
+        return createOpenAI({
+          apiKey: this.resolveApiKey(modelConfig.api_key),
+          baseURL: "https://api.anthropic.com/v1",
+          compatibility: "compatible",
+        });
 
       case "google":
-        // Google AI client initialization
-        return {
-          provider: "google",
-          apiKey: apiKey,
-          model: modelConfig.model,
-        };
+        return createOpenAI({
+          apiKey: this.resolveApiKey(modelConfig.api_key),
+          baseURL: "https://generativelanguage.googleapis.com/v1beta/openai",
+          compatibility: "compatible",
+        });
 
       case "azure":
-        // Azure OpenAI client initialization
-        return {
-          provider: "azure",
-          apiKey: apiKey,
-          endpoint: modelConfig.endpoint,
-          model: modelConfig.model,
-        };
+        return createOpenAI({
+          apiKey: this.resolveApiKey(modelConfig.api_key),
+          baseURL: modelConfig.endpoint,
+          compatibility: "compatible",
+        });
 
       case "openrouter":
-        // OpenRouter is OpenAI-compatible - use OpenAI client with custom baseURL
-        return new OpenAI({
-          apiKey: apiKey,
+        return createOpenAI({
+          apiKey: this.resolveApiKey(modelConfig.api_key),
           baseURL: "https://openrouter.ai/api/v1",
-          dangerouslyAllowBrowser: false,
+          compatibility: "compatible",
+        });
+
+      case "groq":
+        return createOpenAI({
+          apiKey: this.resolveApiKey(modelConfig.api_key),
+          baseURL: "https://api.groq.com/openai/v1",
+          compatibility: "compatible",
         });
 
       case "local":
-        // Local model client (Ollama, etc.)
-        return {
-          provider: "local",
-          baseURL: modelConfig.baseURL || "http://localhost:11434",
-          model: modelConfig.model,
-        };
+        return createOpenAI({
+          apiKey: "ollama",
+          baseURL: modelConfig.baseURL || "http://localhost:11434/v1",
+          compatibility: "compatible",
+        });
 
-      default:
-        throw new Error(`Unsupported model provider: ${modelConfig.provider}`);
+      case "custom":
+      default: {
+        const apiKey =
+          modelConfig.api_key
+            ? this.resolveApiKey(modelConfig.api_key)
+            : process.env.AI_API_KEY ||
+              process.env.GROQ_API_KEY ||
+              process.env.OPENROUTER_API_KEY;
+
+        const baseURL =
+          modelConfig.baseURL ||
+          process.env.AI_BASE_URL ||
+          (process.env.GROQ_API_KEY
+            ? "https://api.groq.com/openai/v1"
+            : "https://openrouter.ai/api/v1");
+
+        if (!apiKey) {
+          throw new Error("No AI API key configured");
+        }
+
+        return createOpenAI({
+          apiKey,
+          baseURL,
+          compatibility: "compatible",
+        });
+      }
     }
   }
 
@@ -272,20 +299,24 @@ export class AgentNodeExecutor extends BaseNodeExecutor {
   }
 
   /**
-   * Execute AI tool
+   * Execute AI tool using Vercel AI SDK
    */
   private async executeAITool(connection: any, params: any): Promise<any> {
-    const openai = new OpenAI({
+    const provider = createOpenAI({
       apiKey: connection.credentials.api_key,
+      compatibility: "compatible",
     });
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4",
+    const result = await generateText({
+      model: provider("gpt-4"),
       messages: params.messages || [],
       temperature: params.temperature || 0.7,
     });
 
-    return completion.choices[0].message;
+    return {
+      role: "assistant",
+      content: result.text,
+    };
   }
 
   /**
@@ -504,22 +535,22 @@ Instructions: ${node.instructions || "Create a step-by-step plan to accomplish t
 Analyze the task, break it down into steps, and determine which tools to use for each step. Be specific and detailed.`;
 
     const messages = [
-      { role: "system", content: systemPrompt },
+      { role: "system" as const, content: systemPrompt },
       {
-        role: "user",
+        role: "user" as const,
         content: `Input data: ${JSON.stringify(context.input_data, null, 2)}`,
       },
     ];
 
-    const completion = await this.callModel(
+    const text = await this.callModel(
       modelClient,
       messages,
       node.model_config,
     );
 
     return {
-      output: completion.content || completion.text,
-      reasoning: completion.reasoning || "",
+      output: text,
+      reasoning: "",
       tool_calls: [],
       iterations: 1,
       execution_time_ms: 0,
@@ -556,7 +587,7 @@ Available tools: ${this.getToolDescriptions(tools)}
 
 For each step, decide which tool to use and provide the parameters. Continue until the goal is accomplished.`;
 
-    let messages = [
+    let messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
       { role: "system", content: systemPrompt },
       {
         role: "user",
@@ -574,62 +605,55 @@ For each step, decide which tool to use and provide the parameters. Continue unt
     while (iterations < maxIterations) {
       iterations++;
 
-      // Call model to get next action
-      const completion = await this.callModelWithTools(
+      // Call model with tools to get next action
+      const result = await this.callModelWithTools(
         modelClient,
         messages,
         node.model_config,
         tools,
       );
 
-      reasoning = completion.reasoning || "";
-
-      // Check if tool call was requested
-      if (completion.tool_calls && completion.tool_calls.length > 0) {
-        for (const toolCall of completion.tool_calls) {
-          const tool = tools.get(toolCall.function.name);
+      // Check if tool calls were made
+      if (result.toolCalls && result.toolCalls.length > 0) {
+        for (const tc of result.toolCalls) {
+          const tool = tools.get(tc.toolName);
 
           if (!tool) {
-            throw new Error(`Tool not found: ${toolCall.function.name}`);
+            throw new Error(`Tool not found: ${tc.toolName}`);
           }
 
-          // Parse tool arguments
-          const args = JSON.parse(toolCall.function.arguments);
-
           // Execute tool
-          const toolResult = await tool.execute(args);
+          const toolResult = await tool.execute(tc.args);
 
           toolCalls.push({
-            tool: toolCall.function.name,
-            arguments: args,
+            tool: tc.toolName,
+            arguments: tc.args,
             result: toolResult,
             timestamp: new Date().toISOString(),
           });
 
-          toolsUsed.push(toolCall.function.name);
-
-          // Add tool result to conversation
-          messages.push({
-            role: "assistant",
-            content: "",
-            tool_calls: [toolCall],
-          } as any);
-
-          messages.push({
-            role: "tool",
-            tool_call_id: toolCall.id,
-            content: JSON.stringify(toolResult),
-          } as any);
+          toolsUsed.push(tc.toolName);
 
           decisions.push({
             type: "tool_executed",
-            tool: toolCall.function.name,
+            tool: tc.toolName,
             success: true,
           });
         }
+
+        // Add assistant response and tool results into conversation for next iteration
+        messages.push({
+          role: "assistant",
+          content: result.text || `Used tools: ${result.toolCalls.map((tc: any) => tc.toolName).join(", ")}`,
+        });
+
+        messages.push({
+          role: "user",
+          content: `Tool results:\n${toolCalls.slice(-result.toolCalls.length).map((tc: any) => `${tc.tool}: ${JSON.stringify(tc.result)}`).join("\n")}`,
+        });
       } else {
-        // Agent is done
-        finalOutput = completion.content || completion.text;
+        // Agent is done - no more tool calls
+        finalOutput = result.text;
         break;
       }
     }
@@ -666,7 +690,7 @@ Instructions: ${node.instructions || "Analyze the data thoroughly and provide cl
 
 Provide structured analysis with key findings, patterns, and recommendations.`;
 
-    let messages = [
+    let messages: Array<{ role: "system" | "user"; content: string }> = [
       { role: "system", content: systemPrompt },
       {
         role: "user",
@@ -687,15 +711,15 @@ Provide structured analysis with key findings, patterns, and recommendations.`;
       }
     }
 
-    const completion = await this.callModel(
+    const text = await this.callModel(
       modelClient,
       messages,
       node.model_config,
     );
 
     return {
-      output: completion.content || completion.text,
-      reasoning: completion.reasoning || "",
+      output: text,
+      reasoning: "",
       tool_calls: [],
       iterations: 1,
       execution_time_ms: 0,
@@ -736,14 +760,14 @@ Provide step-by-step recovery instructions and specify which tools to use.`;
       : "No error details available";
 
     const messages = [
-      { role: "system", content: systemPrompt },
+      { role: "system" as const, content: systemPrompt },
       {
-        role: "user",
+        role: "user" as const,
         content: `${errorContext}\n\nInput data: ${JSON.stringify(context.input_data, null, 2)}`,
       },
     ];
 
-    const completion = await this.callModelWithTools(
+    const result = await this.callModelWithTools(
       modelClient,
       messages,
       node.model_config,
@@ -751,9 +775,9 @@ Provide step-by-step recovery instructions and specify which tools to use.`;
     );
 
     return {
-      output: completion.content || completion.text,
-      reasoning: completion.reasoning || "",
-      tool_calls: completion.tool_calls || [],
+      output: result.text,
+      reasoning: "",
+      tool_calls: result.toolCalls || [],
       iterations: 1,
       execution_time_ms: 0,
       memory_used: false,
@@ -770,81 +794,120 @@ Provide step-by-step recovery instructions and specify which tools to use.`;
   }
 
   /**
-   * Call model with messages
+   * Call model using Vercel AI SDK's generateText
    */
   private async callModel(
-    modelClient: any,
+    provider: any,
     messages: any[],
     modelConfig: any,
-  ): Promise<any> {
+  ): Promise<string> {
+    const model =
+      modelConfig.model ||
+      process.env.AI_MODEL ||
+      "llama-3.3-70b-versatile";
+
     try {
-      if (modelClient.provider === "openai" || modelClient.chat) {
-        const completion = await modelClient.chat.completions.create({
-          model: modelConfig.model,
-          messages: messages,
-          temperature: modelConfig.temperature || 0.7,
-          max_tokens: modelConfig.max_tokens,
-        });
+      const result = await generateText({
+        model: provider(model),
+        messages,
+        temperature: modelConfig.temperature ?? 0.7,
+        maxTokens: modelConfig.max_tokens ?? 4000,
+      });
 
-        return {
-          content: completion.choices[0].message.content,
-          reasoning: null,
-        };
-      }
-
-      // Handle other providers
-      return {
-        content: "Model response",
-        reasoning: null,
-      };
+      return result.text;
     } catch (error: any) {
       throw new Error(`Model call failed: ${error.message}`);
     }
   }
 
   /**
-   * Call model with tools (function calling)
+   * Call model with tools using Vercel AI SDK's generateText
    */
   private async callModelWithTools(
-    modelClient: any,
+    provider: any,
     messages: any[],
     modelConfig: any,
     tools: Map<string, any>,
   ): Promise<any> {
+    const model =
+      modelConfig.model ||
+      process.env.AI_MODEL ||
+      "llama-3.3-70b-versatile";
+
     try {
-      if (modelClient.provider === "openai" || modelClient.chat) {
-        // Convert tools to OpenAI function format
-        const functions = Array.from(tools.values())
-          .map((tool) => tool.getSchema())
-          .filter(Boolean);
+      // Build tool descriptions into the system prompt so the model can
+      // reason about them, but use generateText without the AI SDK tool
+      // parameter to keep compatibility with all OpenAI-compatible endpoints
+      // (many don't support the tools/functions API). The model is instructed
+      // to output JSON tool-call blocks which we parse below.
+      const toolSchemas = Array.from(tools.entries()).map(([name, t]) => {
+        const schema = t.getSchema();
+        return schema
+          ? { name, description: schema.function.description, parameters: schema.function.parameters }
+          : { name, description: "Generic tool", parameters: {} };
+      });
 
-        const completion = await modelClient.chat.completions.create({
-          model: modelConfig.model,
-          messages: messages,
-          temperature: modelConfig.temperature || 0.7,
-          max_tokens: modelConfig.max_tokens,
-          functions: functions,
-          function_call: "auto",
-        });
+      const toolInstructions = `\nYou have access to the following tools. To call a tool, respond with a JSON block:
+\`\`\`tool_call
+{"tool": "<tool_name>", "arguments": {<args>}}
+\`\`\`
 
-        const message = completion.choices[0].message;
+Available tools:
+${toolSchemas.map((t) => `- ${t.name}: ${t.description}\n  Parameters: ${JSON.stringify(t.parameters)}`).join("\n")}
 
-        return {
-          content: message.content || "",
-          reasoning: null,
-          tool_calls: message.function_calls || [],
-        };
-      }
+If you do not need to call a tool, respond normally without a tool_call block.`;
 
-      // Handle other providers
+      const augmentedMessages = [
+        ...messages.slice(0, 1).map((m: any) => ({
+          ...m,
+          content: m.content + toolInstructions,
+        })),
+        ...messages.slice(1),
+      ];
+
+      const result = await generateText({
+        model: provider(model),
+        messages: augmentedMessages,
+        temperature: modelConfig.temperature ?? 0.7,
+        maxTokens: modelConfig.max_tokens ?? 4000,
+      });
+
+      // Parse tool calls from the response text
+      const parsedToolCalls = this.parseToolCalls(result.text);
+
       return {
-        content: "Model response",
-        reasoning: null,
-        tool_calls: [],
+        text: result.text,
+        toolCalls: parsedToolCalls,
       };
     } catch (error: any) {
       throw new Error(`Model call with tools failed: ${error.message}`);
     }
+  }
+
+  /**
+   * Parse tool call blocks from model response text.
+   * Looks for ```tool_call ... ``` fenced blocks containing JSON.
+   */
+  private parseToolCalls(text: string): Array<{ toolName: string; args: any }> {
+    const toolCalls: Array<{ toolName: string; args: any }> = [];
+    const regex = /```tool_call\s*\n?([\s\S]*?)```/g;
+    let match;
+
+    while ((match = regex.exec(text)) !== null) {
+      try {
+        const parsed = JSON.parse(match[1].trim());
+        if (parsed.tool) {
+          toolCalls.push({
+            toolName: parsed.tool,
+            args: parsed.arguments || {},
+          });
+        }
+      } catch {
+        // Skip malformed tool call blocks
+      }
+    }
+
+    return toolCalls;
   }
 
   /**

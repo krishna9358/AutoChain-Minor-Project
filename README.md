@@ -72,7 +72,7 @@ Design a multi-agent system that takes ownership of complex, multi-step enterpri
 | Backend | Express.js, Prisma ORM, TypeScript |
 | Database | PostgreSQL 16 |
 | Messaging | Apache Kafka (Confluent 7.6) |
-| AI/LLM | Groq (primary), OpenRouter (fallback) |
+| AI/LLM | Vercel AI SDK (any OpenAI-compatible provider) |
 | Infrastructure | Docker, Docker Compose |
 
 ## Quick Start
@@ -80,7 +80,7 @@ Design a multi-agent system that takes ownership of complex, multi-step enterpri
 ### Prerequisites
 - Docker & Docker Compose
 - Node.js 18+ (for manual setup only)
-- A Groq API key (free at [console.groq.com](https://console.groq.com)) or OpenRouter API key
+- An API key for any OpenAI-compatible provider (e.g., [Groq](https://console.groq.com), [OpenRouter](https://openrouter.ai), OpenAI, or a local Ollama instance)
 
 ### 1. Clone & Configure
 
@@ -108,9 +108,12 @@ Edit `primary-backend/.env` and add your LLM API key:
 DATABASE_URL=postgresql://postgres:autochain_dev@localhost:5432/autochain
 JWT_SECRET=autochain-dev-secret-key-change-in-production
 ENCRYPTION_KEY=autochain-dev-encryption-key-32ch
-GROQ_API_KEY=your-groq-api-key-here
-# Or use OpenRouter instead:
-# OPENROUTER_API_KEY=your-openrouter-key
+AI_API_KEY=your-api-key-here
+AI_BASE_URL=https://api.groq.com/openai/v1
+AI_MODEL=llama-3.3-70b-versatile
+# Works with any OpenAI-compatible API — just change the base URL and model:
+# AI_BASE_URL=https://openrouter.ai/api/v1
+# AI_BASE_URL=http://localhost:11434/v1  (Ollama)
 ```
 
 ### 2. Start with Docker Compose
@@ -324,7 +327,7 @@ Logs are available via:
 - PostgreSQL (Database)
 - Kafka (Event streaming)
 - Prisma (ORM)
-- OpenRouter (LLM routing for generation and AI recovery paths)
+- Vercel AI SDK + OpenAI-compatible providers (LLM routing for generation and AI recovery paths)
 - JWT (Authentication)
 
 ### Infrastructure
@@ -349,9 +352,9 @@ docker compose -f docker-compose.prod.yml up -d
 Required for production:
 - `DATABASE_URL` - PostgreSQL connection string
 - `JWT_SECRET` - Secure random string
-- `OPENROUTER_API_KEY` - OpenRouter API key
-- `OPENROUTER_MODEL` - Chat model id (for example `openai/gpt-4o-mini`)
-- `OPENROUTER_EMBEDDING_MODEL` - Embedding model id (for example `openai/text-embedding-3-large`)
+- `AI_API_KEY` - API key for any OpenAI-compatible provider
+- `AI_BASE_URL` - Provider API base URL (e.g., `https://api.groq.com/openai/v1`)
+- `AI_MODEL` - Model name (e.g., `llama-3.3-70b-versatile`, `gpt-4o-mini`)
 - `KAFKA_BROKER` - Kafka broker URL
 
 **Google user OAuth (Calendar / Meet / Docs / Sheets “Connected account” in workflows):**

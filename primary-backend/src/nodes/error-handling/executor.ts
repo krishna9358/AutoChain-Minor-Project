@@ -5,7 +5,8 @@ import {
   NodeExecutionResult,
 } from '../../types/nodes';
 import { getConnectionManager } from '../../connections/manager';
-import { OpenAI } from 'openai';
+import { generateText } from "ai";
+import { getAIProvider, getDefaultModel } from "../../utils/aiProvider";
 import axios from 'axios';
 
 /**
@@ -421,18 +422,6 @@ export class ErrorHandlingNodeExecutor extends BaseNodeExecutor {
     context: NodeExecutionContext,
     errorDetails: any
   ): Promise<any> {
-    // Initialize AI agent for recovery
-    const apiKey = process.env.OPENROUTER_API_KEY;
-    if (!apiKey) {
-      throw new Error('OpenRouter API key not configured for agent fallback');
-    }
-
-    const openai = new OpenAI({
-      apiKey,
-      baseURL: 'https://openrouter.ai/api/v1',
-    });
-    const model = process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini';
-
     const recoveryPrompt = `Analyze the following error and provide recovery recommendations:
 
 Error Details:
@@ -455,17 +444,19 @@ Provide:
 Respond in JSON format.`;
 
     try {
-      const completion = await openai.chat.completions.create({
-        model,
+      const provider = getAIProvider();
+      const model = getDefaultModel();
+
+      const { text } = await generateText({
+        model: provider(model),
         messages: [
           { role: 'system', content: 'You are an expert error recovery agent.' },
           { role: 'user', content: recoveryPrompt },
         ],
         temperature: 0.3,
-        response_format: { type: 'json_object' },
       });
 
-      const recoveryPlan = JSON.parse(completion.choices[0].message.content || '{}');
+      const recoveryPlan = JSON.parse(text || '{}');
 
       return {
         success: true,

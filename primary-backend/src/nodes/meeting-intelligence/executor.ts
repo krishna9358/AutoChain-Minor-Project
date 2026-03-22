@@ -5,6 +5,8 @@ import {
 } from '../../types/nodes';
 import { getConnectionManager } from '../../connections/manager';
 import { OpenAI } from 'openai';
+import { generateText } from "ai";
+import { getAIProvider, getDefaultModel } from "../../utils/aiProvider";
 import axios from 'axios';
 import * as fs from 'fs/promises';
 import { createReadStream } from 'fs';
@@ -546,14 +548,13 @@ export class MeetingIntelligenceNodeExecutor extends BaseNodeExecutor {
       ? process.env[node.llm_api_key.substring(4)]
       : node.llm_api_key;
 
-    const openai = new OpenAI({
-      apiKey: llmApiKey,
-    });
-
     const prompt = this.buildInsightsPrompt(transcription, node);
 
-    const completion = await openai.chat.completions.create({
-      model: node.llm_model || 'gpt-4',
+    const provider = getAIProvider();
+    const model = node.llm_model || getDefaultModel();
+
+    const { text } = await generateText({
+      model: provider(model),
       messages: [
         {
           role: 'system',
@@ -562,10 +563,9 @@ export class MeetingIntelligenceNodeExecutor extends BaseNodeExecutor {
         { role: 'user', content: prompt },
       ],
       temperature: 0.3,
-      response_format: { type: 'json_object' },
     });
 
-    const insights = JSON.parse(completion.choices[0].message.content || '{}');
+    const insights = JSON.parse(text || '{}');
 
     return {
       summary: insights.summary || 'No summary generated',
@@ -642,12 +642,13 @@ Focus on:
       ? process.env[node.llm_api_key.substring(4)]
       : node.llm_api_key;
 
-    const openai = new OpenAI({ apiKey: llmApiKey });
-
     const prompt = this.buildTaskExtractionPrompt(transcription, insights);
 
-    const completion = await openai.chat.completions.create({
-      model: node.llm_model || 'gpt-4',
+    const provider = getAIProvider();
+    const model = node.llm_model || getDefaultModel();
+
+    const { text } = await generateText({
+      model: provider(model),
       messages: [
         {
           role: 'system',
@@ -656,10 +657,9 @@ Focus on:
         { role: 'user', content: prompt },
       ],
       temperature: 0.2,
-      response_format: { type: 'json_object' },
     });
 
-    const extractedTasks = JSON.parse(completion.choices[0].message.content || '{}');
+    const extractedTasks = JSON.parse(text || '{}');
 
     // Process and structure tasks
     const tasks = (extractedTasks.tasks || []).map((task: any, index: number) => ({

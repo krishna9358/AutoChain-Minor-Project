@@ -4,7 +4,8 @@ import {
   NodeExecutionContext,
 } from '../../types/nodes';
 import { getConnectionManager } from '../../connections/manager';
-import { OpenAI } from 'openai';
+import { generateText } from "ai";
+import { getAIProvider, getDefaultModel } from "../../utils/aiProvider";
 import axios from 'axios';
 
 /**
@@ -466,17 +467,6 @@ export class WorkflowMonitorNodeExecutor extends BaseNodeExecutor {
     metrics: Record<string, any>,
     context: NodeExecutionContext
   ): Promise<any> {
-    const apiKey = predictionConfig.model_api_key?.startsWith('env.')
-      ? process.env[predictionConfig.model_api_key.substring(4)]
-      : predictionConfig.model_api_key;
-
-    if (!apiKey) {
-      console.warn('AI API key not configured for predictions');
-      return null;
-    }
-
-    const openai = new OpenAI({ apiKey });
-
     // Get historical metrics
     const historicalMetrics = this.metricsStore.get(context.workflow_id) || [];
     const recentMetrics = historicalMetrics.slice(-20); // Last 20 executions
@@ -518,17 +508,19 @@ Provide predictions in JSON format with the following structure:
 }`;
 
     try {
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-4',
+      const provider = getAIProvider();
+      const model = getDefaultModel();
+
+      const { text } = await generateText({
+        model: provider(model),
         messages: [
           { role: 'system', content: 'You are an expert in workflow performance analysis and prediction.' },
           { role: 'user', content: prompt },
         ],
         temperature: 0.3,
-        response_format: { type: 'json_object' },
       });
 
-      const predictions = JSON.parse(completion.choices[0].message.content || '{}');
+      const predictions = JSON.parse(text || '{}');
 
       return {
         generated_at: new Date().toISOString(),
