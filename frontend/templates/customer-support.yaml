@@ -1,0 +1,132 @@
+id: customer-support
+name: "Customer Support Automation"
+description: "AI-powered support — classifies tickets, checks customer history, drafts responses, and tracks resolution times. Handles routine issues automatically while escalating complex ones."
+category: "automation"
+icon: "MessageSquare"
+version: "1.0.0"
+tags:
+  - support
+  - customer
+  - tickets
+  - ai
+  - automation
+
+preview:
+  color: "#3b82f6"
+  estimatedTime: "6 min setup"
+  difficulty: "beginner"
+  useCases:
+    - "Help desk automation"
+    - "Ticket classification"
+    - "Response drafting"
+    - "SLA tracking for support"
+
+nodes:
+  - id: "node-1"
+    type: "entry-point"
+    name: "New Support Ticket"
+    description: "Triggered when a customer submits a support ticket"
+    position: { x: 100, y: 250 }
+    config:
+      triggerMode: "webhook"
+      webhookPath: "/support/tickets"
+
+  - id: "node-2"
+    type: "ai-agent"
+    name: "Classify & Analyze"
+    description: "AI reads the ticket, determines the category and urgency"
+    position: { x: 350, y: 250 }
+    config:
+      systemPrompt: "Classify this support ticket by: 1) Category (billing, technical, account, general), 2) Urgency (low, medium, high, critical), 3) Sentiment (positive, neutral, frustrated, angry), 4) Whether it can be auto-resolved or needs human help. Return as JSON."
+      outputFormat: "json"
+
+  - id: "node-3"
+    type: "switch-case"
+    name: "Route by Category"
+    description: "Routes the ticket to the right team based on category"
+    position: { x: 600, y: 250 }
+    config:
+      switchField: "payload.category"
+      cases:
+        - { value: "billing", label: "Billing Team" }
+        - { value: "technical", label: "Tech Support" }
+        - { value: "account", label: "Account Team" }
+        - { value: "general", label: "General Support" }
+
+  - id: "node-4"
+    type: "data-enrichment"
+    name: "Customer History"
+    description: "Looks up the customer's past tickets and account details"
+    position: { x: 850, y: 250 }
+    config:
+      enrichmentType: "ai-lookup"
+      sourceField: "payload.customer_email"
+      outputFields: "past_tickets\naccount_status\nsubscription_plan\nlast_contact"
+      aiPrompt: "Look up all available information about this customer including their support history, account status, and subscription details"
+
+  - id: "node-5"
+    type: "ai-agent"
+    name: "Draft Response"
+    description: "AI creates a helpful, personalized response based on the issue and customer history"
+    position: { x: 1100, y: 250 }
+    config:
+      systemPrompt: "Draft a professional, empathetic support response for this {{payload.category}} ticket. Consider the customer's history and sentiment ({{payload.sentiment}}). Be helpful and provide specific solutions. If you can't resolve it, explain next steps clearly."
+      outputFormat: "text"
+
+  - id: "node-6"
+    type: "approval"
+    name: "Review Response"
+    description: "Support agent reviews the AI draft before sending"
+    position: { x: 1350, y: 250 }
+    config:
+      approvers: "support-team@company.com"
+      message: "Review AI-drafted response for ticket from {{payload.customer_email}} ({{payload.category}}, {{payload.urgency}} urgency)"
+      timeoutMinutes: 120
+
+  - id: "node-7"
+    type: "email-send"
+    name: "Send Response"
+    description: "Sends the approved response to the customer"
+    position: { x: 1600, y: 250 }
+    config:
+      provider: "smtp"
+      from: "support@company.com"
+      to: "{{payload.customer_email}}"
+      subject: "Re: {{payload.ticket_subject}} [#{{payload.ticket_id}}]"
+      body: "{{payload.approved_response}}"
+
+  - id: "node-8"
+    type: "sla-monitor"
+    name: "Resolution Timer"
+    description: "Tracks time to resolution and alerts if SLA is at risk"
+    position: { x: 1850, y: 250 }
+    config:
+      slaName: "Support Resolution SLA"
+      deadlineType: "duration"
+      durationMinutes: 480
+      warningThreshold: 75
+      escalationAction: "escalate"
+      notifyChannel: "slack"
+      notifyTo: "#support-escalations"
+
+  - id: "node-9"
+    type: "audit-log"
+    name: "Log Ticket Activity"
+    description: "Records the complete ticket handling for quality review"
+    position: { x: 2100, y: 250 }
+    config:
+      logLevel: "standard"
+      logCategory: "operational"
+      message: "Ticket #{{payload.ticket_id}} — {{payload.category}} — {{payload.urgency}} — Response sent to {{payload.customer_email}}"
+      includeInputData: true
+      retentionDays: 365
+
+edges:
+  - { id: "e-1", source: "node-1", target: "node-2" }
+  - { id: "e-2", source: "node-2", target: "node-3" }
+  - { id: "e-3", source: "node-3", target: "node-4" }
+  - { id: "e-4", source: "node-4", target: "node-5" }
+  - { id: "e-5", source: "node-5", target: "node-6" }
+  - { id: "e-6", source: "node-6", target: "node-7" }
+  - { id: "e-7", source: "node-7", target: "node-8" }
+  - { id: "e-8", source: "node-8", target: "node-9" }

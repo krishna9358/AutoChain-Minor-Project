@@ -1,0 +1,120 @@
+id: meeting-intelligence
+name: "Meeting Intelligence"
+description: "Turns meeting recordings into action — extracts decisions, creates tasks, assigns owners, and follows up on stalled items automatically."
+category: "ai"
+icon: "Brain"
+version: "1.0.0"
+tags:
+  - meeting
+  - transcription
+  - tasks
+  - ai
+  - productivity
+
+preview:
+  color: "#8b5cf6"
+  estimatedTime: "5 min setup"
+  difficulty: "beginner"
+  useCases:
+    - "Team meeting follow-ups"
+    - "Decision tracking"
+    - "Action item management"
+    - "Meeting summary distribution"
+
+nodes:
+  - id: "node-1"
+    type: "entry-point"
+    name: "Meeting Transcript"
+    description: "Receives the meeting transcript or recording"
+    position: { x: 100, y: 250 }
+    config:
+      triggerMode: "webhook"
+      webhookPath: "/meetings/transcript"
+
+  - id: "node-2"
+    type: "ai-agent"
+    name: "Extract Key Decisions"
+    description: "AI identifies all decisions made during the meeting"
+    position: { x: 350, y: 250 }
+    config:
+      systemPrompt: "Analyze this meeting transcript and extract: 1) Key decisions made, 2) Important discussion points, 3) Unresolved questions. Format as structured JSON."
+      outputFormat: "json"
+
+  - id: "node-3"
+    type: "ai-agent"
+    name: "Identify Action Items"
+    description: "AI finds all action items and suggests who should own them"
+    position: { x: 600, y: 250 }
+    config:
+      systemPrompt: "From this meeting transcript and decisions, extract all action items. For each, identify: task description, suggested owner (from meeting participants), priority (high/medium/low), and suggested deadline."
+      outputFormat: "json"
+
+  - id: "node-4"
+    type: "task-assigner"
+    name: "Assign Action Items"
+    description: "Creates tasks and assigns them to the right people"
+    position: { x: 850, y: 250 }
+    config:
+      assignmentMode: "rule-based"
+      taskTitle: "Meeting Action: {{payload.task_description}}"
+      taskDescription: "From meeting on {{payload.meeting_date}}: {{payload.task_details}}"
+      priority: "medium"
+      dueDateMinutes: 4320
+      notifyAssignee: true
+
+  - id: "node-5"
+    type: "slack-send"
+    name: "Share Meeting Summary"
+    description: "Posts the meeting summary and action items to Slack"
+    position: { x: 1100, y: 250 }
+    config:
+      mode: "webhook"
+      channel: "#team-updates"
+      message: "📋 *Meeting Summary*\n\n*Decisions:*\n{{payload.decisions}}\n\n*Action Items:*\n{{payload.action_items}}\n\n*Next Steps:*\n{{payload.next_steps}}"
+
+  - id: "node-6"
+    type: "sla-monitor"
+    name: "Track Task Completion"
+    description: "Monitors whether action items are being completed on time"
+    position: { x: 1350, y: 250 }
+    config:
+      slaName: "Action Item Completion"
+      deadlineType: "duration"
+      durationMinutes: 4320
+      warningThreshold: 80
+      escalationAction: "notify"
+      notifyChannel: "slack"
+      notifyTo: "#team-updates"
+
+  - id: "node-7"
+    type: "escalation"
+    name: "Follow Up on Stalls"
+    description: "Escalates to the meeting organizer if tasks are stalled"
+    position: { x: 1600, y: 250 }
+    config:
+      escalationReason: "sla-breach"
+      escalateTo: "{{payload.organizer_email}}"
+      severity: "medium"
+      message: "Action items from meeting on {{payload.meeting_date}} are overdue. {{payload.overdue_count}} tasks need attention."
+      includeContext: true
+
+  - id: "node-8"
+    type: "audit-log"
+    name: "Log Meeting Record"
+    description: "Saves the complete meeting record for future reference"
+    position: { x: 1850, y: 250 }
+    config:
+      logLevel: "standard"
+      logCategory: "operational"
+      message: "Meeting processed: {{payload.meeting_title}} — {{payload.decisions_count}} decisions, {{payload.action_items_count}} action items"
+      includeInputData: true
+      retentionDays: 365
+
+edges:
+  - { id: "e-1", source: "node-1", target: "node-2" }
+  - { id: "e-2", source: "node-2", target: "node-3" }
+  - { id: "e-3", source: "node-3", target: "node-4" }
+  - { id: "e-4", source: "node-4", target: "node-5" }
+  - { id: "e-5", source: "node-5", target: "node-6" }
+  - { id: "e-6", source: "node-6", target: "node-7" }
+  - { id: "e-7", source: "node-7", target: "node-8" }

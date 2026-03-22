@@ -1,0 +1,149 @@
+id: employee-onboarding
+name: "Employee Onboarding"
+description: "Streamlines new hire onboarding — from collecting info to setting up accounts, assigning tasks, and scheduling check-ins. Nothing falls through the cracks."
+category: "enterprise"
+icon: "Users"
+version: "1.0.0"
+tags:
+  - hr
+  - onboarding
+  - employee
+  - automation
+  - tasks
+
+preview:
+  color: "#3b82f6"
+  estimatedTime: "8 min setup"
+  difficulty: "intermediate"
+  useCases:
+    - "New hire onboarding"
+    - "IT account provisioning"
+    - "HR task coordination"
+    - "30/60/90 day check-ins"
+
+nodes:
+  - id: "node-1"
+    type: "form-input"
+    name: "New Hire Details"
+    description: "HR fills in the new employee's information"
+    position: { x: 100, y: 250 }
+    config:
+      formTitle: "New Employee Information"
+      formDescription: "Enter the new hire's details to start their onboarding"
+      fields:
+        - { name: "full_name", label: "Full Name", type: "text", required: true }
+        - { name: "email", label: "Work Email", type: "email", required: true }
+        - { name: "department", label: "Department", type: "text", required: true }
+        - { name: "role", label: "Job Title", type: "text", required: true }
+        - { name: "start_date", label: "Start Date", type: "date", required: true }
+        - { name: "manager_email", label: "Manager's Email", type: "email", required: true }
+      submitLabel: "Start Onboarding"
+
+  - id: "node-2"
+    type: "ai-agent"
+    name: "Create Onboarding Plan"
+    description: "AI generates a personalized onboarding checklist based on the role"
+    position: { x: 350, y: 250 }
+    config:
+      systemPrompt: "Create a detailed 30-day onboarding plan for a new {{payload.role}} in the {{payload.department}} department. Include IT setup tasks, HR paperwork, team introductions, training modules, and milestone check-ins."
+      outputFormat: "json"
+
+  - id: "node-3"
+    type: "task-assigner"
+    name: "IT Setup Tasks"
+    description: "Assigns account setup and equipment tasks to IT team"
+    position: { x: 600, y: 150 }
+    config:
+      assignmentMode: "round-robin"
+      teamMembers: "it-support@company.com\nit-admin@company.com"
+      taskTitle: "IT Setup for {{payload.full_name}}"
+      taskDescription: "Set up email, Slack, laptop, VPN access, and required software for new hire starting {{payload.start_date}}"
+      priority: "high"
+      dueDateMinutes: 2880
+      notifyAssignee: true
+
+  - id: "node-4"
+    type: "task-assigner"
+    name: "HR Paperwork"
+    description: "Assigns HR paperwork and compliance tasks"
+    position: { x: 600, y: 350 }
+    config:
+      assignmentMode: "specific"
+      assignee: "hr@company.com"
+      taskTitle: "HR Onboarding for {{payload.full_name}}"
+      taskDescription: "Complete: employment contract, tax forms, benefits enrollment, ID badge, office tour scheduling"
+      priority: "high"
+      dueDateMinutes: 1440
+      notifyAssignee: true
+
+  - id: "node-5"
+    type: "data-enrichment"
+    name: "Gather Team Info"
+    description: "Looks up team members and resources for the new hire's department"
+    position: { x: 850, y: 250 }
+    config:
+      enrichmentType: "ai-lookup"
+      sourceField: "payload.department"
+      outputFields: "team_members\nteam_slack_channel\nonboarding_resources"
+      aiPrompt: "Find the team members, Slack channel, and onboarding resources for the {{payload.department}} department"
+
+  - id: "node-6"
+    type: "document-generator"
+    name: "Welcome Packet"
+    description: "Creates a personalized welcome document for the new hire"
+    position: { x: 1100, y: 250 }
+    config:
+      documentType: "letter"
+      title: "Welcome to the Team — {{payload.full_name}}"
+      template: "Welcome, {{payload.full_name}}!\n\nWe're excited to have you join us as {{payload.role}} in the {{payload.department}} team.\n\nStart Date: {{payload.start_date}}\nManager: {{payload.manager_email}}\n\nYour First Week:\n1. Complete HR paperwork\n2. Set up your accounts and tools\n3. Meet your team members\n4. Review onboarding materials\n\nYour 30-Day Onboarding Plan is attached.\n\nWelcome aboard!"
+      outputFormat: "pdf"
+      storeAsArtifact: true
+
+  - id: "node-7"
+    type: "email-send"
+    name: "Send Welcome Email"
+    description: "Sends the welcome email with onboarding details"
+    position: { x: 1350, y: 250 }
+    config:
+      provider: "smtp"
+      from: "hr@company.com"
+      to: "{{payload.email}}"
+      subject: "Welcome to the Team, {{payload.full_name}}!"
+      body: "Hi {{payload.full_name}},\n\nWelcome! Your onboarding starts on {{payload.start_date}}.\n\nPlease check the attached welcome packet for everything you need.\n\nBest,\nHR Team"
+
+  - id: "node-8"
+    type: "sla-monitor"
+    name: "30-Day Check-in"
+    description: "Reminds the manager to do a 30-day check-in with the new hire"
+    position: { x: 1600, y: 250 }
+    config:
+      slaName: "30-Day Onboarding Check-in"
+      deadlineType: "duration"
+      durationMinutes: 43200
+      warningThreshold: 90
+      escalationAction: "notify"
+      notifyChannel: "email"
+      notifyTo: "{{payload.manager_email}}"
+
+  - id: "node-9"
+    type: "audit-log"
+    name: "Log Onboarding"
+    description: "Records the complete onboarding process for HR records"
+    position: { x: 1850, y: 250 }
+    config:
+      logLevel: "standard"
+      logCategory: "operational"
+      message: "Onboarding completed for {{payload.full_name}} ({{payload.role}}) in {{payload.department}} — started {{payload.start_date}}"
+      includeInputData: true
+      retentionDays: 1825
+
+edges:
+  - { id: "e-1", source: "node-1", target: "node-2" }
+  - { id: "e-2", source: "node-2", target: "node-3" }
+  - { id: "e-3", source: "node-2", target: "node-4" }
+  - { id: "e-4", source: "node-3", target: "node-5" }
+  - { id: "e-5", source: "node-4", target: "node-5" }
+  - { id: "e-6", source: "node-5", target: "node-6" }
+  - { id: "e-7", source: "node-6", target: "node-7" }
+  - { id: "e-8", source: "node-7", target: "node-8" }
+  - { id: "e-9", source: "node-8", target: "node-9" }

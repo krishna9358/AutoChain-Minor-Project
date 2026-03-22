@@ -1,0 +1,143 @@
+id: workflow-health-monitor
+name: "Workflow Health Monitor"
+description: "Continuously monitors your workflows for problems — catches process drift, predicts bottlenecks, and escalates before SLA breaches happen."
+category: "operations"
+icon: "Activity"
+version: "1.0.0"
+tags:
+  - monitoring
+  - health
+  - sla
+  - operations
+  - alerts
+
+preview:
+  color: "#ef4444"
+  estimatedTime: "7 min setup"
+  difficulty: "intermediate"
+  useCases:
+    - "Workflow performance monitoring"
+    - "SLA compliance tracking"
+    - "Bottleneck detection"
+    - "Proactive issue resolution"
+
+nodes:
+  - id: "node-1"
+    type: "entry-point"
+    name: "Scheduled Health Check"
+    description: "Runs automatically on a schedule to check system health"
+    position: { x: 100, y: 250 }
+    config:
+      triggerMode: "schedule"
+      cron: "0 */2 * * *"
+
+  - id: "node-2"
+    type: "http-request"
+    name: "Fetch Workflow Metrics"
+    description: "Pulls the latest workflow execution data and metrics"
+    position: { x: 350, y: 250 }
+    config:
+      method: "GET"
+      url: "{{secrets.METRICS_API_URL}}/api/v1/workflows/metrics"
+      authType: "bearer"
+      authValue: "{{secrets.API_TOKEN}}"
+      timeoutMs: 15000
+
+  - id: "node-3"
+    type: "ai-agent"
+    name: "Analyze Health Patterns"
+    description: "AI analyzes metrics to spot anomalies and trends"
+    position: { x: 600, y: 250 }
+    config:
+      systemPrompt: "Analyze these workflow metrics and identify: 1) Any anomalies (unusual failure rates, slow execution times), 2) Trending issues (gradual degradation), 3) Workflows at risk of SLA breach, 4) Resource bottlenecks. Rate overall health as: Healthy, Warning, or Critical."
+      outputFormat: "json"
+
+  - id: "node-4"
+    type: "if-condition"
+    name: "Anomaly Detected?"
+    description: "Checks if any issues were found"
+    position: { x: 850, y: 250 }
+    config:
+      condition: "payload.health_status !== 'healthy'"
+      trueLabel: "Issues Found"
+      falseLabel: "All Clear"
+
+  - id: "node-5"
+    type: "data-enrichment"
+    name: "Gather Context"
+    description: "Pulls additional context about the flagged workflows"
+    position: { x: 1100, y: 150 }
+    config:
+      enrichmentType: "api"
+      sourceField: "payload.flagged_workflows"
+      outputFields: "recent_runs\nerror_logs\nowner_info"
+      apiUrl: "{{secrets.METRICS_API_URL}}/api/v1/workflows/details"
+
+  - id: "node-6"
+    type: "ai-agent"
+    name: "Predict Bottlenecks"
+    description: "AI predicts potential future problems based on current trends"
+    position: { x: 1350, y: 150 }
+    config:
+      systemPrompt: "Based on the current metrics and recent trends, predict: 1) Which workflows are likely to fail in the next 24 hours, 2) Where bottlenecks will form, 3) Recommended preventive actions. Provide confidence percentages."
+      outputFormat: "json"
+
+  - id: "node-7"
+    type: "sla-monitor"
+    name: "Check SLA Compliance"
+    description: "Verifies all active workflows are within their SLA targets"
+    position: { x: 1600, y: 150 }
+    config:
+      slaName: "Workflow SLA Compliance"
+      deadlineType: "reference"
+      warningThreshold: 85
+      escalationAction: "escalate"
+      notifyChannel: "both"
+      notifyTo: "ops-team@company.com"
+
+  - id: "node-8"
+    type: "escalation"
+    name: "Critical Alert"
+    description: "Immediately escalates critical issues to the ops team"
+    position: { x: 1850, y: 100 }
+    config:
+      escalationReason: "threshold"
+      escalateTo: "ops-lead@company.com"
+      severity: "high"
+      message: "Workflow health alert: {{payload.critical_issues}} critical issues detected. {{payload.at_risk_count}} workflows at risk of SLA breach."
+      includeContext: true
+      waitForResponse: false
+
+  - id: "node-9"
+    type: "slack-send"
+    name: "Health Report"
+    description: "Posts the health report summary to the ops channel"
+    position: { x: 1850, y: 300 }
+    config:
+      mode: "webhook"
+      channel: "#ops-monitoring"
+      message: "🏥 *Workflow Health Report*\n\nStatus: {{payload.health_status}}\nWorkflows Monitored: {{payload.total_workflows}}\nIssues Found: {{payload.issues_count}}\nAt Risk: {{payload.at_risk_count}}\n\n{{payload.summary}}"
+
+  - id: "node-10"
+    type: "audit-log"
+    name: "Log Health Check"
+    description: "Records the health check results for trending analysis"
+    position: { x: 2100, y: 250 }
+    config:
+      logLevel: "standard"
+      logCategory: "operational"
+      message: "Health check: {{payload.health_status}} — {{payload.issues_count}} issues, {{payload.at_risk_count}} at risk"
+      includeInputData: true
+      retentionDays: 180
+
+edges:
+  - { id: "e-1", source: "node-1", target: "node-2" }
+  - { id: "e-2", source: "node-2", target: "node-3" }
+  - { id: "e-3", source: "node-3", target: "node-4" }
+  - { id: "e-4", source: "node-4", target: "node-5", label: "Issues Found" }
+  - { id: "e-5", source: "node-5", target: "node-6" }
+  - { id: "e-6", source: "node-6", target: "node-7" }
+  - { id: "e-7", source: "node-7", target: "node-8" }
+  - { id: "e-8", source: "node-4", target: "node-9", label: "All Clear" }
+  - { id: "e-9", source: "node-8", target: "node-9" }
+  - { id: "e-10", source: "node-9", target: "node-10" }

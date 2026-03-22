@@ -1,0 +1,140 @@
+id: procurement-to-payment
+name: "Procurement to Payment"
+description: "Automates the entire purchasing process — from request to payment. Handles approvals, budget checks, and keeps a complete audit trail of every decision."
+category: "enterprise"
+icon: "FileOutput"
+version: "1.0.0"
+tags:
+  - procurement
+  - purchasing
+  - finance
+  - approval
+  - compliance
+
+preview:
+  color: "#10b981"
+  estimatedTime: "10 min setup"
+  difficulty: "intermediate"
+  useCases:
+    - "Purchase order processing"
+    - "Vendor payment automation"
+    - "Budget approval workflows"
+    - "Expense management"
+
+nodes:
+  - id: "node-1"
+    type: "form-input"
+    name: "Purchase Request Form"
+    description: "Collects purchase details from the requester"
+    position: { x: 100, y: 250 }
+    config:
+      formTitle: "New Purchase Request"
+      formDescription: "Fill in the details for your purchase request"
+      fields:
+        - { name: "item_name", label: "What do you need?", type: "text", required: true }
+        - { name: "quantity", label: "How many?", type: "number", required: true }
+        - { name: "estimated_cost", label: "Estimated Cost ($)", type: "number", required: true }
+        - { name: "vendor", label: "Preferred Vendor", type: "text", required: false }
+        - { name: "justification", label: "Why is this needed?", type: "textarea", required: true }
+        - { name: "urgency", label: "Urgency", type: "select", required: true, options: ["Normal", "Urgent", "Critical"] }
+      submitLabel: "Submit Request"
+
+  - id: "node-2"
+    type: "ai-agent"
+    name: "Validate & Categorize"
+    description: "AI reviews the request, checks for completeness, and categorizes it"
+    position: { x: 350, y: 250 }
+    config:
+      systemPrompt: "You are a procurement assistant. Review this purchase request for completeness, categorize it (Office Supplies, Equipment, Software, Services, Other), and flag any concerns."
+      outputFormat: "json"
+
+  - id: "node-3"
+    type: "if-condition"
+    name: "Budget Check"
+    description: "Routes high-value purchases for extra approval"
+    position: { x: 600, y: 250 }
+    config:
+      condition: "payload.estimated_cost > 5000"
+      trueLabel: "Needs Manager Approval"
+      falseLabel: "Auto-Approved"
+
+  - id: "node-4"
+    type: "approval"
+    name: "Manager Approval"
+    description: "Manager reviews and approves or rejects the purchase"
+    position: { x: 850, y: 150 }
+    config:
+      approvers: "manager@company.com"
+      message: "Purchase request for {{payload.item_name}} — ${{payload.estimated_cost}}"
+      timeoutMinutes: 2880
+
+  - id: "node-5"
+    type: "ai-agent"
+    name: "Generate Purchase Order"
+    description: "AI creates a formal purchase order with all the details"
+    position: { x: 1100, y: 250 }
+    config:
+      systemPrompt: "Generate a formal purchase order document with PO number, item details, vendor info, payment terms, and delivery instructions based on the approved request."
+      outputFormat: "json"
+
+  - id: "node-6"
+    type: "document-generator"
+    name: "Create PO Document"
+    description: "Generates the official purchase order PDF"
+    position: { x: 1350, y: 250 }
+    config:
+      documentType: "invoice"
+      title: "Purchase Order — {{payload.item_name}}"
+      template: "PURCHASE ORDER\n\nPO Number: {{payload.po_number}}\nDate: {{payload.date}}\n\nItem: {{payload.item_name}}\nQuantity: {{payload.quantity}}\nCost: ${{payload.estimated_cost}}\nVendor: {{payload.vendor}}\n\nJustification: {{payload.justification}}\n\nApproved by: {{payload.approver}}"
+      outputFormat: "pdf"
+      storeAsArtifact: true
+
+  - id: "node-7"
+    type: "task-assigner"
+    name: "Assign to Procurement"
+    description: "Assigns the purchase order to the procurement team for processing"
+    position: { x: 1600, y: 250 }
+    config:
+      assignmentMode: "round-robin"
+      teamMembers: "procurement1@company.com\nprocurement2@company.com"
+      taskTitle: "Process PO for {{payload.item_name}}"
+      taskDescription: "Review and process this purchase order. Contact vendor and arrange delivery."
+      priority: "medium"
+      dueDateMinutes: 2880
+
+  - id: "node-8"
+    type: "sla-monitor"
+    name: "Track Delivery"
+    description: "Monitors delivery timeline and alerts if SLA is at risk"
+    position: { x: 1850, y: 250 }
+    config:
+      slaName: "Delivery SLA"
+      deadlineType: "duration"
+      durationMinutes: 10080
+      warningThreshold: 75
+      escalationAction: "notify"
+      notifyChannel: "slack"
+      notifyTo: "#procurement-alerts"
+
+  - id: "node-9"
+    type: "audit-log"
+    name: "Record Decision Trail"
+    description: "Logs every step of the procurement process for compliance"
+    position: { x: 2100, y: 250 }
+    config:
+      logLevel: "detailed"
+      logCategory: "financial"
+      message: "Procurement completed: {{payload.item_name}} — ${{payload.estimated_cost}} — PO #{{payload.po_number}}"
+      includeInputData: true
+      retentionDays: 2555
+
+edges:
+  - { id: "e-1", source: "node-1", target: "node-2" }
+  - { id: "e-2", source: "node-2", target: "node-3" }
+  - { id: "e-3", source: "node-3", target: "node-4", label: "> $5,000" }
+  - { id: "e-4", source: "node-3", target: "node-5", label: "Auto-approved" }
+  - { id: "e-5", source: "node-4", target: "node-5" }
+  - { id: "e-6", source: "node-5", target: "node-6" }
+  - { id: "e-7", source: "node-6", target: "node-7" }
+  - { id: "e-8", source: "node-7", target: "node-8" }
+  - { id: "e-9", source: "node-8", target: "node-9" }

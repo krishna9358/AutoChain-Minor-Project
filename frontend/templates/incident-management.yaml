@@ -1,0 +1,151 @@
+id: incident-management
+name: "Incident Management"
+description: "Handles system incidents end-to-end — from alert to resolution. AI analyzes severity, assigns responders, tracks SLAs, and generates postmortem reports automatically."
+category: "operations"
+icon: "ShieldAlert"
+version: "1.0.0"
+tags:
+  - incident
+  - alert
+  - devops
+  - monitoring
+  - postmortem
+
+preview:
+  color: "#ef4444"
+  estimatedTime: "8 min setup"
+  difficulty: "intermediate"
+  useCases:
+    - "System alert handling"
+    - "Incident response automation"
+    - "On-call management"
+    - "Postmortem generation"
+
+nodes:
+  - id: "node-1"
+    type: "entry-point"
+    name: "Alert Received"
+    description: "Triggered when a monitoring system sends an alert"
+    position: { x: 100, y: 250 }
+    config:
+      triggerMode: "webhook"
+      webhookPath: "/incidents/alert"
+
+  - id: "node-2"
+    type: "ai-agent"
+    name: "Analyze Severity"
+    description: "AI determines how serious the incident is based on the alert data"
+    position: { x: 350, y: 250 }
+    config:
+      systemPrompt: "Analyze this system alert and determine: 1) Severity (P1-Critical, P2-High, P3-Medium, P4-Low), 2) Affected systems, 3) Potential root cause, 4) Blast radius (how many users/services affected), 5) Recommended immediate actions. Return as structured JSON."
+      outputFormat: "json"
+
+  - id: "node-3"
+    type: "switch-case"
+    name: "Severity Routing"
+    description: "Routes the incident based on its severity level"
+    position: { x: 600, y: 250 }
+    config:
+      switchField: "payload.severity"
+      cases:
+        - { value: "P1", label: "Critical" }
+        - { value: "P2", label: "High" }
+        - { value: "P3", label: "Medium" }
+        - { value: "P4", label: "Low" }
+
+  - id: "node-4"
+    type: "escalation"
+    name: "Critical Escalation"
+    description: "Immediately notifies leadership for P1/P2 incidents"
+    position: { x: 850, y: 100 }
+    config:
+      escalationReason: "threshold"
+      escalateTo: "engineering-lead@company.com"
+      severity: "critical"
+      message: "🚨 {{payload.severity}} INCIDENT: {{payload.alert_title}}\n\nAffected: {{payload.affected_systems}}\nBlast Radius: {{payload.blast_radius}}\nPotential Cause: {{payload.root_cause}}"
+      includeContext: true
+      waitForResponse: false
+
+  - id: "node-5"
+    type: "task-assigner"
+    name: "Assign Responder"
+    description: "Assigns the incident to the on-call engineer"
+    position: { x: 850, y: 350 }
+    config:
+      assignmentMode: "round-robin"
+      teamMembers: "oncall1@company.com\noncall2@company.com\noncall3@company.com"
+      taskTitle: "{{payload.severity}} Incident: {{payload.alert_title}}"
+      taskDescription: "Investigate and resolve: {{payload.alert_description}}\n\nAffected: {{payload.affected_systems}}\nRecommended actions: {{payload.recommended_actions}}"
+      priority: "critical"
+      dueDateMinutes: 60
+      notifyAssignee: true
+
+  - id: "node-6"
+    type: "slack-send"
+    name: "Incident Channel"
+    description: "Posts incident details to the dedicated Slack channel"
+    position: { x: 1100, y: 250 }
+    config:
+      mode: "webhook"
+      channel: "#incidents"
+      message: "🚨 *{{payload.severity}} Incident*\n\n*Title:* {{payload.alert_title}}\n*Affected:* {{payload.affected_systems}}\n*Assigned to:* {{payload.assignee}}\n*Root Cause (estimated):* {{payload.root_cause}}\n\n*Immediate Actions:*\n{{payload.recommended_actions}}"
+
+  - id: "node-7"
+    type: "sla-monitor"
+    name: "Resolution SLA"
+    description: "Tracks time to resolution based on severity"
+    position: { x: 1350, y: 250 }
+    config:
+      slaName: "Incident Resolution SLA"
+      deadlineType: "duration"
+      durationMinutes: 60
+      warningThreshold: 70
+      escalationAction: "escalate"
+      notifyChannel: "slack"
+      notifyTo: "#incidents"
+
+  - id: "node-8"
+    type: "ai-agent"
+    name: "Generate Postmortem"
+    description: "AI creates a postmortem report with root cause analysis"
+    position: { x: 1600, y: 250 }
+    config:
+      systemPrompt: "Generate a postmortem report for this incident. Include: Timeline of events, Root cause analysis, Impact assessment, What went well, What could be improved, Action items to prevent recurrence."
+      outputFormat: "text"
+
+  - id: "node-9"
+    type: "document-generator"
+    name: "Incident Report"
+    description: "Creates the official incident report document"
+    position: { x: 1850, y: 250 }
+    config:
+      documentType: "report"
+      title: "Incident Report — {{payload.severity}} — {{payload.alert_title}}"
+      template: "{{payload.postmortem}}"
+      outputFormat: "pdf"
+      includeTimestamp: true
+      storeAsArtifact: true
+
+  - id: "node-10"
+    type: "audit-log"
+    name: "Log Incident"
+    description: "Records the complete incident timeline for compliance"
+    position: { x: 2100, y: 250 }
+    config:
+      logLevel: "detailed"
+      logCategory: "security"
+      message: "Incident {{payload.severity}}: {{payload.alert_title}} — Resolved by {{payload.assignee}} in {{payload.resolution_time_minutes}} minutes"
+      includeInputData: true
+      retentionDays: 1825
+
+edges:
+  - { id: "e-1", source: "node-1", target: "node-2" }
+  - { id: "e-2", source: "node-2", target: "node-3" }
+  - { id: "e-3", source: "node-3", target: "node-4", label: "P1/P2" }
+  - { id: "e-4", source: "node-3", target: "node-5", label: "P3/P4" }
+  - { id: "e-5", source: "node-4", target: "node-5" }
+  - { id: "e-6", source: "node-5", target: "node-6" }
+  - { id: "e-7", source: "node-6", target: "node-7" }
+  - { id: "e-8", source: "node-7", target: "node-8" }
+  - { id: "e-9", source: "node-8", target: "node-9" }
+  - { id: "e-10", source: "node-9", target: "node-10" }

@@ -1,0 +1,153 @@
+id: contract-lifecycle
+name: "Contract Lifecycle"
+description: "Manages contracts from creation to signature — AI drafts the contract, legal reviews it, and the system tracks signature deadlines with automatic follow-ups."
+category: "enterprise"
+icon: "FileText"
+version: "1.0.0"
+tags:
+  - contract
+  - legal
+  - compliance
+  - signature
+  - document
+
+preview:
+  color: "#8b5cf6"
+  estimatedTime: "10 min setup"
+  difficulty: "advanced"
+  useCases:
+    - "Vendor contract management"
+    - "Employment agreements"
+    - "NDA processing"
+    - "Service level agreements"
+
+nodes:
+  - id: "node-1"
+    type: "entry-point"
+    name: "Contract Request"
+    description: "Triggered when someone requests a new contract"
+    position: { x: 100, y: 250 }
+    config:
+      triggerMode: "webhook"
+      webhookPath: "/contracts/new"
+
+  - id: "node-2"
+    type: "form-input"
+    name: "Contract Details"
+    description: "Collects all the information needed for the contract"
+    position: { x: 350, y: 250 }
+    config:
+      formTitle: "Contract Information"
+      formDescription: "Provide the details for the new contract"
+      fields:
+        - { name: "contract_type", label: "Contract Type", type: "select", required: true, options: ["Vendor Agreement", "Employment", "NDA", "Service Agreement", "Other"] }
+        - { name: "party_name", label: "Other Party Name", type: "text", required: true }
+        - { name: "party_email", label: "Other Party Email", type: "email", required: true }
+        - { name: "value", label: "Contract Value ($)", type: "number", required: false }
+        - { name: "duration_months", label: "Duration (months)", type: "number", required: true }
+        - { name: "key_terms", label: "Key Terms & Conditions", type: "textarea", required: true }
+      submitLabel: "Create Contract"
+
+  - id: "node-3"
+    type: "ai-agent"
+    name: "Draft Contract"
+    description: "AI generates a professional contract based on the provided details"
+    position: { x: 600, y: 250 }
+    config:
+      systemPrompt: "You are a legal assistant. Draft a professional {{payload.contract_type}} contract between our company and {{payload.party_name}}. Include standard clauses for: term ({{payload.duration_months}} months), termination, liability, confidentiality, and the specific terms provided. Value: ${{payload.value}}."
+      outputFormat: "text"
+
+  - id: "node-4"
+    type: "document-generator"
+    name: "Create Contract PDF"
+    description: "Generates the formal contract document"
+    position: { x: 850, y: 250 }
+    config:
+      documentType: "contract"
+      title: "{{payload.contract_type}} — {{payload.party_name}}"
+      template: "{{payload.contract_draft}}"
+      outputFormat: "pdf"
+      includeTimestamp: true
+      storeAsArtifact: true
+
+  - id: "node-5"
+    type: "approval"
+    name: "Legal Review"
+    description: "Legal team reviews and approves the contract"
+    position: { x: 1100, y: 250 }
+    config:
+      approvers: "legal@company.com"
+      message: "Please review this {{payload.contract_type}} with {{payload.party_name}} (value: ${{payload.value}})"
+      timeoutMinutes: 4320
+
+  - id: "node-6"
+    type: "if-condition"
+    name: "Approved?"
+    description: "Checks if legal approved the contract"
+    position: { x: 1350, y: 250 }
+    config:
+      condition: "payload.approved === true"
+      trueLabel: "Approved"
+      falseLabel: "Rejected"
+
+  - id: "node-7"
+    type: "email-send"
+    name: "Send for Signature"
+    description: "Sends the approved contract to the other party for signing"
+    position: { x: 1600, y: 150 }
+    config:
+      provider: "smtp"
+      from: "legal@company.com"
+      to: "{{payload.party_email}}"
+      subject: "Contract Ready for Signature — {{payload.contract_type}}"
+      body: "Dear {{payload.party_name}},\n\nPlease find the attached {{payload.contract_type}} for your review and signature.\n\nPlease sign and return within 7 business days.\n\nBest regards,\nLegal Team"
+
+  - id: "node-8"
+    type: "sla-monitor"
+    name: "Signature Deadline"
+    description: "Tracks the signature deadline and sends reminders"
+    position: { x: 1850, y: 150 }
+    config:
+      slaName: "Contract Signature Deadline"
+      deadlineType: "duration"
+      durationMinutes: 10080
+      warningThreshold: 70
+      escalationAction: "escalate"
+      notifyChannel: "both"
+      notifyTo: "legal@company.com"
+
+  - id: "node-9"
+    type: "escalation"
+    name: "Overdue Alert"
+    description: "Escalates if the contract signature is overdue"
+    position: { x: 2100, y: 150 }
+    config:
+      escalationReason: "sla-breach"
+      escalateTo: "legal-head@company.com"
+      severity: "high"
+      message: "Contract with {{payload.party_name}} ({{payload.contract_type}}) is overdue for signature. Value: ${{payload.value}}."
+      includeContext: true
+
+  - id: "node-10"
+    type: "audit-log"
+    name: "Record All Decisions"
+    description: "Logs every step of the contract lifecycle"
+    position: { x: 2100, y: 350 }
+    config:
+      logLevel: "detailed"
+      logCategory: "compliance"
+      message: "Contract lifecycle: {{payload.contract_type}} with {{payload.party_name}} — Status: {{payload.status}}"
+      includeInputData: true
+      retentionDays: 2555
+
+edges:
+  - { id: "e-1", source: "node-1", target: "node-2" }
+  - { id: "e-2", source: "node-2", target: "node-3" }
+  - { id: "e-3", source: "node-3", target: "node-4" }
+  - { id: "e-4", source: "node-4", target: "node-5" }
+  - { id: "e-5", source: "node-5", target: "node-6" }
+  - { id: "e-6", source: "node-6", target: "node-7", label: "Approved" }
+  - { id: "e-7", source: "node-7", target: "node-8" }
+  - { id: "e-8", source: "node-8", target: "node-9" }
+  - { id: "e-9", source: "node-6", target: "node-10", label: "Rejected" }
+  - { id: "e-10", source: "node-9", target: "node-10" }

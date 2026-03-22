@@ -1,0 +1,137 @@
+id: sales-outreach
+name: "Sales Outreach"
+description: "Qualifies leads automatically — enriches company data, AI scores lead quality, personalizes outreach, and tracks follow-ups with smart timing."
+category: "automation"
+icon: "Mail"
+version: "1.0.0"
+tags:
+  - sales
+  - leads
+  - outreach
+  - email
+  - automation
+
+preview:
+  color: "#f59e0b"
+  estimatedTime: "6 min setup"
+  difficulty: "beginner"
+  useCases:
+    - "Lead qualification"
+    - "Personalized email campaigns"
+    - "Follow-up automation"
+    - "Sales pipeline management"
+
+nodes:
+  - id: "node-1"
+    type: "entry-point"
+    name: "New Lead"
+    description: "Triggered when a new lead enters the system"
+    position: { x: 100, y: 250 }
+    config:
+      triggerMode: "webhook"
+      webhookPath: "/sales/leads"
+
+  - id: "node-2"
+    type: "data-enrichment"
+    name: "Enrich Company Data"
+    description: "Looks up company information to understand the lead better"
+    position: { x: 350, y: 250 }
+    config:
+      enrichmentType: "ai-lookup"
+      sourceField: "payload.company_name"
+      outputFields: "company_size\nindustry\nrevenue\nlocation\ntechnologies"
+      aiPrompt: "Research {{payload.company_name}} and find: company size, industry, estimated revenue, headquarters location, and technologies they use"
+      fallbackBehavior: "continue"
+
+  - id: "node-3"
+    type: "ai-agent"
+    name: "Score Lead Quality"
+    description: "AI evaluates how good this lead is based on enriched data"
+    position: { x: 600, y: 250 }
+    config:
+      systemPrompt: "Score this lead from 1-100 based on: company size fit, industry relevance, budget likelihood, and engagement signals. Provide the score, reasoning, and classify as: Hot (80+), Warm (50-79), or Cold (<50)."
+      outputFormat: "json"
+
+  - id: "node-4"
+    type: "if-condition"
+    name: "Worth Pursuing?"
+    description: "Only pursue leads above the quality threshold"
+    position: { x: 850, y: 250 }
+    config:
+      condition: "payload.lead_score >= 50"
+      trueLabel: "Qualified"
+      falseLabel: "Nurture Later"
+
+  - id: "node-5"
+    type: "ai-agent"
+    name: "Personalize Message"
+    description: "AI crafts a personalized outreach email for this specific lead"
+    position: { x: 1100, y: 150 }
+    config:
+      systemPrompt: "Write a personalized, conversational sales email to {{payload.contact_name}} at {{payload.company_name}}. Reference their industry ({{payload.industry}}), company size, and a specific pain point our product solves for them. Keep it under 150 words. Don't be salesy."
+      outputFormat: "text"
+
+  - id: "node-6"
+    type: "approval"
+    name: "Review Outreach"
+    description: "Sales rep reviews the email before sending"
+    position: { x: 1350, y: 150 }
+    config:
+      approvers: "sales-team@company.com"
+      message: "Review outreach email for {{payload.contact_name}} at {{payload.company_name}} (Score: {{payload.lead_score}})"
+      timeoutMinutes: 480
+
+  - id: "node-7"
+    type: "email-send"
+    name: "Send Email"
+    description: "Sends the personalized outreach email"
+    position: { x: 1600, y: 150 }
+    config:
+      provider: "smtp"
+      from: "{{payload.sales_rep_email}}"
+      to: "{{payload.contact_email}}"
+      subject: "{{payload.email_subject}}"
+      body: "{{payload.personalized_email}}"
+
+  - id: "node-8"
+    type: "delay"
+    name: "Wait for Follow-up"
+    description: "Waits 3 days before checking for a response"
+    position: { x: 1850, y: 150 }
+    config:
+      delayType: "fixed"
+      delayMs: 259200000
+      reason: "Waiting 3 days for prospect to respond"
+
+  - id: "node-9"
+    type: "ai-agent"
+    name: "Analyze Response"
+    description: "AI checks if the prospect responded and analyzes their interest level"
+    position: { x: 2100, y: 150 }
+    config:
+      systemPrompt: "Check if the prospect has responded. If yes, analyze their response sentiment and interest level. If no response, draft a brief follow-up email."
+      outputFormat: "json"
+
+  - id: "node-10"
+    type: "audit-log"
+    name: "Log Activity"
+    description: "Records all outreach activity for sales reporting"
+    position: { x: 2100, y: 350 }
+    config:
+      logLevel: "standard"
+      logCategory: "operational"
+      message: "Lead {{payload.contact_name}} at {{payload.company_name}} — Score: {{payload.lead_score}} — Status: {{payload.outreach_status}}"
+      includeInputData: true
+      retentionDays: 365
+
+edges:
+  - { id: "e-1", source: "node-1", target: "node-2" }
+  - { id: "e-2", source: "node-2", target: "node-3" }
+  - { id: "e-3", source: "node-3", target: "node-4" }
+  - { id: "e-4", source: "node-4", target: "node-5", label: "Qualified" }
+  - { id: "e-5", source: "node-4", target: "node-10", label: "Nurture" }
+  - { id: "e-6", source: "node-5", target: "node-6" }
+  - { id: "e-7", source: "node-6", target: "node-7" }
+  - { id: "e-8", source: "node-7", target: "node-8" }
+  - { id: "e-9", source: "node-8", target: "node-9" }
+  - { id: "e-10", source: "node-9", target: "node-10" }
