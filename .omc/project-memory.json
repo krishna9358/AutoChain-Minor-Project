@@ -1,0 +1,518 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1774106031433,
+  "projectRoot": "/Users/krishnamohan/Desktop/minor-project",
+  "techStack": {
+    "languages": [],
+    "frameworks": [],
+    "packageManager": null,
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": null,
+    "lintCommand": null,
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "bin",
+      "docs",
+      "scripts"
+    ],
+    "gitBranches": null
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "bin": {
+      "path": "bin",
+      "purpose": "Executable scripts",
+      "fileCount": 0,
+      "lastAccessed": 1774106031385,
+      "keyFiles": []
+    },
+    "docs": {
+      "path": "docs",
+      "purpose": "Documentation",
+      "fileCount": 9,
+      "lastAccessed": 1774106031411,
+      "keyFiles": [
+        "AI_AGENT_MEMORY_AND_SECRET_SELECTOR_FEATURES.md",
+        "DATETIME_PICKER_FEATURE.md",
+        "ENVIRONMENT_VARIABLES.md",
+        "FEATURE_IMPLEMENTATION_SUMMARY.md",
+        "IMPROVEMENTS_SUMMARY.md"
+      ]
+    },
+    "frontend": {
+      "path": "frontend",
+      "purpose": null,
+      "fileCount": 19,
+      "lastAccessed": 1774106031412,
+      "keyFiles": [
+        "Dockerfile",
+        "Dockerfile.dev",
+        "README.md",
+        "bun.lock",
+        "components.json"
+      ]
+    },
+    "hooks": {
+      "path": "hooks",
+      "purpose": null,
+      "fileCount": 9,
+      "lastAccessed": 1774106031415,
+      "keyFiles": [
+        "Dockerfile.dev",
+        "package-lock.json",
+        "package.json",
+        "tsconfig.json",
+        "tsconfig.tsbuildinfo"
+      ]
+    },
+    "primary-backend": {
+      "path": "primary-backend",
+      "purpose": null,
+      "fileCount": 12,
+      "lastAccessed": 1774106031416,
+      "keyFiles": [
+        "Dockerfile",
+        "Dockerfile.dev",
+        "WORKFLOW_SYSTEM_README.md",
+        "package-lock.json",
+        "package.json"
+      ]
+    },
+    "processor": {
+      "path": "processor",
+      "purpose": null,
+      "fileCount": 8,
+      "lastAccessed": 1774106031417,
+      "keyFiles": [
+        "Dockerfile.dev",
+        "package-lock.json",
+        "package.json",
+        "tsconfig.json",
+        "tsconfig.tsbuildinfo"
+      ]
+    },
+    "scripts": {
+      "path": "scripts",
+      "purpose": "Build/utility scripts",
+      "fileCount": 2,
+      "lastAccessed": 1774106031422,
+      "keyFiles": [
+        "dev.js",
+        "init-db.sh"
+      ]
+    },
+    "worker": {
+      "path": "worker",
+      "purpose": null,
+      "fileCount": 8,
+      "lastAccessed": 1774106031425,
+      "keyFiles": [
+        "Dockerfile.dev",
+        "package-lock.json",
+        "package.json",
+        "tsconfig.json",
+        "tsconfig.tsbuildinfo"
+      ]
+    },
+    "hooks/dist": {
+      "path": "hooks/dist",
+      "purpose": "Distribution/build output",
+      "fileCount": 1,
+      "lastAccessed": 1774106031428,
+      "keyFiles": [
+        "index.js"
+      ]
+    },
+    "hooks/src": {
+      "path": "hooks/src",
+      "purpose": "Source code",
+      "fileCount": 1,
+      "lastAccessed": 1774106031428,
+      "keyFiles": [
+        "index.ts"
+      ]
+    },
+    "primary-backend/dist": {
+      "path": "primary-backend/dist",
+      "purpose": "Distribution/build output",
+      "fileCount": 3,
+      "lastAccessed": 1774106031429,
+      "keyFiles": [
+        "config.js",
+        "index.js",
+        "middleware.js"
+      ]
+    },
+    "primary-backend/node_modules": {
+      "path": "primary-backend/node_modules",
+      "purpose": "Dependencies",
+      "fileCount": 1,
+      "lastAccessed": 1774106031430,
+      "keyFiles": []
+    },
+    "processor/dist": {
+      "path": "processor/dist",
+      "purpose": "Distribution/build output",
+      "fileCount": 1,
+      "lastAccessed": 1774106031430,
+      "keyFiles": [
+        "index.js"
+      ]
+    },
+    "processor/src": {
+      "path": "processor/src",
+      "purpose": "Source code",
+      "fileCount": 1,
+      "lastAccessed": 1774106031430,
+      "keyFiles": [
+        "index.ts"
+      ]
+    },
+    "worker/dist": {
+      "path": "worker/dist",
+      "purpose": "Distribution/build output",
+      "fileCount": 4,
+      "lastAccessed": 1774106031431,
+      "keyFiles": [
+        "email.js",
+        "index.js",
+        "parser.js"
+      ]
+    },
+    "worker/scripts": {
+      "path": "worker/scripts",
+      "purpose": "Build/utility scripts",
+      "fileCount": 0,
+      "lastAccessed": 1774106031432,
+      "keyFiles": []
+    },
+    "worker/src": {
+      "path": "worker/src",
+      "purpose": "Source code",
+      "fileCount": 4,
+      "lastAccessed": 1774106031433,
+      "keyFiles": [
+        "email.ts",
+        "index.ts",
+        "parser.ts"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "primary-backend/src/router/execution.ts",
+      "accessCount": 70,
+      "lastAccessed": 1774169615694,
+      "type": "file"
+    },
+    {
+      "path": "primary-backend/src/router/generate.ts",
+      "accessCount": 21,
+      "lastAccessed": 1774168500250,
+      "type": "file"
+    },
+    {
+      "path": "frontend/app/workflow/[id]/page.tsx",
+      "accessCount": 15,
+      "lastAccessed": 1774169485242,
+      "type": "file"
+    },
+    {
+      "path": "primary-backend/src/index.ts",
+      "accessCount": 13,
+      "lastAccessed": 1774169610563,
+      "type": "file"
+    },
+    {
+      "path": "primary-backend/prisma/schema.prisma",
+      "accessCount": 12,
+      "lastAccessed": 1774169518654,
+      "type": "file"
+    },
+    {
+      "path": "docker-compose.yml",
+      "accessCount": 11,
+      "lastAccessed": 1774169516980,
+      "type": "file"
+    },
+    {
+      "path": "primary-backend/prisma/seed.ts",
+      "accessCount": 10,
+      "lastAccessed": 1774169329913,
+      "type": "file"
+    },
+    {
+      "path": "primary-backend/package.json",
+      "accessCount": 7,
+      "lastAccessed": 1774169596129,
+      "type": "file"
+    },
+    {
+      "path": "primary-backend/src/router/componentCatalog.ts",
+      "accessCount": 6,
+      "lastAccessed": 1774168965485,
+      "type": "file"
+    },
+    {
+      "path": "primary-backend/src/execution/base-executor.ts",
+      "accessCount": 6,
+      "lastAccessed": 1774169301516,
+      "type": "file"
+    },
+    {
+      "path": "primary-backend/.env.example",
+      "accessCount": 6,
+      "lastAccessed": 1774169531097,
+      "type": "file"
+    },
+    {
+      "path": "primary-backend/.env",
+      "accessCount": 5,
+      "lastAccessed": 1774107365619,
+      "type": "file"
+    },
+    {
+      "path": "frontend/lib/auth-token.ts",
+      "accessCount": 4,
+      "lastAccessed": 1774169006388,
+      "type": "file"
+    },
+    {
+      "path": "frontend/Dockerfile.dev",
+      "accessCount": 3,
+      "lastAccessed": 1774114610851,
+      "type": "file"
+    },
+    {
+      "path": "frontend/lib/api.ts",
+      "accessCount": 3,
+      "lastAccessed": 1774168981601,
+      "type": "file"
+    },
+    {
+      "path": "primary-backend/src",
+      "accessCount": 3,
+      "lastAccessed": 1774169535124,
+      "type": "directory"
+    },
+    {
+      "path": "README.md",
+      "accessCount": 3,
+      "lastAccessed": 1774169658650,
+      "type": "file"
+    },
+    {
+      "path": "frontend/components/providers/WorkspaceProvider.tsx",
+      "accessCount": 2,
+      "lastAccessed": 1774118910187,
+      "type": "file"
+    },
+    {
+      "path": "primary-backend/src/router/user.ts",
+      "accessCount": 2,
+      "lastAccessed": 1774168487241,
+      "type": "file"
+    },
+    {
+      "path": "primary-backend/src/connections/manager.ts",
+      "accessCount": 2,
+      "lastAccessed": 1774168497410,
+      "type": "file"
+    },
+    {
+      "path": "primary-backend/src/execution/factory.ts",
+      "accessCount": 2,
+      "lastAccessed": 1774168859891,
+      "type": "file"
+    },
+    {
+      "path": "frontend/components/workflow/AIWorkflowGenerator.tsx",
+      "accessCount": 2,
+      "lastAccessed": 1774168868872,
+      "type": "file"
+    },
+    {
+      "path": "primary-backend/src/router/workflow.ts",
+      "accessCount": 2,
+      "lastAccessed": 1774168869471,
+      "type": "file"
+    },
+    {
+      "path": "frontend/app/dashboard/page.tsx",
+      "accessCount": 2,
+      "lastAccessed": 1774168994815,
+      "type": "file"
+    },
+    {
+      "path": "frontend/middleware.ts",
+      "accessCount": 2,
+      "lastAccessed": 1774169017141,
+      "type": "file"
+    },
+    {
+      "path": "frontend/package.json",
+      "accessCount": 2,
+      "lastAccessed": 1774169517742,
+      "type": "file"
+    },
+    {
+      "path": "",
+      "accessCount": 2,
+      "lastAccessed": 1774169530334,
+      "type": "directory"
+    },
+    {
+      "path": "scripts",
+      "accessCount": 1,
+      "lastAccessed": 1774106079398,
+      "type": "directory"
+    },
+    {
+      "path": "dev",
+      "accessCount": 1,
+      "lastAccessed": 1774106086814,
+      "type": "file"
+    },
+    {
+      "path": "scripts/dev.js",
+      "accessCount": 1,
+      "lastAccessed": 1774106087474,
+      "type": "file"
+    },
+    {
+      "path": "primary-backend/src/utils/safeEval.ts",
+      "accessCount": 1,
+      "lastAccessed": 1774112016068,
+      "type": "file"
+    },
+    {
+      "path": "primary-backend/Dockerfile.dev",
+      "accessCount": 1,
+      "lastAccessed": 1774112024237,
+      "type": "file"
+    },
+    {
+      "path": "primary-backend/tsconfig.json",
+      "accessCount": 1,
+      "lastAccessed": 1774112068717,
+      "type": "file"
+    },
+    {
+      "path": "frontend/hooks/useAutosave.ts",
+      "accessCount": 1,
+      "lastAccessed": 1774118739861,
+      "type": "file"
+    },
+    {
+      "path": "primary-backend/src/middleware/auth.ts",
+      "accessCount": 1,
+      "lastAccessed": 1774118745433,
+      "type": "file"
+    },
+    {
+      "path": "frontend/store/workflowStore.ts",
+      "accessCount": 1,
+      "lastAccessed": 1774118784963,
+      "type": "file"
+    },
+    {
+      "path": "primary-backend/src/router",
+      "accessCount": 1,
+      "lastAccessed": 1774118870058,
+      "type": "directory"
+    },
+    {
+      "path": "frontend/components/providers",
+      "accessCount": 1,
+      "lastAccessed": 1774118873954,
+      "type": "directory"
+    },
+    {
+      "path": "primary-backend/src/router/workspace.ts",
+      "accessCount": 1,
+      "lastAccessed": 1774118886048,
+      "type": "directory"
+    },
+    {
+      "path": "frontend/app/login/page.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1774168480146,
+      "type": "file"
+    },
+    {
+      "path": "frontend/app/page.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1774168480477,
+      "type": "file"
+    },
+    {
+      "path": "frontend/app/signup/page.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1774168480574,
+      "type": "file"
+    },
+    {
+      "path": "worker/src/index.ts",
+      "accessCount": 1,
+      "lastAccessed": 1774168489871,
+      "type": "file"
+    },
+    {
+      "path": "processor/src/index.ts",
+      "accessCount": 1,
+      "lastAccessed": 1774168490056,
+      "type": "file"
+    },
+    {
+      "path": "primary-backend/src/nodes/orchestrators/executors.ts",
+      "accessCount": 1,
+      "lastAccessed": 1774168494354,
+      "type": "file"
+    },
+    {
+      "path": "primary-backend/src/nodes/agents/executor.ts",
+      "accessCount": 1,
+      "lastAccessed": 1774168497044,
+      "type": "file"
+    },
+    {
+      "path": "todo",
+      "accessCount": 1,
+      "lastAccessed": 1774168507240,
+      "type": "file"
+    },
+    {
+      "path": "primary-backend/prisma",
+      "accessCount": 1,
+      "lastAccessed": 1774168953319,
+      "type": "directory"
+    },
+    {
+      "path": "primary-backend/src/types",
+      "accessCount": 1,
+      "lastAccessed": 1774168960655,
+      "type": "directory"
+    },
+    {
+      "path": "primary-backend/src/router/audit.ts",
+      "accessCount": 1,
+      "lastAccessed": 1774168967111,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}

@@ -85,7 +85,9 @@ Design a multi-agent system that takes ownership of complex, multi-step enterpri
 ### 1. Clone & Configure
 
 ```bash
-git clone <repo-url>
+# Clone and start everything
+# Note: It needs docker to be running. Before running the script, make sure you have docker and it is running. 
+git clone <your-repo-url>
 cd minor-project
 ```
 
@@ -286,4 +288,98 @@ Built for ET AI Hackathon 2026
 
 ## License
 
-MIT
+# Hooks
+curl http://localhost:3002/health
+
+# Frontend
+curl http://localhost:3000
+```
+
+### Metrics
+
+- Workflow execution metrics
+- Performance tracking
+- Error rates
+- Custom metrics via Prometheus (optional)
+
+### Logs
+
+Logs are available via:
+- `./dev logs` - All services
+- Docker logs per service
+- Database audit logs
+
+## 🎨 Tech Stack
+
+### Frontend
+- Next.js 14 (App Router)
+- React Flow (Workflow visualization)
+- shadcn/ui (UI components)
+- Tailwind CSS (Styling)
+- Framer Motion (Animations)
+- Vercel AI SDK (AI integration)
+
+### Backend
+- Express.js (API)
+- PostgreSQL (Database)
+- Kafka (Event streaming)
+- Prisma (ORM)
+- OpenRouter (LLM routing for generation and AI recovery paths)
+- JWT (Authentication)
+
+### Infrastructure
+- Docker (Containerization)
+- Docker Compose (Orchestration)
+- Nginx (Reverse proxy - production)
+
+## 🚀 Deployment
+
+### Production Build
+
+```bash
+# Build all services
+./dev build
+
+# Start production containers
+docker compose -f docker-compose.prod.yml up -d
+```
+
+### Environment Variables
+
+Required for production:
+- `DATABASE_URL` - PostgreSQL connection string
+- `JWT_SECRET` - Secure random string
+- `OPENROUTER_API_KEY` - OpenRouter API key
+- `OPENROUTER_MODEL` - Chat model id (for example `openai/gpt-4o-mini`)
+- `OPENROUTER_EMBEDDING_MODEL` - Embedding model id (for example `openai/text-embedding-3-large`)
+- `KAFKA_BROKER` - Kafka broker URL
+
+**Google user OAuth (Calendar / Meet / Docs / Sheets “Connected account” in workflows):**
+- **Recommended (no .env):** Workspace **admins and editors** save the OAuth Web client in the app: **Dashboard → Integrations → Google** (stored per workspace, client secret encrypted in the database).
+- **Optional fallback:** `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_REDIRECT_URI` — used when workspace credentials are not set (e.g. single-tenant hosting).
+- Optional: `FRONTEND_URL` or `NEXT_PUBLIC_APP_URL` — Used after OAuth callback to redirect to `/dashboard/integrations/google`
+- Optional: `API_PUBLIC_URL` or `PUBLIC_BACKEND_URL` — Hint for the default redirect URI shown in the UI (defaults to `http://localhost:PORT`)
+
+After changing the Prisma schema, run `npx prisma db push` (or a migration) and `npx prisma generate` in `primary-backend`.
+
+## 📄 License
+
+MIT License - see LICENSE file for details
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run `./dev` to test
+5. Submit a pull request
+
+## 📞 Support
+
+- Documentation: https://docs.autochain.ai
+- Issues: https://github.com/autochain/autochain/issues
+- Email: support@autochain.ai
+
+---
+
+**Built with ❤️ by the AutoChain AI team**
