@@ -1,10 +1,26 @@
 FROM node:20-slim
 RUN apt-get update -y && apt-get install -y openssl wget && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-COPY package.json package-lock.json* ./
+
+# Copy dependency manifests (Docker layer cache)
+COPY package.json package-lock.json* yarn.lock* ./
+
+# Install deps at build time
 RUN npm install
+
+# Generate Prisma client
 COPY prisma ./prisma/
 RUN npx prisma generate
+
 COPY . .
 EXPOSE 3001
-CMD ["sh", "-c", "npx prisma migrate deploy 2>/dev/null; npx prisma db push 2>/dev/null; npm run dev"]
+
+# At startup: re-run npm install so the named volume gets any new packages,
+# regenerate Prisma client, run migrations, then start the dev server.
+CMD sh -c "\
+  echo '==> Installing dependencies...' && \
+  npm install 2>&1 | tail -5 && \
+  npx prisma generate && \
+  npx prisma migrate deploy 2>/dev/null; \
+  npx prisma db push 2>/dev/null; \
+  npm run dev"

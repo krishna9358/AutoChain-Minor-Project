@@ -27,6 +27,7 @@
     "bcryptjs": "^3.0.3",
     "chromadb": "^3.4.0",
     "cors": "^2.8.5",
+    "graphql": "^16.9.0",
     "expr-eval": "^2.0.2",
     "express": "^4.19.2",
     "jsonwebtoken": "^9.0.2",
