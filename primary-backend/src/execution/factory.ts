@@ -1,4 +1,5 @@
 import { BaseNodeExecutor } from "./base-executor";
+import { DefaultNodeExecutor, DelayExecutor } from "./default-executor";
 import {
   AnyNode,
   NodeExecutionContext,
@@ -102,16 +103,16 @@ export class NodeExecutorFactory {
     this.executorMap.set("loop", LoopExecutor);
     this.executorMap.set("ai-agent", AgentNodeExecutor);
     this.executorMap.set("text-transform", AgentNodeExecutor);
-    this.executorMap.set("delay", WebhookTriggerExecutor);
+    this.executorMap.set("delay", DelayExecutor);
     this.executorMap.set("error-handler", ErrorHandlingNodeExecutor);
     this.executorMap.set("approval", HumanApprovalNodeExecutor);
-    this.executorMap.set("artifact-writer", WebhookTriggerExecutor);
-    this.executorMap.set("webhook-response", WebhookTriggerExecutor);
-    this.executorMap.set("github", WebhookTriggerExecutor);
-    this.executorMap.set("google-calendar", WebhookTriggerExecutor);
-    this.executorMap.set("google-meet", WebhookTriggerExecutor);
-    this.executorMap.set("google-docs", WebhookTriggerExecutor);
-    this.executorMap.set("google-sheets", WebhookTriggerExecutor);
+    this.executorMap.set("artifact-writer", DefaultNodeExecutor);
+    this.executorMap.set("webhook-response", DefaultNodeExecutor);
+    this.executorMap.set("github", DefaultNodeExecutor);
+    this.executorMap.set("google-calendar", DefaultNodeExecutor);
+    this.executorMap.set("google-meet", DefaultNodeExecutor);
+    this.executorMap.set("google-docs", DefaultNodeExecutor);
+    this.executorMap.set("google-sheets", DefaultNodeExecutor);
   }
 
   /**
@@ -128,7 +129,7 @@ export class NodeExecutorFactory {
       if (canonical) ExecutorClass = this.executorMap.get(canonical);
     }
     if (!ExecutorClass) {
-      throw new Error(`No executor registered for node type: ${nodeType}`);
+      return DefaultNodeExecutor;
     }
 
     return ExecutorClass;

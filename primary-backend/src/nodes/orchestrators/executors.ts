@@ -8,6 +8,8 @@ import {
   NodeExecutionResult,
 } from '../../types/nodes';
 import { NodeExecutorFactory } from '../../execution/factory';
+import { safeEval } from '../../utils/safeEval';
+import axios from 'axios';
 
 /**
  * Conditional Orchestrator Executor
@@ -107,34 +109,41 @@ export class ConditionalExecutor extends BaseNodeExecutor {
     variables: any
   ): boolean {
     try {
-      // Create evaluation scope
       const scope = {
         input: context.input_data,
         prev: context.previous_results,
         variables: { ...context.variables, ...variables },
         state: context.workflow_state,
-        env: process.env,
       };
 
-      // Safe evaluation using Function constructor
-      const func = new Function(...Object.keys(scope), `return ${condition}`);
-      return Boolean(func(...Object.values(scope)));
+      return Boolean(safeEval(condition, scope));
     } catch (error) {
-      throw new Error(`JavaScript evaluation error: ${error}`);
+      throw new Error(`Expression evaluation error: ${error}`);
     }
   }
 
   /**
-   * Evaluate Python condition (would use a Python bridge)
+   * Evaluate Python condition
+   * Uses safeEval as a best-effort evaluator since we don't have a Python bridge.
    */
   private async evaluatePythonCondition(
     condition: string,
     context: NodeExecutionContext,
     variables: any
   ): Promise<boolean> {
-    // Placeholder for Python evaluation
-    // In a real implementation, this would use a Python subprocess or API
-    return Boolean(condition);
+    try {
+      const scope = {
+        input: context.input_data,
+        prev: context.previous_results,
+        variables: { ...context.variables, ...variables },
+        state: context.workflow_state,
+      };
+
+      return Boolean(safeEval(condition, scope));
+    } catch (error) {
+      console.warn(`[ConditionalExecutor] Python condition fallback failed for: "${condition}"`, error);
+      throw new Error(`Python condition evaluation failed: ${error}`);
+    }
   }
 
   /**
@@ -175,16 +184,45 @@ Respond with only "true" or "false".`;
   }
 
   /**
-   * Call AI for condition evaluation
+   * Call AI for condition evaluation via OpenRouter (OpenAI-compatible).
    */
   private async callAIForEvaluation(
     prompt: string,
     aiConfig: any,
     apiKey: string
   ): Promise<string> {
-    // Placeholder implementation
-    // In a real implementation, this would use the OpenAI SDK
-    return 'true';
+    const baseURL = aiConfig?.baseURL || 'https://openrouter.ai/api/v1';
+    const model = aiConfig?.model || 'openai/gpt-4o-mini';
+
+    try {
+      const response = await axios.post(
+        `${baseURL}/chat/completions`,
+        {
+          model,
+          messages: [
+            { role: 'system', content: 'You are a boolean evaluator. Respond with only "true" or "false".' },
+            { role: 'user', content: prompt },
+          ],
+          temperature: 0,
+          max_tokens: 10,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 15_000,
+        },
+      );
+
+      const content = response.data?.choices?.[0]?.message?.content || '';
+      return content.trim();
+    } catch (error: any) {
+      console.warn(
+        `[ConditionalExecutor] AI evaluation call failed, falling back to "true": ${error.message}`,
+      );
+      return 'true';
+    }
   }
 }
 
@@ -598,12 +636,10 @@ export class LoopExecutor extends BaseNodeExecutor {
         prev: context.previous_results,
         variables: context.variables,
         state: context.workflow_state,
-        env: process.env,
         iteration,
       };
 
-      const func = new Function(...Object.keys(scope), `return ${condition}`);
-      return Boolean(func(...Object.values(scope)));
+      return Boolean(safeEval(condition, scope));
     } catch (error) {
       return false;
     }
@@ -623,12 +659,10 @@ export class LoopExecutor extends BaseNodeExecutor {
         prev: context.previous_results,
         variables: context.variables,
         state: context.workflow_state,
-        env: process.env,
         iteration,
       };
 
-      const func = new Function(...Object.keys(scope), `return ${condition}`);
-      return Boolean(func(...Object.values(scope)));
+      return Boolean(safeEval(condition, scope));
     } catch (error) {
       return false;
     }
@@ -688,10 +722,9 @@ export class SwitchExecutor extends BaseNodeExecutor {
       return true;
     }
 
-    // Try JavaScript evaluation
+    // Try safe expression evaluation
     try {
-      const func = new Function('value', `return ${condition}`);
-      return Boolean(func(value));
+      return Boolean(safeEval(condition, { value }));
     } catch (error) {
       return false;
     }

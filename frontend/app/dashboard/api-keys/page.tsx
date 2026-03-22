@@ -511,7 +511,7 @@ export default function ApiKeysPage() {
                   API Key Created Successfully
                 </h2>
                 <p className="text-sm mb-4" style={{ color: "var(--text-muted)" }}>
-                  Copy this key now. You won't be able to see it again.
+                  Copy this key now. You won&apos;t be able to see it again.
                 </p>
               </div>
 
@@ -545,7 +545,7 @@ export default function ApiKeysPage() {
                 onClick={() => setNewKey(null)}
                 className="w-full mt-4 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition-colors"
               >
-                I've copied the key
+                I&apos;ve copied the key
               </button>
             </motion.div>
           </motion.div>

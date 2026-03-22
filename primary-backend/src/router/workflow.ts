@@ -277,22 +277,8 @@ router.put("/:id", authMiddleware, async (req: AuthRequest, res) => {
 
       const normalizedNodes = nodeValidation.normalized;
 
-      // Remove RunSteps referencing these nodes before deleting them
-      // (nodeId is non-nullable, so we must delete the steps, not null them out)
-      const existingNodeIds = (
-        await prisma.workflowNode.findMany({
-          where: { workflowId: workflow.id },
-          select: { id: true },
-        })
-      ).map((n) => n.id);
-
-      if (existingNodeIds.length > 0) {
-        await prisma.runStep.deleteMany({
-          where: { nodeId: { in: existingNodeIds } },
-        });
-      }
-
-      // Delete existing nodes (cascade deletes edges)
+      // Delete existing nodes (cascade deletes edges; RunSteps are preserved
+      // with nodeId set to null via onDelete: SetNull)
       await prisma.workflowNode.deleteMany({
         where: { workflowId: workflow.id },
       });
@@ -462,11 +448,61 @@ router.post(
       }
 
       // Restore nodes and edges from version snapshot
+      await prisma.workflowNode.deleteMany({
+        where: { workflowId: req.params.id },
+      });
+
+      const nodesData = version.nodesData as any[];
+      if (Array.isArray(nodesData)) {
+        for (const n of nodesData) {
+          await prisma.workflowNode.create({
+            data: {
+              id: n.id,
+              workflowId: req.params.id,
+              nodeType: n.componentId || n.nodeType,
+              category: n.category || "",
+              label: n.label || "",
+              description: n.description,
+              config: (n.config || {}) as Prisma.InputJsonValue,
+              position: n.position || { x: 0, y: 0 },
+              metadata: n.metadata || {},
+              retryConfig: n.retryConfig,
+            },
+          });
+        }
+      }
+
+      const edgesData = version.edgesData as any[];
+      if (Array.isArray(edgesData)) {
+        for (const e of edgesData) {
+          await prisma.workflowEdge.create({
+            data: {
+              workflowId: req.params.id,
+              sourceNodeId: e.source || e.sourceNodeId,
+              targetNodeId: e.target || e.targetNodeId,
+              sourceHandle: e.sourceHandle,
+              targetHandle: e.targetHandle,
+              label: e.label,
+              condition: e.condition,
+            },
+          });
+        }
+      }
+
+      await prisma.workflow.update({
+        where: { id: req.params.id },
+        data: { currentVersion: version.version },
+      });
+
+      const restored = await prisma.workflow.findUnique({
+        where: { id: req.params.id },
+        include: { nodes: true, edges: true, versions: true },
+      });
+
       res.json({
         success: true,
         version: version.version,
-        nodesData: version.nodesData,
-        edgesData: version.edgesData,
+        workflow: restored,
       });
     } catch (err: any) {
       res.status(500).json({ error: err.message });

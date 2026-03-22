@@ -57,6 +57,7 @@ model Workspace {
   apiKeys   ApiKey[]
   artifacts Artifact[]
   googleOAuthConnections GoogleOAuthConnection[]
+  connections            Connection[]
 }
 
 /// User-delegated Google OAuth2 (refresh token) for Calendar / Docs / Sheets in workflows.
@@ -113,6 +114,8 @@ model Workflow {
   runs      WorkflowRun[]
   auditLogs AuditLog[]
   artifacts Artifact[]
+
+  @@index([workspaceId])
 }
 
 enum WorkflowStatus {
@@ -192,6 +195,8 @@ model WorkflowRun {
   steps     RunStep[]
   approvals Approval[]
   artifacts Artifact[]
+
+  @@index([workflowId])
 }
 
 enum RunStatus {
@@ -207,7 +212,7 @@ enum RunStatus {
 model RunStep {
   id               String     @id @default(uuid())
   runId            String
-  nodeId           String
+  nodeId           String?
   status           StepStatus @default(PENDING)
   inputPayload     Json?
   outputPayload    Json?
@@ -220,8 +225,11 @@ model RunStep {
   completedAt      DateTime?
   createdAt        DateTime   @default(now())
 
-  run  WorkflowRun  @relation(fields: [runId], references: [id], onDelete: Cascade)
-  node WorkflowNode @relation(fields: [nodeId], references: [id])
+  run  WorkflowRun   @relation(fields: [runId], references: [id], onDelete: Cascade)
+  node WorkflowNode? @relation(fields: [nodeId], references: [id], onDelete: SetNull)
+
+  @@index([runId])
+  @@index([nodeId])
 }
 
 enum StepStatus {
@@ -331,6 +339,9 @@ model AuditLog {
 
   workflow Workflow? @relation(fields: [workflowId], references: [id], onDelete: SetNull)
   user     User      @relation(fields: [userId], references: [id])
+
+  @@index([workflowId])
+  @@index([userId])
 }
 
 // ─── ENTERPRISE FEATURES ──────────────────────────────────────────
@@ -339,7 +350,7 @@ model Secret {
   id          String     @id @default(uuid())
   workspaceId String
   name        String
-  key         String     @unique // Secret key identifier
+  key         String     // Secret key identifier
   value       String // Encrypted secret value
   type        SecretType @default(OTHER)
   description String?
@@ -351,6 +362,8 @@ model Secret {
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   creator   User      @relation(fields: [createdBy], references: [id])
+
+  @@unique([workspaceId, key])
 }
 
 enum SecretType {
@@ -385,4 +398,25 @@ enum ApiScope {
   WRITE
   EXECUTE
   ADMIN
+}
+
+// ─── CONNECTIONS (persisted integration credentials) ─────────────
+
+model Connection {
+  id            String   @id @default(uuid())
+  workspaceId   String
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  provider      String   // e.g., "google", "slack", "github"
+  name          String   // display name
+  status        String   @default("active") // active, expired, revoked
+  credentials   String   // encrypted JSON blob (access_token, refresh_token, etc.)
+  metadata      Json?    // extra provider-specific data
+  expiresAt     DateTime?
+  lastUsedAt    DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([workspaceId, provider, name])
+  @@index([workspaceId])
+  @@index([provider])
 }

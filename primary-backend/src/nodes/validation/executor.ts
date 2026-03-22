@@ -4,6 +4,7 @@ import {
   NodeExecutionContext,
 } from "../../types/nodes";
 import OpenAI from "openai";
+import { safeEval } from "../../utils/safeEval";
 
 /**
  * Validation Node Executor
@@ -391,11 +392,9 @@ ${JSON.stringify(data, null, 2)}`;
         prev: context.previous_results,
         variables: context.variables,
         state: context.workflow_state,
-        env: process.env,
       };
 
-      const func = new Function(...Object.keys(scope), `return ${condition}`);
-      const result = func(...Object.values(scope));
+      const result = safeEval(condition, scope);
 
       if (!result) {
         return {
@@ -431,11 +430,9 @@ ${JSON.stringify(data, null, 2)}`;
           prev: context.previous_results,
           variables: context.variables,
           state: context.workflow_state,
-          env: process.env,
         };
 
-        const func = new Function(...Object.keys(scope), `return ${rules}`);
-        const result = func(...Object.values(scope));
+        const result = safeEval(rules, scope);
 
         return {
           passed: Boolean(result),

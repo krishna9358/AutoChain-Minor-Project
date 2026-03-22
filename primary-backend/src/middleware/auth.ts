@@ -3,7 +3,13 @@ import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { authenticateApiKeyRaw } from "../services/apiKeyService";
 
-const JWT_SECRET = process.env.JWT_SECRET || "autochain-secret-key";
+const JWT_SECRET = (() => {
+  if (process.env.JWT_SECRET) return process.env.JWT_SECRET;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("JWT_SECRET environment variable must be set in production");
+  }
+  return "autochain-secret-key";
+})();
 
 export interface AuthRequest extends Request {
   userId?: string;
@@ -31,7 +37,7 @@ function scopesAllow(userScopes: ApiScope[], required: ApiScope[]): boolean {
 /** Attach user from JWT / dev token. Returns false if invalid. */
 export function attachJwtUser(req: AuthRequest, token: string): boolean {
   const t = token.trim();
-  if (t === "dev-demo-token") {
+  if (t === "dev-demo-token" && process.env.NODE_ENV !== "production") {
     req.userId = DEV_USER_ID;
     req.authMethod = "jwt";
     return true;

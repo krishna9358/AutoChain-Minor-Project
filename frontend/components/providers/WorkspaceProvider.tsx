@@ -62,7 +62,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       if (list.length > 0) {
         const savedId = localStorage.getItem(ACTIVE_WS_KEY);
         const saved = list.find((w) => w.id === savedId);
-        setActiveWs(saved || list[0]);
+        const chosen = saved || list[0];
+        setActiveWs(chosen);
+        // Always sync localStorage so the API interceptor uses the correct ID
+        localStorage.setItem(ACTIVE_WS_KEY, chosen.id);
       } else {
         setActiveWs(null);
       }

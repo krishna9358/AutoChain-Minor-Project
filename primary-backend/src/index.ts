@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import bcrypt from "bcryptjs";
 import prisma from "./db";
 import { DEV_USER_ID } from "./middleware";
 import { userRouter } from "./router/user";
@@ -23,6 +24,7 @@ const PORT = process.env.PORT || 3001;
 async function ensureDevUser() {
   if (process.env.NODE_ENV === "production") return;
   try {
+    const hashedPassword = await bcrypt.hash("dev123", 10);
     let user = await prisma.user.findUnique({ where: { id: DEV_USER_ID } });
     if (!user) {
       user = await prisma.user.create({
@@ -30,11 +32,17 @@ async function ensureDevUser() {
           id: DEV_USER_ID,
           email: "dev@autochain.ai",
           name: "Dev User",
-          password: "dev123",
+          password: hashedPassword,
           role: "ADMIN",
         },
       });
       console.log("Dev user bootstrapped:", DEV_USER_ID);
+    } else if (!user.password.startsWith("$2")) {
+      await prisma.user.update({
+        where: { id: DEV_USER_ID },
+        data: { password: hashedPassword },
+      });
+      console.log("Dev user password migrated to bcrypt");
     }
 
     const hasMembership = await prisma.workspaceMember.findFirst({
@@ -56,7 +64,7 @@ async function ensureDevUser() {
   }
 }
 
-app.use(cors());
+app.use(cors({ origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'], credentials: true }));
 app.use(express.json({ limit: "10mb" }));
 
 // Health check

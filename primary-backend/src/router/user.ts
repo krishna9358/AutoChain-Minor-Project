@@ -1,6 +1,7 @@
 import { Router } from "express";
 import prisma from "../db";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
 import { authMiddleware, AuthRequest, generateToken, JWT_SECRET, DEV_USER_ID } from "../middleware";
 import { z } from "zod";
 
@@ -17,7 +18,7 @@ router.get("/dev-bootstrap", async (req, res) => {
           id: DEV_USER_ID,
           email: "dev@autochain.ai",
           name: "Dev User",
-          password: "dev123",
+          password: await bcrypt.hash("dev123", 10),
           role: "ADMIN",
         },
       });
@@ -219,7 +220,7 @@ router.post("/signup", async (req, res) => {
       data: {
         email: body.email,
         name: body.name,
-        password: body.password, // In production: hash with bcrypt
+        password: await bcrypt.hash(body.password, 10),
       },
     });
 
@@ -264,7 +265,7 @@ router.post("/login", async (req, res) => {
       },
     });
 
-    if (!user || user.password !== body.password) {
+    if (!user || !(await bcrypt.compare(body.password, user.password))) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 

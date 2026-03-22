@@ -6,4 +6,5 @@ RUN if [ -f yarn.lock ]; then yarn install; \
     else npm install; fi
 COPY . .
 EXPOSE 3000
-CMD ["npm", "run", "dev"]
+# Re-run install at startup to sync node_modules volume with package.json
+CMD sh -c "yarn install --frozen-lockfile 2>/dev/null || npm install && npm run dev"

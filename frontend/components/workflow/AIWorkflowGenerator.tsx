@@ -155,7 +155,7 @@ const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
           <div>
             <h4 className="font-semibold text-sm text-slate-800 mb-1">Demo Tip</h4>
             <p className="text-sm text-slate-600">
-              Type a clear description like "Create a workflow for customer support automation" to see the magic happen!
+              Type a clear description like &quot;Create a workflow for customer support automation&quot; to see the magic happen!
             </p>
           </div>
         </div>

@@ -18,16 +18,16 @@ import { useTheme } from "@/components/providers/ThemeProvider";
 import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { RunsPanel } from "@/components/workflow/runs/RunsPanel";
 import { api } from "@/lib/api";
+import { getToken } from "@/lib/auth-token";
 import { CreateWorkspaceModal } from "@/components/workspace/CreateWorkspaceModal";
 import { useToast } from "@/components/hooks/use-toast";
+import { useWorkflowStore } from "@/store/workflowStore";
+import { useAutosave } from "@/hooks/useAutosave";
 import {
   ReactFlow,
   Controls,
   Background,
   MiniMap,
-  applyNodeChanges,
-  applyEdgeChanges,
-  addEdge,
   Handle,
   Position,
   MarkerType,
@@ -90,9 +90,6 @@ import type {
   OnConnect,
 } from "@xyflow/react";
 
-const IS_DEV = process.env.NEXT_PUBLIC_DEV_MODE === "true";
-const DEV_TOKEN = process.env.NEXT_PUBLIC_DEV_TOKEN || "dev-demo-token";
-
 /** Plain text for Run button: read from Entry Point node config (`testRunPlainText`). */
 function getEntryPointTestRunPlainText(nodes: Node[]): string {
   const entry = nodes.find((n) => {
@@ -110,8 +107,6 @@ function getEntryPointTestRunPlainText(nodes: Node[]): string {
 }
 
 // ─── Node type registry ──────────────────────────────────────────
-// Legacy keys for backward-compat with workflows saved before the catalog existed.
-// New nodes should NEVER be added here — they come from the backend catalog automatically.
 const LEGACY_NODE_CFG: Record<
   string,
   { icon: any; color: string; label: string; cat: string }
@@ -141,18 +136,12 @@ const LEGACY_NODE_CFG: Record<
   ERROR_HANDLER: { icon: AlertCircle, color: "#ef4444", label: "Error Handler", cat: "CONTROL" },
 };
 
-/**
- * Build a merged NODE_CFG from backend catalog + legacy fallbacks.
- * Called once after catalog is fetched so every node (old or new)
- * can be resolved to an icon / color / label.
- */
 function buildNodeCfg(
   catalog: ComponentDefinition[],
 ): Record<string, { icon: any; color: string; label: string; cat: string }> {
   const cfg: Record<string, { icon: any; color: string; label: string; cat: string }> = {
     ...LEGACY_NODE_CFG,
   };
-
   for (const c of catalog) {
     const entry = {
       icon: resolveIcon(c.icon),
@@ -163,11 +152,9 @@ function buildNodeCfg(
     cfg[c.id] = entry;
     cfg[c.id.toUpperCase().replace(/-/g, "_")] = entry;
   }
-
   return cfg;
 }
 
-// Category display labels
 const CAT_LABELS: Record<string, string> = {
   TRIGGER: "Trigger", INPUT: "Input", AI_AGENT: "AI Agent", AI: "AI",
   LOGIC: "Logic", ACTION: "Action", INTEGRATION: "Integration",
@@ -278,7 +265,53 @@ function WorkflowInner() {
   const wfId = params?.id as string;
   const isNew = wfId === "new";
 
-  // Mode / view state
+  // ── Zustand store selectors ──
+  const nodes = useWorkflowStore((s) => s.nodes);
+  const edges = useWorkflowStore((s) => s.edges);
+  const wfName = useWorkflowStore((s) => s.wfName);
+  const wfDesc = useWorkflowStore((s) => s.wfDesc);
+  const wfStatus = useWorkflowStore((s) => s.wfStatus);
+  const selNodeId = useWorkflowStore((s) => s.selNodeId);
+  const runs = useWorkflowStore((s) => s.runs);
+  const activeRun = useWorkflowStore((s) => s.activeRun);
+  const runSteps = useWorkflowStore((s) => s.runSteps);
+  const components = useWorkflowStore((s) => s.components);
+  const componentMap = useWorkflowStore((s) => s.componentMap);
+  const validationErrors = useWorkflowStore((s) => s.validationErrors);
+
+  // Store actions (stable references via getState)
+  const storeActions = useRef(useWorkflowStore.getState()).current;
+  const {
+    setNodes,
+    setEdges,
+    onNodesChange: storeOnNodesChange,
+    onEdgesChange: storeOnEdgesChange,
+    onConnect: storeOnConnect,
+    selectNode,
+    clearSelection,
+    setWfName,
+    setWfDesc,
+    setWfStatus,
+    addNode,
+    deleteNode,
+    updateNodeData,
+    markSaved,
+    setCatalog,
+    setValidationErrors,
+    setRuns,
+    setActiveRun,
+    setRunSteps,
+    loadWorkflow,
+    reset,
+  } = storeActions;
+
+  // Derived: selected node object
+  const selNode = useMemo(
+    () => nodes.find((n) => n.id === selNodeId) ?? null,
+    [nodes, selNodeId],
+  );
+
+  // UI-only local state
   const [activeMode, setActiveMode] = useState<"design" | "runs" | "logs">(
     (searchParams?.get("tab") as any) || "design",
   );
@@ -289,50 +322,24 @@ function WorkflowInner() {
   const [rightOpen, setRightOpen] = useState(true);
   const [rightWidth, setRightWidth] = useState(360);
   const [isResizingRight, setIsResizingRight] = useState(false);
-
-  // Workflow data
-  const [nodes, setNodes] = useState<Node[]>([]);
-  const [edges, setEdges] = useState<Edge[]>([]);
-  const [wfName, setWfName] = useState("Untitled Workflow");
-  const [wfDesc, setWfDesc] = useState("");
-  const [wfStatus, setWfStatus] = useState("DRAFT");
-  const [descExpanded, setDescExpanded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [executing, setExecuting] = useState(false);
   const [loading, setLoading] = useState(!isNew);
-
-  // ── KEY FIX: track only the ID, derive full node from current nodes ──
-  const [selNodeId, setSelNodeId] = useState<string | null>(null);
-  const selNode = useMemo(
-    () => nodes.find((n) => n.id === selNodeId) ?? null,
-    [nodes, selNodeId],
-  );
-
-  // Runs — viewingRunIdRef keeps the run the user chose to inspect; background
-  // polls for *other* runs (e.g. still executing) must not overwrite the UI.
-  const viewingRunIdRef = useRef<string | null>(null);
-  const [runs, setRuns] = useState<any[]>([]);
-  const [activeRun, setActiveRun] = useState<any>(null);
-  const [runSteps, setRunSteps] = useState<any[]>([]);
-  const [allRunsLoading, setAllRunsLoading] = useState(false);
+  const [descExpanded, setDescExpanded] = useState(false);
   const [cancelling, setCancelling] = useState(false);
-  // AI generator
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiGen, setAiGen] = useState(false);
+  const [allRunsLoading, setAllRunsLoading] = useState(false);
+  const [showWorkspaceModal, setShowWorkspaceModal] = useState(false);
+  const [wsSwitcherOpen, setWsSwitcherOpen] = useState(false);
 
-  // Components catalog
-  const [components, setComponents] = useState<ComponentDefinition[]>([]);
-  const [componentMap, setComponentMap] = useState<
-    Record<string, ComponentDefinition>
-  >({});
-  const [validationErrors, setValidationErrors] = useState<
-    Record<string, string[]>
-  >({});
+  const viewingRunIdRef = useRef<string | null>(null);
+  const savedSnapshotRef = useRef<string>("");
 
-  // Dynamically built from backend catalog + legacy fallbacks
+  const { screenToFlowPosition } = useReactFlow();
+
   const NODE_CFG = useMemo(() => buildNodeCfg(components), [components]);
 
-  /** A run that is still active (can be stopped), even if the user is viewing a different run. */
   const stoppableRunId = useMemo(() => {
     const fromList = runs.find((r: any) =>
       ["RUNNING", "PENDING", "WAITING_APPROVAL"].includes(r.status),
@@ -346,63 +353,52 @@ function WorkflowInner() {
     return null;
   }, [runs, activeRun]);
 
-  // Workspace modal
-  const [showWorkspaceModal, setShowWorkspaceModal] = useState(false);
-  const [wsSwitcherOpen, setWsSwitcherOpen] = useState(false);
-
-  const { screenToFlowPosition } = useReactFlow();
-
-  const token = () =>
-    IS_DEV
-      ? DEV_TOKEN
-      : typeof window !== "undefined"
-        ? localStorage.getItem("token")
-        : null;
-
   // ── ReactFlow handlers ──
   const onNC: OnNodesChange = useCallback(
-    (c) => setNodes((n) => applyNodeChanges(c, n)),
+    (c) => storeOnNodesChange(c),
     [],
   );
   const onEC: OnEdgesChange = useCallback(
-    (c) => setEdges((e) => applyEdgeChanges(c, e)),
+    (c) => storeOnEdgesChange(c),
     [],
   );
   const onCon: OnConnect = useCallback(
-    (p) =>
-      setEdges((e) =>
-        addEdge(
-          {
-            ...p,
-            animated: true,
-            style: { stroke: "#6366f1", strokeWidth: 2 },
-            markerEnd: {
-              type: MarkerType.ArrowClosed,
-              color: "#6366f1",
-              width: 14,
-              height: 14,
-            },
-          },
-          e,
-        ),
-      ),
+    (p) => storeOnConnect(p),
     [],
   );
 
   // Load component catalog
   useEffect(() => {
-    fetchComponentCatalog({}, token() || undefined)
+    fetchComponentCatalog({}, getToken() || undefined)
       .then((list) => {
-        setComponents(list);
-        setComponentMap(
-          list.reduce<Record<string, ComponentDefinition>>((acc, c) => {
-            acc[c.id] = c;
-            return acc;
-          }, {}),
-        );
+        const map = list.reduce<Record<string, ComponentDefinition>>((acc, c) => {
+          acc[c.id] = c;
+          return acc;
+        }, {});
+        setCatalog(list, map);
       })
-      .catch(() => {});
+      .catch((err: unknown) => {
+        console.error("Failed to load component catalog", err);
+        toast({
+          title: "Failed to load components",
+          description: "The node catalog could not be fetched.",
+          variant: "destructive",
+        });
+      });
   }, []);
+
+  // Warn on unsaved changes before navigating away
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (!savedSnapshotRef.current) return;
+      const current = JSON.stringify({ nodes, edges });
+      if (current !== savedSnapshotRef.current) {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [nodes, edges]);
 
   // Prompt if no workspace
   useEffect(() => {
@@ -427,20 +423,30 @@ function WorkflowInner() {
     }
   }, [activeRun?.id, activeRun?.status]);
 
+  // Reset store on unmount
+  useEffect(() => {
+    return () => { reset(); };
+  }, []);
+
   // Load existing workflow
   useEffect(() => {
     if (isNew) {
-      // Check for template import
       const tpl = sessionStorage.getItem("template-import");
       if (tpl) {
         try {
           const t = JSON.parse(tpl);
-          setWfName(t.name);
-          setWfDesc(t.description || "");
-          setNodes(t.nodes || []);
-          setEdges(t.edges || []);
+          loadWorkflow({
+            name: t.name,
+            description: t.description || "",
+            status: "DRAFT",
+            nodes: t.nodes || [],
+            edges: t.edges || [],
+            runs: [],
+          });
           sessionStorage.removeItem("template-import");
-        } catch {}
+        } catch (err: unknown) {
+          console.error("Failed to import workflow template", err);
+        }
       }
       return;
     }
@@ -448,37 +454,41 @@ function WorkflowInner() {
       try {
         const r = await api.get(`/api/v1/workflows/${wfId}`);
         const d = r.data;
-        setWfName(d.name);
-        setWfDesc(d.description || "");
-        setWfStatus(d.status || "DRAFT");
-        setRuns(d.runs || []);
-        setNodes(
-          (d.nodes || []).map((n: any) => ({
-            id: n.id,
-            type: "workflowNode",
-            position: n.position || { x: 300, y: 0 },
-            data: {
-              nodeType: n.nodeType,
-              componentId:
-                n.metadata?.componentId ||
-                n.componentId ||
-                n.nodeType?.toLowerCase?.().replace(/_/g, "-"),
-              category: n.category,
-              label: n.label,
-              config: n.config,
-            },
-          })),
-        );
-        setEdges(
-          (d.edges || []).map((e: any) => ({
-            id: e.id,
-            source: e.sourceNodeId,
-            target: e.targetNodeId,
-            animated: true,
-            style: { stroke: "#6366f1", strokeWidth: 2 },
-            markerEnd: { type: MarkerType.ArrowClosed, color: "#6366f1" },
-          })),
-        );
+        const mappedNodes = (d.nodes || []).map((n: any) => ({
+          id: n.id,
+          type: "workflowNode",
+          position: n.position || { x: 300, y: 0 },
+          data: {
+            nodeType: n.nodeType,
+            componentId:
+              n.metadata?.componentId ||
+              n.componentId ||
+              n.nodeType?.toLowerCase?.().replace(/_/g, "-"),
+            category: n.category,
+            label: n.label,
+            config: n.config,
+          },
+        }));
+        const mappedEdges = (d.edges || []).map((e: any) => ({
+          id: e.id,
+          source: e.sourceNodeId,
+          target: e.targetNodeId,
+          animated: true,
+          style: { stroke: "#6366f1", strokeWidth: 2 },
+          markerEnd: { type: MarkerType.ArrowClosed, color: "#6366f1" },
+        }));
+        loadWorkflow({
+          name: d.name,
+          description: d.description || "",
+          status: d.status || "DRAFT",
+          nodes: mappedNodes,
+          edges: mappedEdges,
+          runs: d.runs || [],
+        });
+        savedSnapshotRef.current = JSON.stringify({
+          nodes: d.nodes || [],
+          edges: d.edges || [],
+        });
       } catch (e: any) {
         toast({
           title: "Failed to load workflow",
@@ -492,6 +502,25 @@ function WorkflowInner() {
     load();
   }, [wfId, isNew]);
 
+  // ── Undo / Redo keyboard shortcuts ──
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod || e.key.toLowerCase() !== "z") return;
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      e.preventDefault();
+      const temporal = useWorkflowStore.temporal.getState();
+      if (e.shiftKey) {
+        temporal.redo();
+      } else {
+        temporal.undo();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
   const save = async () => {
     if (!hasWorkspace) {
       toast({
@@ -504,9 +533,12 @@ function WorkflowInner() {
     }
     setSaving(true);
     try {
+      const { nodes: curNodes, edges: curEdges, wfName: curName, wfDesc: curDesc } =
+        useWorkflowStore.getState();
+
       const nodeValidation: Record<string, string[]> = {};
       const normalizedByNode: Record<string, Record<string, unknown>> = {};
-      for (const n of nodes) {
+      for (const n of curNodes) {
         const componentId =
           (n.data.componentId as string) ||
           (n.data.nodeType as string)?.toLowerCase().replace(/_/g, "-");
@@ -514,7 +546,7 @@ function WorkflowInner() {
         const result = await validateNodeConfig(
           componentId,
           (n.data.config || {}) as Record<string, unknown>,
-          token() || undefined,
+          getToken() || undefined,
         );
         if (!result.ok) {
           nodeValidation[n.id] = result.errors.map(
@@ -534,10 +566,12 @@ function WorkflowInner() {
         return;
       }
 
+      const curComponentMap = useWorkflowStore.getState().componentMap;
       const payload = {
-        name: wfName,
-        description: wfDesc,
-        nodes: nodes.map((n) => {
+        name: curName,
+        description: curDesc,
+        workspaceId: activeWorkspace?.id,
+        nodes: curNodes.map((n) => {
           const componentId =
             (n.data.componentId as string) ||
             (n.data.nodeType as string)?.toLowerCase().replace(/_/g, "-");
@@ -547,12 +581,12 @@ function WorkflowInner() {
             nodeType: n.data.nodeType,
             category:
               (n.data.category as string) ||
-              componentMap[componentId]?.category ||
+              curComponentMap[componentId]?.category ||
               fallback?.cat ||
               "core",
             label:
               (n.data.label as string) ||
-              componentMap[componentId]?.name ||
+              curComponentMap[componentId]?.name ||
               fallback?.label ||
               "Node",
             config: normalizedByNode[n.id] || n.data.config || {},
@@ -560,15 +594,19 @@ function WorkflowInner() {
             metadata: { componentId },
           };
         }),
-        edges: edges.map((e) => ({ source: e.source, target: e.target })),
+        edges: curEdges.map((e) => ({ source: e.source, target: e.target })),
       };
 
       if (isNew) {
         const r = await api.post("/api/v1/workflows", payload);
+        savedSnapshotRef.current = JSON.stringify({ nodes: curNodes, edges: curEdges });
+        markSaved();
         toast({ title: "Workflow saved", variant: "success" });
         router.push(`/workflow/${r.data.id}`);
       } else {
         await api.put(`/api/v1/workflows/${wfId}`, payload);
+        savedSnapshotRef.current = JSON.stringify({ nodes: curNodes, edges: curEdges });
+        markSaved();
         toast({ title: "Workflow saved", variant: "success" });
       }
     } catch (e: any) {
@@ -585,6 +623,9 @@ function WorkflowInner() {
     }
   };
 
+  // Autosave for existing workflows
+  useAutosave(save, !isNew && hasWorkspace && !saving);
+
   const fetchRunDetails = async (
     runId: string,
     opts?: { background?: boolean },
@@ -597,7 +638,7 @@ function WorkflowInner() {
       const data = r.data;
 
       if (opts?.background && viewingRunIdRef.current !== runId) {
-        setRuns((prev) => {
+        setRuns((prev: any[]) => {
           const exists = prev.some((x: any) => x.id === runId);
           if (!exists) return [...prev, data];
           return prev.map((x: any) => (x.id === runId ? { ...x, ...data } : x));
@@ -610,7 +651,7 @@ function WorkflowInner() {
       const m = new Map(
         (data.steps || []).map((s: any) => [s.nodeId, s.status]),
       );
-      setNodes((n) =>
+      setNodes((n: Node[]) =>
         n.map((nd) => ({
           ...nd,
           data: { ...nd.data, runStatus: m.get(nd.id) || null },
@@ -632,7 +673,9 @@ function WorkflowInner() {
       try {
         const r = await api.get(`/api/v1/workflows/${wfId}`);
         setRuns(r.data.runs || []);
-      } catch {}
+      } catch (err: unknown) {
+        console.error("Failed to refresh runs after cancel", err);
+      }
       if (viewingRunIdRef.current) {
         await fetchRunDetails(viewingRunIdRef.current);
       }
@@ -649,8 +692,9 @@ function WorkflowInner() {
 
   const exec = async () => {
     if (isNew || !hasWorkspace) return;
+    const curNodes = useWorkflowStore.getState().nodes;
     const triggerData: Record<string, unknown> = {
-      text: getEntryPointTestRunPlainText(nodes),
+      text: getEntryPointTestRunPlainText(curNodes),
     };
     setExecuting(true);
     try {
@@ -686,7 +730,9 @@ function WorkflowInner() {
         try {
           const r = await api.get(`/api/v1/workflows/${wfId}`);
           setRuns(r.data.runs || []);
-        } catch {}
+        } catch (err: unknown) {
+          console.error("Failed to refresh runs after poll", err);
+        }
       }
     };
     poll();
@@ -699,7 +745,7 @@ function WorkflowInner() {
     try {
       es = new EventSource(
         `${BACKEND_URL}/api/v1/execution/events/${runId}?token=${encodeURIComponent(
-          (token() || "").replace("Bearer ", ""),
+          (getToken() || "").replace("Bearer ", ""),
         )}`,
       );
       es.onmessage = (event) => {
@@ -709,7 +755,7 @@ function WorkflowInner() {
           if (data.status || data.id)
             setActiveRun((p: any) => ({ ...p, ...data }));
           if (data.nodeId) {
-            setRunSteps((prev) => {
+            setRunSteps((prev: any[]) => {
               const idx = prev.findIndex(
                 (s) => s.stepId === data.stepId || s.id === data.stepId,
               );
@@ -720,7 +766,7 @@ function WorkflowInner() {
               }
               return [...prev, { ...data, id: data.stepId }];
             });
-            setNodes((n) =>
+            setNodes((n: Node[]) =>
               n.map((nd) => ({
                 ...nd,
                 data: {
@@ -731,7 +777,9 @@ function WorkflowInner() {
               })),
             );
           }
-        } catch {}
+        } catch (err: unknown) {
+          console.error("Failed to parse SSE event", err);
+        }
       };
       es.onerror = () => {
         es?.close();
@@ -750,32 +798,34 @@ function WorkflowInner() {
     try {
       const r = await api.post("/api/v1/generate/workflow", { prompt });
       const g = r.data;
-      setWfName(g.name);
-      setWfDesc(g.description);
-      setNodes(
-        g.nodes.map((n: any) => ({
-          id: n.tempId,
-          type: "workflowNode",
-          position: n.position,
-          data: {
-            nodeType: n.componentId || n.nodeType,
-            componentId: n.componentId || n.nodeType,
-            category: n.category,
-            label: n.label,
-            config: n.config,
-          },
-        })),
-      );
-      setEdges(
-        g.edges.map((e: any, i: number) => ({
-          id: `e-${i}`,
-          source: e.source,
-          target: e.target,
-          animated: true,
-          style: { stroke: "#6366f1", strokeWidth: 2 },
-          markerEnd: { type: MarkerType.ArrowClosed, color: "#6366f1" },
-        })),
-      );
+      const genNodes = g.nodes.map((n: any) => ({
+        id: n.tempId,
+        type: "workflowNode",
+        position: n.position,
+        data: {
+          nodeType: n.componentId || n.nodeType,
+          componentId: n.componentId || n.nodeType,
+          category: n.category,
+          label: n.label,
+          config: n.config,
+        },
+      }));
+      const genEdges = g.edges.map((e: any, i: number) => ({
+        id: `e-${i}`,
+        source: e.source,
+        target: e.target,
+        animated: true,
+        style: { stroke: "#6366f1", strokeWidth: 2 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: "#6366f1" },
+      }));
+      loadWorkflow({
+        name: g.name,
+        description: g.description,
+        status: "DRAFT",
+        nodes: genNodes,
+        edges: genEdges,
+        runs: [],
+      });
       setLeftTab("nodes");
       toast({
         title: "Workflow generated",
@@ -806,30 +856,26 @@ function WorkflowInner() {
         e.dataTransfer.getData("nodeType");
       if (!componentId) return;
       const pos = screenToFlowPosition({ x: e.clientX, y: e.clientY });
-      const component = componentMap[componentId];
+      const curComponentMap = useWorkflowStore.getState().componentMap;
+      const component = curComponentMap[componentId];
       const fallback =
         NODE_CFG[componentId] ||
-        NODE_CFG[
-          componentId.toUpperCase().replace(/-/g, "_")
-        ];
-      setNodes((n) => [
-        ...n,
-        {
-          id: `${componentId}-${Date.now()}`,
-          type: "workflowNode",
-          position: pos,
-          data: {
-            nodeType: componentId,
-            componentId,
-            category: component?.category || fallback?.cat || "core",
-            label: component?.name || fallback?.label || componentId,
-            iconName: component?.icon,
-            config: component ? getConfigDefaults(component.configFields) : {},
-          },
+        NODE_CFG[componentId.toUpperCase().replace(/-/g, "_")];
+      addNode({
+        id: `${componentId}-${Date.now()}`,
+        type: "workflowNode",
+        position: pos,
+        data: {
+          nodeType: componentId,
+          componentId,
+          category: component?.category || fallback?.cat || "core",
+          label: component?.name || fallback?.label || componentId,
+          iconName: component?.icon,
+          config: component ? getConfigDefaults(component.configFields) : {},
         },
-      ]);
+      });
     },
-    [screenToFlowPosition, componentMap],
+    [screenToFlowPosition, NODE_CFG],
   );
 
   useEffect(() => {
@@ -1251,7 +1297,7 @@ function WorkflowInner() {
                     </div>
                   )}
 
-                  {/* Node palette — 2-column grid with separators */}
+                  {/* Node palette */}
                   {leftTab === "nodes" && (
                     <div className="flex-1 overflow-y-auto">
                       {components.length === 0 && !loading && (
@@ -1289,7 +1335,6 @@ function WorkflowInner() {
                           ).map(([cat, items]) => ({ cat, items }))
                       ).map(({ cat, items }, groupIdx, all) => (
                         <div key={cat}>
-                          {/* Category header with separator */}
                           <div
                             className="px-4 pt-4 pb-2"
                             style={{
@@ -1308,7 +1353,6 @@ function WorkflowInner() {
                                 : cat.replace(/_/g, " ")}
                             </p>
                           </div>
-                          {/* 2-column node grid */}
                           <div className="grid grid-cols-2 gap-1.5 px-3 pb-2">
                             {items.map((item: any) => {
                               const Icon = item.icon;
@@ -1373,7 +1417,6 @@ function WorkflowInner() {
                   )}
                 </motion.div>
               ) : (
-                /* Left collapsed: slim toggle strip */
                 <motion.div
                   key="left-closed"
                   initial={{ width: 0, opacity: 0 }}
@@ -1411,13 +1454,13 @@ function WorkflowInner() {
                 onDrop={onDrop}
                 onDragOver={onDragOver}
                 nodeTypes={nodeTypes}
-                onNodeClick={(_, n) => setSelNodeId(n.id)}
-                onPaneClick={() => setSelNodeId(null)}
+                onNodeClick={(_, n) => selectNode(n.id)}
+                onPaneClick={() => clearSelection()}
                 fitView
                 fitViewOptions={{ padding: 0.3 }}
                 minZoom={0.2}
                 maxZoom={2.5}
-                deleteKeyCode={null}
+                deleteKeyCode="Backspace"
                 connectionLineStyle={{ stroke: "#6366f1", strokeWidth: 2 }}
                 defaultEdgeOptions={{
                   animated: true,
@@ -1479,7 +1522,6 @@ function WorkflowInner() {
 
             {activeMode === "logs" && (
               <div className="h-full flex flex-col">
-                {/* Run selector bar */}
                 <div
                   className="px-5 py-3 border-b flex items-center gap-3 shrink-0"
                   style={{ borderColor: "var(--border-subtle)" }}
@@ -1510,7 +1552,6 @@ function WorkflowInner() {
                   )}
                 </div>
 
-                {/* Logs content */}
                 <div className="flex-1 overflow-y-auto p-5">
                   {!activeRun || runSteps.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full">
@@ -1532,7 +1573,6 @@ function WorkflowInner() {
                             borderColor: "var(--border-subtle)",
                           }}
                         >
-                          {/* Step header */}
                           <div className="px-4 py-3 flex items-center justify-between">
                             <div className="flex items-center gap-3">
                               <div
@@ -1563,7 +1603,6 @@ function WorkflowInner() {
                             </span>
                           </div>
 
-                          {/* AI reasoning */}
                           {s.reasoningSummary && (
                             <div className="px-4 pb-2">
                               <p className="text-[10px] font-medium mb-1" style={{ color: "var(--text-muted)" }}>AI Reasoning</p>
@@ -1573,7 +1612,6 @@ function WorkflowInner() {
                             </div>
                           )}
 
-                          {/* Input / Output */}
                           <div className="px-4 pb-3 grid grid-cols-2 gap-3">
                             <div>
                               <p className="text-[10px] font-medium mb-1" style={{ color: "var(--text-muted)" }}>Input</p>
@@ -1589,7 +1627,6 @@ function WorkflowInner() {
                             </div>
                           </div>
 
-                          {/* Error */}
                           {s.error && (
                             <div className="px-4 pb-3">
                               <div className="p-2 rounded-lg border border-red-500/20" style={{ background: "rgba(239,68,68,0.05)" }}>
@@ -1606,7 +1643,7 @@ function WorkflowInner() {
             )}
           </div>
 
-          {/* ── Right Panel (always visible in design mode, collapsible) ── */}
+          {/* ── Right Panel ── */}
           {activeMode === "design" && (
             <AnimatePresence initial={false}>
               {!rightOpen && (
@@ -1659,15 +1696,13 @@ function WorkflowInner() {
                 <div className="h-full w-px mx-auto bg-transparent group-hover:bg-indigo-500/40 transition-colors" />
               </div>
               {selNode ? (
-                /* ── Node Properties ── */
                 <div className="flex flex-col h-full">
-                  {/* Header */}
                   <div
                     className="flex items-center gap-2 px-3 py-2.5 border-b shrink-0"
                     style={{ borderColor: "var(--border-subtle)" }}
                   >
                     <button
-                      onClick={() => setSelNodeId(null)}
+                      onClick={() => clearSelection()}
                       className="p-1 rounded-lg hover:bg-white/5 transition-colors"
                       style={{ color: "var(--text-muted)" }}
                     >
@@ -1721,7 +1756,6 @@ function WorkflowInner() {
                   </div>
 
                   <div className="flex-1 overflow-y-auto">
-                    {/* Label */}
                     <div
                       className="p-4 border-b"
                       style={{ borderColor: "var(--border-subtle)" }}
@@ -1735,16 +1769,7 @@ function WorkflowInner() {
                       <input
                         value={(selNode.data.label as string) || ""}
                         onChange={(e) =>
-                          setNodes((n) =>
-                            n.map((nd) =>
-                              nd.id === selNodeId
-                                ? {
-                                    ...nd,
-                                    data: { ...nd.data, label: e.target.value },
-                                  }
-                                : nd,
-                            ),
-                          )
+                          updateNodeData(selNode.id, { label: e.target.value })
                         }
                         onKeyDown={(e) => e.stopPropagation()}
                         placeholder="Node label..."
@@ -1757,7 +1782,6 @@ function WorkflowInner() {
                       />
                     </div>
 
-                    {/* Validation errors */}
                     {validationErrors[selNode.id]?.length ? (
                       <div
                         className="mx-4 mt-3 p-2.5 rounded-lg text-[10px] leading-relaxed"
@@ -1774,7 +1798,6 @@ function WorkflowInner() {
                       </div>
                     ) : null}
 
-                    {/* Configuration */}
                     <div className="p-4">
                       <label
                         className="text-[11px] font-semibold block mb-2"
@@ -1805,13 +1828,7 @@ function WorkflowInner() {
                             (selNode.data.config as Record<string, any>) || {}
                           }
                           onChange={(config) =>
-                            setNodes((n) =>
-                              n.map((nd) =>
-                                nd.id === selNodeId
-                                  ? { ...nd, data: { ...nd.data, config } }
-                                  : nd,
-                              ),
-                            )
+                            updateNodeData(selNode.id, { config })
                           }
                           errors={validationErrors[selNode.id] || []}
                           workspaceId={activeWorkspace?.id ?? ""}
@@ -1845,23 +1862,12 @@ function WorkflowInner() {
                     </div>
                   </div>
 
-                  {/* Delete node */}
                   <div
                     className="p-4 border-t shrink-0"
                     style={{ borderColor: "var(--border-subtle)" }}
                   >
                     <button
-                      onClick={() => {
-                        setNodes((n) => n.filter((nd) => nd.id !== selNodeId));
-                        setEdges((e) =>
-                          e.filter(
-                            (ed) =>
-                              ed.source !== selNodeId &&
-                              ed.target !== selNodeId,
-                          ),
-                        );
-                        setSelNodeId(null);
-                      }}
+                      onClick={() => deleteNode(selNode.id)}
                       className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border text-xs font-medium transition-colors hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-400"
                       style={{
                         borderColor: "var(--border-subtle)",
@@ -1874,9 +1880,7 @@ function WorkflowInner() {
                   </div>
                 </div>
               ) : (
-                /* ── Workflow Properties (default when no node selected) ── */
                 <div className="flex flex-col h-full overflow-y-auto">
-                  {/* Workflow props header */}
                   <div
                     className="flex items-center justify-between px-4 py-2.5 border-b shrink-0"
                     style={{ borderColor: "var(--border-subtle)" }}
@@ -1897,7 +1901,6 @@ function WorkflowInner() {
                     </button>
                   </div>
 
-                  {/* Status section */}
                   <div
                     className="px-4 py-4 border-b"
                     style={{ borderColor: "var(--border-subtle)" }}
@@ -1919,6 +1922,16 @@ function WorkflowInner() {
                       </span>
                       {wfStatus === "ACTIVE" ? (
                         <button
+                          onClick={async () => {
+                            try {
+                              await api.put(`/api/v1/workflows/${wfId}`, { status: "PAUSED" });
+                              setWfStatus("PAUSED");
+                              toast({ title: "Workflow paused", variant: "success" });
+                            } catch (err: any) {
+                              console.error("Failed to pause workflow", err);
+                              toast({ title: "Failed to pause", description: err.message, variant: "destructive" });
+                            }
+                          }}
                           className="px-3 py-1.5 rounded-full text-xs font-medium border transition-colors hover:bg-amber-500/10 hover:border-amber-500/30 hover:text-amber-500"
                           style={{
                             borderColor: "var(--border-subtle)",
@@ -1929,6 +1942,16 @@ function WorkflowInner() {
                         </button>
                       ) : (
                         <button
+                          onClick={async () => {
+                            try {
+                              await api.put(`/api/v1/workflows/${wfId}`, { status: "ACTIVE" });
+                              setWfStatus("ACTIVE");
+                              toast({ title: "Workflow activated", variant: "success" });
+                            } catch (err: any) {
+                              console.error("Failed to activate workflow", err);
+                              toast({ title: "Failed to activate", description: err.message, variant: "destructive" });
+                            }
+                          }}
                           className="px-3 py-1.5 rounded-full text-xs font-medium border transition-colors hover:bg-emerald-500/10 hover:border-emerald-500/30 hover:text-emerald-500"
                           style={{
                             borderColor: "var(--border-subtle)",
@@ -1941,7 +1964,6 @@ function WorkflowInner() {
                     </div>
                   </div>
 
-                  {/* Workflow name */}
                   <div
                     className="px-4 py-4 border-b"
                     style={{ borderColor: "var(--border-subtle)" }}
@@ -1965,7 +1987,6 @@ function WorkflowInner() {
                     />
                   </div>
 
-                  {/* Description (collapsible) */}
                   <div
                     className="border-b"
                     style={{ borderColor: "var(--border-subtle)" }}
@@ -2018,7 +2039,6 @@ function WorkflowInner() {
                     </AnimatePresence>
                   </div>
 
-                  {/* Tags */}
                   <div
                     className="border-b"
                     style={{ borderColor: "var(--border-subtle)" }}
@@ -2037,7 +2057,6 @@ function WorkflowInner() {
                     </button>
                   </div>
 
-                  {/* Stats */}
                   <div className="px-4 py-4">
                     <p
                       className="text-[11px] font-semibold uppercase tracking-wider mb-3"

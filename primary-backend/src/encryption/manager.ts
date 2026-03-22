@@ -401,7 +401,12 @@ export function getEncryptionManager(): EncryptionManager {
     const masterKey =
       process.env.ENCRYPTION_MASTER_KEY ||
       process.env.SECRET_KEY ||
-      "default-dev-key-change-in-production";
+      (() => {
+        if (process.env.NODE_ENV === "production") {
+          throw new Error("ENCRYPTION_MASTER_KEY environment variable must be set in production");
+        }
+        return "default-dev-key-change-in-production";
+      })();
     const environment = process.env.NODE_ENV || "dev";
     encryptionManagerInstance = new EncryptionManager(masterKey, environment);
   }

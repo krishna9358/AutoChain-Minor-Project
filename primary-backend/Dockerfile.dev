@@ -7,4 +7,4 @@ COPY prisma ./prisma/
 RUN npx prisma generate
 COPY . .
 EXPOSE 3001
-CMD ["sh", "-c", "npx prisma migrate deploy 2>/dev/null; npx prisma db push --accept-data-loss 2>/dev/null; npm run dev"]
+CMD ["sh", "-c", "npx prisma migrate deploy 2>/dev/null; npx prisma db push 2>/dev/null; npm run dev"]

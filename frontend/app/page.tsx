@@ -144,6 +144,7 @@ export default function LandingPage() {
         "user",
         JSON.stringify({ name: "Dev User", email: "dev@autochain.ai" }),
       );
+      document.cookie = `autochain-auth-token=dev-demo-token; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
       router.push("/dashboard");
     }
   }, [router]);

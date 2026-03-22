@@ -1,8 +1,7 @@
 import axios from "axios";
 import { BACKEND_URL } from "@/app/config";
+import { ensureDevToken } from "@/lib/auth-token";
 
-const IS_DEV = process.env.NEXT_PUBLIC_DEV_MODE === "true";
-const DEV_TOKEN = process.env.NEXT_PUBLIC_DEV_TOKEN || "dev-demo-token";
 const ACTIVE_WS_KEY = "autochain-active-workspace";
 
 // ─── Types ──────────────────────────────────────────────
@@ -50,16 +49,6 @@ export interface UpdateWorkspaceRequest {
 export interface AddMemberRequest {
   email: string;
   role?: "ADMIN" | "EDITOR" | "VIEWER";
-}
-
-// ─── Ensure dev token is in localStorage ──────────────────
-
-export function ensureDevToken() {
-  if (IS_DEV && typeof window !== "undefined") {
-    // Always force the dev token in dev mode — prevents stale/expired JWTs
-    // from a previous session causing 401s
-    localStorage.setItem("token", DEV_TOKEN);
-  }
 }
 
 // ─── API Configuration ───────────────────────────────
@@ -121,6 +110,7 @@ api.interceptors.response.use(
 );
 
 export { api };
+export { ensureDevToken } from "@/lib/auth-token";
 
 // ─── Workspace API Functions ─────────────────────
 

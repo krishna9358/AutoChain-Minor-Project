@@ -17,7 +17,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (IS_DEV) { localStorage.setItem("token", "dev-demo-token"); localStorage.setItem("user", JSON.stringify({ name: "Dev User" })); router.push("/dashboard"); }
+    if (IS_DEV) { localStorage.setItem("token", "dev-demo-token"); localStorage.setItem("user", JSON.stringify({ name: "Dev User" })); document.cookie = `autochain-auth-token=dev-demo-token; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`; router.push("/dashboard"); }
   }, []);
 
   const login = async (e: React.FormEvent) => {
@@ -26,6 +26,7 @@ export default function LoginPage() {
       const r = await axios.post(`${BACKEND_URL}/api/v1/user/login`, { email, password });
       localStorage.setItem("token", r.data.token); localStorage.setItem("user", JSON.stringify(r.data.user));
       if (r.data.workspace) localStorage.setItem("workspace", JSON.stringify(r.data.workspace));
+      document.cookie = `autochain-auth-token=${r.data.token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
       router.push("/dashboard");
     } catch (err: any) { setError(err.response?.data?.error || "Login failed"); }
     finally { setLoading(false); }

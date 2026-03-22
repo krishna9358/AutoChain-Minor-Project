@@ -7,7 +7,7 @@ const client = new PrismaClient();
 
 const kafka = new Kafka({
     clientId: 'outbox-processor',
-    brokers: ['localhost:9092']
+    brokers: [process.env.KAFKA_BROKER || 'localhost:9092']
 })
 
 async function main() {
@@ -21,7 +21,7 @@ async function main() {
         })
         console.log(pendingRows);
 
-        producer.send({
+        await producer.send({
             topic: TOPIC_NAME,
             messages: pendingRows.map(r => {
                 return {

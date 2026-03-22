@@ -20,6 +20,7 @@ export default function SignupPage() {
       const r = await axios.post(`${BACKEND_URL}/api/v1/user/signup`, { name, email, password });
       localStorage.setItem("token", r.data.token); localStorage.setItem("user", JSON.stringify(r.data.user));
       if (r.data.workspace) localStorage.setItem("workspace", JSON.stringify(r.data.workspace));
+      document.cookie = `autochain-auth-token=${r.data.token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
       router.push("/dashboard");
     } catch (err: any) { setError(err.response?.data?.error || "Signup failed"); }
     finally { setLoading(false); }

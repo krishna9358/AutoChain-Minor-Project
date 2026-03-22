@@ -4,6 +4,7 @@ import {
   NodeExecutionResult,
 } from "../types/nodes";
 import { getEncryptionManager } from "../encryption/manager";
+import { safeEval } from "../utils/safeEval";
 
 /**
  * Base Node Executor
@@ -397,12 +398,6 @@ export abstract class BaseNodeExecutor {
       return value !== undefined ? String(value) : "";
     }
 
-    // Handle environment variables like "env.MY_VAR"
-    if (expression.startsWith("env.")) {
-      const envVar = expression.substring(4);
-      return process.env[envVar] || "";
-    }
-
     // Handle workflow state like "state.my_key"
     if (expression.startsWith("state.")) {
       const path = expression.substring(6);
@@ -410,14 +405,13 @@ export abstract class BaseNodeExecutor {
       return value !== undefined ? String(value) : "";
     }
 
-    // Try evaluating as JavaScript (safe evaluation only)
+    // Try evaluating as safe expression
     try {
-      const result = this.safeEval(expression, {
+      const result = safeEval(expression, {
         input: context.input_data,
         prev: context.previous_results,
         variables: context.variables,
         state: context.workflow_state,
-        env: process.env,
       });
       return result !== undefined ? String(result) : "";
     } catch (error) {
@@ -443,23 +437,6 @@ export abstract class BaseNodeExecutor {
     }
 
     return value;
-  }
-
-  /**
-   * Safe JavaScript evaluation
-   */
-  private safeEval(expression: string, scope: Record<string, any>): any {
-    // Create a function with the scope variables
-    const keys = Object.keys(scope);
-    const values = Object.values(scope);
-
-    try {
-      // Use Function constructor for safer evaluation than eval()
-      const func = new Function(...keys, `return ${expression}`);
-      return func(...values);
-    } catch (error) {
-      throw new Error(`Failed to evaluate expression: ${expression}`);
-    }
   }
 
   /**

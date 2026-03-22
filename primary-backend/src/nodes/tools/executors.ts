@@ -317,50 +317,56 @@ export class DatabaseToolExecutor extends BaseNodeExecutor {
     const startTime = Date.now();
 
     try {
+      let result: any;
       switch (dbType) {
         case "postgres":
-          return await this.executePostgresOperation(
+          result = await this.executePostgresOperation(
             connection,
             operation,
             config,
           );
+          break;
         case "mysql":
-          return await this.executeMySQLOperation(
+          result = await this.executeMySQLOperation(
             connection,
             operation,
             config,
           );
+          break;
         case "mongodb":
-          return await this.executeMongoDBOperation(
+          result = await this.executeMongoDBOperation(
             connection,
             operation,
             config,
           );
+          break;
         case "sqlite":
-          return await this.executeSQLiteOperation(
+          result = await this.executeSQLiteOperation(
             connection,
             operation,
             config,
           );
+          break;
         case "redis":
-          return await this.executeRedisOperation(
+          result = await this.executeRedisOperation(
             connection,
             operation,
             config,
           );
+          break;
         case "elasticsearch":
-          return await this.executeElasticsearchOperation(
+          result = await this.executeElasticsearchOperation(
             connection,
             operation,
             config,
           );
+          break;
         default:
           throw new Error(`Unsupported database type: ${dbType}`);
       }
+      return { ...result, duration_ms: Date.now() - startTime };
     } catch (error: any) {
       throw new Error(`Database operation failed: ${error.message}`);
-    } finally {
-      return { duration_ms: Date.now() - startTime };
     }
   }
 

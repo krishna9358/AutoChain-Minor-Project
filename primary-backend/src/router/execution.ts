@@ -5,6 +5,8 @@ import { dualAuthMiddleware, AuthRequest } from "../middleware";
 import { resolveComponentId } from "./componentCatalog";
 import { executeGithubNode } from "../execution/github-node";
 import { executeGoogleCloudNode } from "../execution/google-cloud-node";
+import { NodeExecutorFactory } from "../execution/factory";
+import type { NodeExecutionContext } from "../types/nodes";
 import {
   getWorkspaceSecretsMap,
   applySecretsToWorkflowNodes,
@@ -766,20 +768,76 @@ async function simulateExecution(runId: string, nodes: any[], edges: any[]) {
         outputMap,
       );
 
-      // Simulate processing delay
-      await new Promise((resolve) =>
-        setTimeout(resolve, 500 + Math.random() * 1500),
-      );
+      // Build previous_results from parent outputs for executor context
+      const previousResults: Record<string, any> = {};
+      for (const pid of parentIds) {
+        const prev = outputMap.get(pid);
+        if (prev) previousResults[pid] = { output: prev };
+      }
 
-      const executionTimeMs = Date.now() - startTime;
-
+      // Attempt real execution via NodeExecutorFactory
+      const componentId = node.metadata?.componentId || "";
+      const nodeType = node.nodeType || "";
       const resolvedExec =
-        resolveComponentId(String(node.nodeType || "")) ||
-        resolveComponentId(String(node.metadata?.componentId || ""));
-      let output: any = await executeIntegrationNode(resolvedExec, node, workspaceId);
+        resolveComponentId(String(nodeType)) ||
+        resolveComponentId(String(componentId));
+      const executorKey = resolvedExec || componentId || nodeType;
+
+      let output: any;
+
+      // Integration nodes (github, google-*) keep their dedicated handlers
+      if (resolvedExec === "github" || (resolvedExec && GOOGLE_CLOUD_NODE_IDS.includes(resolvedExec as (typeof GOOGLE_CLOUD_NODE_IDS)[number]))) {
+        output = await executeIntegrationNode(resolvedExec, node, workspaceId);
+      } else if (executorKey && NodeExecutorFactory.hasExecutor(executorKey)) {
+        // Build a NodeExecutionContext for the real executor
+        const execContext: NodeExecutionContext = {
+          workflow_id: runRecord?.workflowId || runId,
+          execution_id: runId,
+          node_id: nodeId,
+          input_data: typeof stepInput === "object" && stepInput !== null ? stepInput as Record<string, any> : { _raw: stepInput },
+          variables: {},
+          previous_results: previousResults,
+          workflow_state: {},
+          environment: "prod",
+          user_context: {
+            user_id: runRecord?.workflow?.userId || "system",
+          },
+        };
+
+        // Map flat workflow node to BaseNode shape expected by executors
+        const baseNode: any = {
+          node_id: nodeId,
+          node_type: executorKey,
+          name: node.label || node.name || nodeType,
+          enabled: true,
+          timeout_ms: 30000,
+          metadata: node.metadata || {},
+          config: node.config || {},
+          // Spread all node properties so typed executors can access their fields
+          ...node,
+          ...node.config,
+        };
+
+        try {
+          const result = await NodeExecutorFactory.executeNode(baseNode, execContext);
+          output = result.status === "error"
+            ? { error: result.error?.message || "Executor error", ...result.output }
+            : result.output;
+        } catch (execErr: any) {
+          // Executor threw; fall back to mock output
+          console.warn(`[execution] Executor for "${executorKey}" threw, falling back to mock: ${execErr.message}`);
+          output = generateNodeOutput(node);
+        }
+      } else {
+        // No executor found - fall back to existing mock data
+        output = await executeIntegrationNode(resolvedExec, node, workspaceId);
+      }
+
       if (isEntryTriggerNode(node)) {
         output = enrichEntryOutput(output, triggerPayload);
       }
+
+      const executionTimeMs = Date.now() - startTime;
 
       if (
         workspaceId &&
@@ -915,11 +973,11 @@ async function resumeExecution(runId: string, nodes: any[], edges: any[], startN
     where: { runId, status: "COMPLETED" },
     select: { nodeId: true, outputPayload: true },
   });
-  completedSteps.forEach((s) => visited.add(s.nodeId));
+  completedSteps.forEach((s) => { if (s.nodeId) visited.add(s.nodeId); });
 
   const outputMap = new Map<string, unknown>();
   for (const s of completedSteps) {
-    if (s.outputPayload !== null && s.outputPayload !== undefined) {
+    if (s.nodeId && s.outputPayload !== null && s.outputPayload !== undefined) {
       outputMap.set(s.nodeId, s.outputPayload as unknown);
     }
   }
