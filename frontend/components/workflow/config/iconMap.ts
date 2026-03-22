@@ -29,6 +29,10 @@ import {
   Calendar,
   Video,
   Table2,
+  Users,
+  Search,
+  FileOutput,
+  ClipboardList,
   type LucideIcon,
 } from "lucide-react";
 
@@ -64,6 +68,10 @@ const ICON_MAP: Record<string, LucideIcon> = {
   Calendar,
   Video,
   Table2,
+  Users,
+  Search,
+  FileOutput,
+  ClipboardList,
 };
 
 const ICON_ALIASES: Record<string, string> = {
@@ -97,6 +105,10 @@ const ICON_ALIASES: Record<string, string> = {
   calendar: "Calendar",
   video: "Video",
   table2: "Table2",
+  users: "Users",
+  search: "Search",
+  fileoutput: "FileOutput",
+  clipboardlist: "ClipboardList",
 };
 
 /**

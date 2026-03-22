@@ -5,6 +5,7 @@ import {
   Zap, Globe, Clock, FileText, Brain, GitBranch,
   Mail, GitFork, RefreshCw, CheckCircle2,
   Database, Archive, Send, ShieldAlert, Github, Calendar, Video, Table2,
+  Timer, AlertTriangle, Users, Search, FileOutput, ClipboardList,
 } from 'lucide-react';
 import { SlackLogo } from '../icons/ServiceLogos';
 
@@ -44,6 +45,13 @@ const NODE_ICONS: Record<string, React.ElementType> = {
   'google-meet': Video,
   'google-docs': FileText,
   'google-sheets': Table2,
+  'sla-monitor': Timer,
+  'audit-log': ClipboardList,
+  'task-assigner': Users,
+  'escalation': AlertTriangle,
+  'data-enrichment': Search,
+  'document-generator': FileOutput,
+  'form-input': ClipboardList,
 };
 
 const NODE_COLORS: Record<string, string> = {
@@ -76,6 +84,13 @@ const CATEGORY_FOR_TYPE: Record<string, string> = {
   'google-meet': 'integration',
   'google-docs': 'integration',
   'google-sheets': 'integration',
+  'sla-monitor': 'control',
+  'audit-log': 'output',
+  'task-assigner': 'control',
+  'escalation': 'control',
+  'data-enrichment': 'ai',
+  'document-generator': 'output',
+  'form-input': 'input',
 };
 
 const WorkflowNode: React.FC<NodeProps<WorkflowNodeType>> = ({ data, isConnectable }) => {
