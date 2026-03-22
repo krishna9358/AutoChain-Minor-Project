@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import TemplateLibrary, { type TemplatePreview } from "@/components/workflow/TemplateLibrary";
 import { useTheme } from "@/components/providers/ThemeProvider";
 import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { useToast } from "@/components/hooks/use-toast";
@@ -76,161 +77,155 @@ const STATUS_CONFIG: Record<
 
 const TEMPLATES = [
   {
-    id: "meeting",
-    name: "Meeting Intelligence",
-    icon: "🎤",
+    id: "procurement",
+    name: "Procurement to Payment",
+    icon: "📋",
     description:
-      "Process meeting transcripts, extract action items, and notify on Slack",
+      "Automates purchasing — request form, budget approval, PO generation, and delivery tracking",
     nodes: [
-      {
-        nodeType: "WEBHOOK_TRIGGER",
-        label: "Meeting Webhook",
-        category: "TRIGGER",
-        config: {},
-      },
-      {
-        nodeType: "EXTRACTION_AGENT",
-        label: "Extract Actions",
-        category: "AI_AGENT",
-        config: {},
-      },
-      {
-        nodeType: "SLACK_SEND",
-        label: "Notify Team",
-        category: "ACTION",
-        config: {},
-      },
-    ],
-  },
-  {
-    id: "support",
-    name: "Support Ticket AI",
-    icon: "🎫",
-    description:
-      "Auto-classify tickets, draft AI responses, and route to the right team",
-    nodes: [
-      {
-        nodeType: "WEBHOOK_TRIGGER",
-        label: "New Ticket",
-        category: "TRIGGER",
-        config: {},
-      },
-      {
-        nodeType: "CLASSIFICATION_AGENT",
-        label: "Classify Issue",
-        category: "AI_AGENT",
-        config: {},
-      },
-      {
-        nodeType: "EMAIL_SEND",
-        label: "Send Reply",
-        category: "ACTION",
-        config: {},
-      },
-    ],
-  },
-  {
-    id: "sales",
-    name: "Lead Qualification",
-    icon: "🎯",
-    description: "Score and qualify inbound leads, then route to sales reps",
-    nodes: [
-      {
-        nodeType: "API_TRIGGER",
-        label: "New Lead",
-        category: "TRIGGER",
-        config: {},
-      },
-      {
-        nodeType: "DECISION_AGENT",
-        label: "Score Lead",
-        category: "AI_AGENT",
-        config: {},
-      },
-      {
-        nodeType: "EMAIL_SEND",
-        label: "Notify Rep",
-        category: "ACTION",
-        config: {},
-      },
-    ],
-  },
-  {
-    id: "invoice",
-    name: "Invoice Processing",
-    icon: "📄",
-    description: "Extract invoice data, validate, and route for approval",
-    nodes: [
-      {
-        nodeType: "FILE_UPLOAD_TRIGGER",
-        label: "Invoice Upload",
-        category: "TRIGGER",
-        config: {},
-      },
-      {
-        nodeType: "EXTRACTION_AGENT",
-        label: "Extract Data",
-        category: "AI_AGENT",
-        config: {},
-      },
-      {
-        nodeType: "APPROVAL",
-        label: "Manager Approval",
-        category: "CONTROL",
-        config: {},
-      },
+      { nodeType: "form-input", label: "Purchase Request", category: "INPUT", config: {} },
+      { nodeType: "ai-agent", label: "Validate & Categorize", category: "AI", config: {} },
+      { nodeType: "if-condition", label: "Budget Check", category: "LOGIC", config: {} },
+      { nodeType: "approval", label: "Manager Approval", category: "CONTROL", config: {} },
+      { nodeType: "document-generator", label: "Create PO", category: "OUTPUT", config: {} },
+      { nodeType: "task-assigner", label: "Assign Procurement", category: "CONTROL", config: {} },
+      { nodeType: "sla-monitor", label: "Track Delivery", category: "CONTROL", config: {} },
+      { nodeType: "audit-log", label: "Record Trail", category: "OUTPUT", config: {} },
     ],
   },
   {
     id: "onboarding",
     name: "Employee Onboarding",
     icon: "👋",
-    description: "Automate new hire setup with IT provisioning",
+    description:
+      "Streamlines new hire setup — accounts, tasks, welcome packet, and 30-day check-ins",
     nodes: [
-      {
-        nodeType: "WEBHOOK_TRIGGER",
-        label: "New Hire Event",
-        category: "TRIGGER",
-        config: {},
-      },
-      {
-        nodeType: "HTTP_REQUEST",
-        label: "Create Accounts",
-        category: "ACTION",
-        config: {},
-      },
-      {
-        nodeType: "EMAIL_SEND",
-        label: "Welcome Email",
-        category: "ACTION",
-        config: {},
-      },
+      { nodeType: "form-input", label: "New Hire Details", category: "INPUT", config: {} },
+      { nodeType: "ai-agent", label: "Onboarding Plan", category: "AI", config: {} },
+      { nodeType: "task-assigner", label: "IT Setup Tasks", category: "CONTROL", config: {} },
+      { nodeType: "task-assigner", label: "HR Paperwork", category: "CONTROL", config: {} },
+      { nodeType: "document-generator", label: "Welcome Packet", category: "OUTPUT", config: {} },
+      { nodeType: "email-send", label: "Welcome Email", category: "INTEGRATION", config: {} },
+      { nodeType: "sla-monitor", label: "30-Day Check-in", category: "CONTROL", config: {} },
+      { nodeType: "audit-log", label: "Log Onboarding", category: "OUTPUT", config: {} },
+    ],
+  },
+  {
+    id: "contract",
+    name: "Contract Lifecycle",
+    icon: "📝",
+    description:
+      "Manages contracts end-to-end — AI drafts, legal reviews, signature tracking, escalation",
+    nodes: [
+      { nodeType: "form-input", label: "Contract Details", category: "INPUT", config: {} },
+      { nodeType: "ai-agent", label: "Draft Contract", category: "AI", config: {} },
+      { nodeType: "document-generator", label: "Contract PDF", category: "OUTPUT", config: {} },
+      { nodeType: "approval", label: "Legal Review", category: "CONTROL", config: {} },
+      { nodeType: "email-send", label: "Send for Signature", category: "INTEGRATION", config: {} },
+      { nodeType: "sla-monitor", label: "Signature Deadline", category: "CONTROL", config: {} },
+      { nodeType: "escalation", label: "Overdue Alert", category: "CONTROL", config: {} },
+      { nodeType: "audit-log", label: "Record Decisions", category: "OUTPUT", config: {} },
+    ],
+  },
+  {
+    id: "meeting",
+    name: "Meeting Intelligence",
+    icon: "🎤",
+    description:
+      "Turns meetings into action — extracts decisions, assigns tasks, tracks completion",
+    nodes: [
+      { nodeType: "entry-point", label: "Meeting Transcript", category: "INPUT", config: {} },
+      { nodeType: "ai-agent", label: "Extract Decisions", category: "AI", config: {} },
+      { nodeType: "ai-agent", label: "Find Action Items", category: "AI", config: {} },
+      { nodeType: "task-assigner", label: "Assign Tasks", category: "CONTROL", config: {} },
+      { nodeType: "slack-send", label: "Share Summary", category: "INTEGRATION", config: {} },
+      { nodeType: "sla-monitor", label: "Track Completion", category: "CONTROL", config: {} },
+      { nodeType: "audit-log", label: "Log Meeting", category: "OUTPUT", config: {} },
+    ],
+  },
+  {
+    id: "multi-agent",
+    name: "Multi-Agent Collaboration",
+    icon: "🤖",
+    description:
+      "Multiple AI agents collaborate — plan, research, analyze, decide, and execute tasks",
+    nodes: [
+      { nodeType: "entry-point", label: "Task Input", category: "INPUT", config: {} },
+      { nodeType: "ai-agent", label: "Task Planner", category: "AI", config: {} },
+      { nodeType: "data-enrichment", label: "Data Retrieval", category: "AI", config: {} },
+      { nodeType: "ai-agent", label: "Analysis Agent", category: "AI", config: {} },
+      { nodeType: "ai-agent", label: "Decision Agent", category: "AI", config: {} },
+      { nodeType: "approval", label: "Human Review", category: "CONTROL", config: {} },
+      { nodeType: "document-generator", label: "Final Report", category: "OUTPUT", config: {} },
+      { nodeType: "audit-log", label: "Decision Trail", category: "OUTPUT", config: {} },
+    ],
+  },
+  {
+    id: "health-monitor",
+    name: "Workflow Health Monitor",
+    icon: "🏥",
+    description:
+      "Monitors workflows — catches drift, predicts bottlenecks, escalates before SLA breaches",
+    nodes: [
+      { nodeType: "entry-point", label: "Scheduled Check", category: "INPUT", config: {} },
+      { nodeType: "http-request", label: "Fetch Metrics", category: "INTEGRATION", config: {} },
+      { nodeType: "ai-agent", label: "Analyze Health", category: "AI", config: {} },
+      { nodeType: "if-condition", label: "Issues Found?", category: "LOGIC", config: {} },
+      { nodeType: "sla-monitor", label: "Check SLAs", category: "CONTROL", config: {} },
+      { nodeType: "escalation", label: "Critical Alert", category: "CONTROL", config: {} },
+      { nodeType: "slack-send", label: "Health Report", category: "INTEGRATION", config: {} },
+      { nodeType: "audit-log", label: "Log Results", category: "OUTPUT", config: {} },
+    ],
+  },
+  {
+    id: "support",
+    name: "Customer Support",
+    icon: "🎫",
+    description:
+      "AI-powered support — classifies tickets, drafts responses, tracks resolution SLAs",
+    nodes: [
+      { nodeType: "entry-point", label: "New Ticket", category: "INPUT", config: {} },
+      { nodeType: "ai-agent", label: "Classify Issue", category: "AI", config: {} },
+      { nodeType: "data-enrichment", label: "Customer History", category: "AI", config: {} },
+      { nodeType: "ai-agent", label: "Draft Response", category: "AI", config: {} },
+      { nodeType: "approval", label: "Review Response", category: "CONTROL", config: {} },
+      { nodeType: "email-send", label: "Send Reply", category: "INTEGRATION", config: {} },
+      { nodeType: "sla-monitor", label: "Resolution Timer", category: "CONTROL", config: {} },
+      { nodeType: "audit-log", label: "Log Activity", category: "OUTPUT", config: {} },
     ],
   },
   {
     id: "incident",
-    name: "Incident Response",
+    name: "Incident Management",
     icon: "🚨",
-    description: "Classify alerts, analyze root cause, and escalate as needed",
+    description:
+      "Handles incidents end-to-end — severity analysis, responder assignment, postmortem",
     nodes: [
-      {
-        nodeType: "WEBHOOK_TRIGGER",
-        label: "Alert Received",
-        category: "TRIGGER",
-        config: {},
-      },
-      {
-        nodeType: "CLASSIFICATION_AGENT",
-        label: "Classify Severity",
-        category: "AI_AGENT",
-        config: {},
-      },
-      {
-        nodeType: "SLACK_SEND",
-        label: "Notify On-Call",
-        category: "ACTION",
-        config: {},
-      },
+      { nodeType: "entry-point", label: "Alert Received", category: "INPUT", config: {} },
+      { nodeType: "ai-agent", label: "Analyze Severity", category: "AI", config: {} },
+      { nodeType: "escalation", label: "Critical Escalation", category: "CONTROL", config: {} },
+      { nodeType: "task-assigner", label: "Assign Responder", category: "CONTROL", config: {} },
+      { nodeType: "slack-send", label: "Incident Channel", category: "INTEGRATION", config: {} },
+      { nodeType: "sla-monitor", label: "Resolution SLA", category: "CONTROL", config: {} },
+      { nodeType: "document-generator", label: "Incident Report", category: "OUTPUT", config: {} },
+      { nodeType: "audit-log", label: "Log Incident", category: "OUTPUT", config: {} },
+    ],
+  },
+  {
+    id: "sales",
+    name: "Sales Outreach",
+    icon: "🎯",
+    description:
+      "Qualifies leads — enriches data, scores quality, personalizes outreach, tracks follow-ups",
+    nodes: [
+      { nodeType: "entry-point", label: "New Lead", category: "INPUT", config: {} },
+      { nodeType: "data-enrichment", label: "Company Data", category: "AI", config: {} },
+      { nodeType: "ai-agent", label: "Score Lead", category: "AI", config: {} },
+      { nodeType: "if-condition", label: "Qualified?", category: "LOGIC", config: {} },
+      { nodeType: "ai-agent", label: "Personalize Email", category: "AI", config: {} },
+      { nodeType: "approval", label: "Review Outreach", category: "CONTROL", config: {} },
+      { nodeType: "email-send", label: "Send Email", category: "INTEGRATION", config: {} },
+      { nodeType: "audit-log", label: "Log Activity", category: "OUTPUT", config: {} },
     ],
   },
 ];
@@ -271,6 +266,15 @@ function DashboardPageContent() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sortBy, setSortBy] = useState<SortBy>("updatedAt");
   const [rowMenuOpen, setRowMenuOpen] = useState<string | null>(null);
+  const [yamlTemplates, setYamlTemplates] = useState<TemplatePreview[]>([]);
+
+  // Load YAML templates from API
+  useEffect(() => {
+    fetch("/api/templates")
+      .then((r) => r.ok ? r.json() : [])
+      .then((data) => { if (Array.isArray(data)) setYamlTemplates(data); })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -320,16 +324,23 @@ function DashboardPageContent() {
       openCreateWorkspace();
       return;
     }
+    const ts = Date.now();
     const nodes = template.nodes.map((n, i) => ({
-      id: `${n.nodeType}-${Date.now()}-${i}`,
+      id: `${n.nodeType}-${ts}-${i}`,
       type: "workflowNode",
-      position: { x: 300, y: i * 140 },
-      data: n,
+      position: { x: 250 + i * 280, y: 200 + (i % 2 === 0 ? 0 : 60) },
+      data: {
+        ...n,
+        componentId: n.nodeType,
+      },
     }));
     const edges = nodes.slice(0, -1).map((n, i) => ({
-      id: `e-${i}`,
+      id: `e-${ts}-${i}`,
       source: n.id,
       target: nodes[i + 1].id,
+      animated: true,
+      style: { stroke: "#6366f1", strokeWidth: 2 },
+      markerEnd: { type: "arrowclosed", color: "#6366f1" },
     }));
     sessionStorage.setItem(
       "template-import",
@@ -898,15 +909,75 @@ function DashboardPageContent() {
         {/* ──── Templates Tab ──── */}
         {activeTab === "templates" && (
           <div>
+            {/* YAML Template Library with Import/Export */}
+            {yamlTemplates.length > 0 && (
+              <div className="mb-10">
+                <TemplateLibrary
+                  templates={yamlTemplates}
+                  onSelectTemplate={(tpl) => {
+                    if (!hasWorkspace) {
+                      toast({ title: "Workspace required", description: "Create a workspace first.", variant: "destructive" });
+                      openCreateWorkspace();
+                      return;
+                    }
+                    const ts = Date.now();
+                    // Build a map from YAML node IDs to new IDs
+                    const idMap: Record<string, string> = {};
+                    const nodes = tpl.nodes.map((n, i) => {
+                      const newId = `${n.type}-${ts}-${i}`;
+                      idMap[n.id] = newId;
+                      return {
+                        id: newId,
+                        type: "workflowNode",
+                        position: n.position || { x: 250 + i * 280, y: 200 },
+                        data: {
+                          nodeType: n.type,
+                          componentId: n.type,
+                          label: n.name,
+                          description: n.description,
+                          category: n.type,
+                          config: n.config || {},
+                        },
+                      };
+                    });
+                    const edges = tpl.edges.map((e, i) => ({
+                      id: `e-${ts}-${i}`,
+                      source: idMap[e.source] || e.source,
+                      target: idMap[e.target] || e.target,
+                      animated: true,
+                      style: { stroke: "#6366f1", strokeWidth: 2 },
+                      markerEnd: { type: "arrowclosed", color: "#6366f1" },
+                      label: e.label || "",
+                    }));
+                    sessionStorage.setItem("template-import", JSON.stringify({
+                      name: tpl.name,
+                      description: tpl.description,
+                      nodes,
+                      edges,
+                    }));
+                    router.push("/workflow/new?from=template");
+                  }}
+                  onImportTemplate={(tpl) => {
+                    setYamlTemplates((prev) => {
+                      if (prev.find((t) => t.id === tpl.id)) return prev;
+                      return [...prev, tpl];
+                    });
+                    toast({ title: "Template imported", description: `"${tpl.name}" added to your library.` });
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Quick-Start Templates */}
             <div className="flex items-center justify-between mb-5">
               <h1
                 className="text-xl font-semibold"
                 style={{ color: "var(--text-primary)" }}
               >
-                Templates
+                Quick-Start Templates
               </h1>
               <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-                Start from a pre-built workflow
+                Click to instantly create a workflow
               </p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

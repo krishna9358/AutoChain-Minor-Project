@@ -80,6 +80,11 @@ import {
   Tag,
   Trash2,
   Square,
+  AlertTriangle,
+  Users,
+  Search,
+  FileOutput,
+  ClipboardList,
 } from "lucide-react";
 import type {
   Node,
@@ -134,6 +139,29 @@ const LEGACY_NODE_CFG: Record<
   APPROVAL: { icon: Pause, color: "#eab308", label: "Approval", cat: "CONTROL" },
   RETRY: { icon: RotateCcw, color: "#6b7280", label: "Retry", cat: "CONTROL" },
   ERROR_HANDLER: { icon: AlertCircle, color: "#ef4444", label: "Error Handler", cat: "CONTROL" },
+  // Enterprise nodes (kebab-case IDs from catalog)
+  "entry-point": { icon: Zap, color: "#f59e0b", label: "Start Trigger", cat: "INPUT" },
+  "http-request": { icon: Globe, color: "#3b82f6", label: "API Call", cat: "INTEGRATION" },
+  "slack-send": { icon: MessageSquare, color: "#3b82f6", label: "Slack Message", cat: "INTEGRATION" },
+  "email-send": { icon: Mail, color: "#3b82f6", label: "Send Email", cat: "INTEGRATION" },
+  "db-query": { icon: Database, color: "#3b82f6", label: "Database Query", cat: "INTEGRATION" },
+  "if-condition": { icon: GitBranch, color: "#10b981", label: "If / Else", cat: "LOGIC" },
+  "switch-case": { icon: GitBranch, color: "#10b981", label: "Switch / Router", cat: "LOGIC" },
+  "loop": { icon: RotateCcw, color: "#10b981", label: "Loop", cat: "LOGIC" },
+  "ai-agent": { icon: Brain, color: "#8b5cf6", label: "AI Agent", cat: "AI" },
+  "text-transform": { icon: FileText, color: "#8b5cf6", label: "Text Transform", cat: "AI" },
+  "delay": { icon: Timer, color: "#6b7280", label: "Delay / Wait", cat: "CONTROL" },
+  "error-handler": { icon: AlertCircle, color: "#6b7280", label: "Error Handler", cat: "CONTROL" },
+  "approval": { icon: Pause, color: "#6b7280", label: "Manual Approval", cat: "CONTROL" },
+  "artifact-writer": { icon: FileText, color: "#6366f1", label: "Artifact Writer", cat: "OUTPUT" },
+  "webhook-response": { icon: Globe, color: "#6366f1", label: "Webhook Response", cat: "OUTPUT" },
+  "sla-monitor": { icon: Timer, color: "#ef4444", label: "SLA Monitor", cat: "CONTROL" },
+  "audit-log": { icon: ClipboardList, color: "#6366f1", label: "Audit Log", cat: "OUTPUT" },
+  "task-assigner": { icon: Users, color: "#6b7280", label: "Task Assigner", cat: "CONTROL" },
+  "escalation": { icon: AlertTriangle, color: "#f59e0b", label: "Escalation", cat: "CONTROL" },
+  "data-enrichment": { icon: Search, color: "#8b5cf6", label: "Data Enrichment", cat: "AI" },
+  "document-generator": { icon: FileOutput, color: "#6366f1", label: "Document Generator", cat: "OUTPUT" },
+  "form-input": { icon: ClipboardList, color: "#f59e0b", label: "Form Input", cat: "INPUT" },
 };
 
 function buildNodeCfg(
@@ -443,7 +471,8 @@ function WorkflowInner() {
             edges: t.edges || [],
             runs: [],
           });
-          sessionStorage.removeItem("template-import");
+          // Defer removal so React Strict Mode re-mount can still read it
+          setTimeout(() => sessionStorage.removeItem("template-import"), 500);
         } catch (err: unknown) {
           console.error("Failed to import workflow template", err);
         }
