@@ -8,6 +8,7 @@
 
 ```bash
 # Clone and start everything
+# Note: It needs docker to be running. Before running the script, make sure you have docker and it is running. 
 git clone <your-repo-url>
 cd minor-project
 ./dev
