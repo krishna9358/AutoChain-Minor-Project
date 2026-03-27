@@ -130,6 +130,44 @@ export const AgentNodeSchema = BaseNodeSchema.extend({
 
 export type AgentNode = z.infer<typeof AgentNodeSchema>;
 
+// CHAT MODEL SUB-NODE (connects to AI Agent's chatModel handle)
+export const ChatModelNodeSchema = BaseNodeSchema.extend({
+  node_type: z.literal("sub.chat_model"),
+  provider: z.enum(["openai", "anthropic", "google", "openrouter", "groq", "local"]),
+  model: z.string().min(1),
+  api_key: z.string().optional(),
+  base_url: z.string().url().optional(),
+  temperature: z.number().min(0).max(2).default(0.7),
+  max_tokens: z.number().optional(),
+});
+
+export type ChatModelNode = z.infer<typeof ChatModelNodeSchema>;
+
+// MEMORY SUB-NODE (connects to AI Agent's memory handle)
+export const MemorySubNodeSchema = BaseNodeSchema.extend({
+  node_type: z.literal("sub.memory"),
+  memory_type: z.enum(["conversation", "vector", "key_value", "episodic"]),
+  max_entries: z.number().default(100),
+  connection_id: z.string().optional(),
+  embedding_model: z.string().optional(),
+  retention_days: z.number().default(30),
+});
+
+export type MemorySubNode = z.infer<typeof MemorySubNodeSchema>;
+
+// TOOL SUB-NODE (connects to AI Agent's tool handle)
+export const ToolSubNodeSchema = BaseNodeSchema.extend({
+  node_type: z.literal("sub.tool"),
+  tool_type: z.enum(["http", "code", "calculator", "database", "search", "file", "custom"]),
+  tool_name: z.string().min(1),
+  tool_description: z.string().optional(),
+  connection_id: z.string().optional(),
+  endpoint: z.string().url().optional(),
+  input_schema: z.record(z.any()).optional(),
+});
+
+export type ToolSubNode = z.infer<typeof ToolSubNodeSchema>;
+
 // TOOL/ACTION NODES
 export const ToolTypeEnum = z.enum([
   "http",
@@ -645,6 +683,9 @@ export const AnyNodeSchema = z.discriminatedUnion("node_type", [
   EventTriggerSchema,
   ScheduleTriggerSchema,
   AgentNodeSchema,
+  ChatModelNodeSchema,
+  MemorySubNodeSchema,
+  ToolSubNodeSchema,
   HttpToolNodeSchema,
   DatabaseToolNodeSchema,
   EmailToolNodeSchema,
