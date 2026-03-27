@@ -2,8 +2,8 @@ id: meeting-intelligence
 name: "Meeting Intelligence"
 description: "Turns meeting recordings into action — extracts decisions, creates tasks, assigns owners, and follows up on stalled items automatically."
 category: "ai"
-icon: "Brain"
-version: "1.0.0"
+icon: "Bot"
+version: "2.0.0"
 tags:
   - meeting
   - transcription
@@ -37,8 +37,20 @@ nodes:
     description: "AI identifies all decisions made during the meeting"
     position: { x: 350, y: 250 }
     config:
+      agentType: "analyzer"
       systemPrompt: "Analyze this meeting transcript and extract: 1) Key decisions made, 2) Important discussion points, 3) Unresolved questions. Format as structured JSON."
-      outputFormat: "json"
+      userPromptTemplate: "{{payload.text}}"
+      responseFormat: "json"
+
+  - id: "node-2-model"
+    type: "chat-model"
+    name: "OpenRouter Chat Model"
+    description: "LLM provider for decision extraction"
+    position: { x: 290, y: 390 }
+    config:
+      provider: "openrouter"
+      model: "gpt-4o"
+      temperature: 0.3
 
   - id: "node-3"
     type: "ai-agent"
@@ -46,8 +58,20 @@ nodes:
     description: "AI finds all action items and suggests who should own them"
     position: { x: 600, y: 250 }
     config:
+      agentType: "analyzer"
       systemPrompt: "From this meeting transcript and decisions, extract all action items. For each, identify: task description, suggested owner (from meeting participants), priority (high/medium/low), and suggested deadline."
-      outputFormat: "json"
+      userPromptTemplate: "{{payload.text}}"
+      responseFormat: "json"
+
+  - id: "node-3-model"
+    type: "chat-model"
+    name: "OpenRouter Chat Model"
+    description: "LLM provider for action item extraction"
+    position: { x: 540, y: 390 }
+    config:
+      provider: "openrouter"
+      model: "gpt-4o"
+      temperature: 0.3
 
   - id: "node-4"
     type: "task-assigner"
@@ -70,7 +94,7 @@ nodes:
     config:
       mode: "webhook"
       channel: "#team-updates"
-      message: "📋 *Meeting Summary*\n\n*Decisions:*\n{{payload.decisions}}\n\n*Action Items:*\n{{payload.action_items}}\n\n*Next Steps:*\n{{payload.next_steps}}"
+      message: "*Meeting Summary*\n\n*Decisions:*\n{{payload.decisions}}\n\n*Action Items:*\n{{payload.action_items}}\n\n*Next Steps:*\n{{payload.next_steps}}"
 
   - id: "node-6"
     type: "sla-monitor"
@@ -118,3 +142,6 @@ edges:
   - { id: "e-5", source: "node-5", target: "node-6" }
   - { id: "e-6", source: "node-6", target: "node-7" }
   - { id: "e-7", source: "node-7", target: "node-8" }
+  # Sub-node connections
+  - { id: "s-1", source: "node-2-model", sourceHandle: "model-out", target: "node-2", targetHandle: "chatModel" }
+  - { id: "s-2", source: "node-3-model", sourceHandle: "model-out", target: "node-3", targetHandle: "chatModel" }

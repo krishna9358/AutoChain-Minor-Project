@@ -325,30 +325,80 @@ function DashboardPageContent() {
       return;
     }
     const ts = Date.now();
-    const nodes = template.nodes.map((n, i) => ({
-      id: `${n.nodeType}-${ts}-${i}`,
-      type: "workflowNode",
-      position: { x: 250 + i * 280, y: 200 + (i % 2 === 0 ? 0 : 60) },
-      data: {
-        ...n,
-        componentId: n.nodeType,
-      },
-    }));
-    const edges = nodes.slice(0, -1).map((n, i) => ({
-      id: `e-${ts}-${i}`,
-      source: n.id,
-      target: nodes[i + 1].id,
-      animated: true,
-      style: { stroke: "#6366f1", strokeWidth: 2 },
-      markerEnd: { type: "arrowclosed", color: "#6366f1" },
-    }));
+
+    // Map special node types to custom React Flow types
+    const NODE_TYPE_MAP: Record<string, string> = {
+      "ai-agent": "aiAgentNode",
+      "chat-model": "chatModelNode",
+      "agent-memory": "memoryNode",
+      "agent-tool": "toolNode",
+    };
+
+    const allNodes: any[] = [];
+    const allEdges: any[] = [];
+
+    template.nodes.forEach((n, i) => {
+      const nodeId = `${n.nodeType}-${ts}-${i}`;
+      const rfType = NODE_TYPE_MAP[n.nodeType] || "workflowNode";
+      const xPos = 250 + i * 280;
+      const yPos = 200 + (i % 2 === 0 ? 0 : 60);
+
+      allNodes.push({
+        id: nodeId,
+        type: rfType,
+        position: { x: xPos, y: yPos },
+        data: { ...n, componentId: n.nodeType },
+      });
+
+      // Auto-generate a Chat Model sub-node for each AI Agent
+      if (n.nodeType === "ai-agent") {
+        const chatModelId = `chat-model-${ts}-${i}`;
+        allNodes.push({
+          id: chatModelId,
+          type: "chatModelNode",
+          position: { x: xPos - 40, y: yPos + 140 },
+          data: {
+            nodeType: "chat-model",
+            componentId: "chat-model",
+            label: "Chat Model",
+            category: "AI",
+            config: { provider: "openrouter", model: "gpt-4o" },
+          },
+        });
+        // Connect chat model to agent's chatModel handle
+        allEdges.push({
+          id: `sub-${ts}-${i}`,
+          source: chatModelId,
+          sourceHandle: "model-out",
+          target: nodeId,
+          targetHandle: "chatModel",
+          style: { stroke: "#555", strokeWidth: 1.5, strokeDasharray: "6 4" },
+        });
+      }
+    });
+
+    // Create main flow edges between workflow nodes (skip sub-nodes)
+    const mainNodes = allNodes.filter(
+      (n) => n.type !== "chatModelNode" && n.type !== "memoryNode" && n.type !== "toolNode",
+    );
+    mainNodes.slice(0, -1).forEach((n, i) => {
+      allEdges.push({
+        id: `e-${ts}-${i}`,
+        source: n.id,
+        target: mainNodes[i + 1].id,
+        animated: true,
+        style: { stroke: "#6366f1", strokeWidth: 2 },
+        markerEnd: { type: "arrowclosed", color: "#6366f1" },
+      });
+    });
+
     sessionStorage.setItem(
       "template-import",
       JSON.stringify({
         name: template.name,
         description: template.description,
-        nodes,
-        edges,
+        nodes: allNodes,
+        edges: allEdges,
       }),
     );
     router.push("/workflow/new?from=template");

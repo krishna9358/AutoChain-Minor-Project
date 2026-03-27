@@ -3,7 +3,7 @@ name: "Contract Lifecycle"
 description: "Manages contracts from creation to signature — AI drafts the contract, legal reviews it, and the system tracks signature deadlines with automatic follow-ups."
 category: "enterprise"
 icon: "FileText"
-version: "1.0.0"
+version: "2.0.0"
 tags:
   - contract
   - legal
@@ -54,8 +54,20 @@ nodes:
     description: "AI generates a professional contract based on the provided details"
     position: { x: 600, y: 250 }
     config:
+      agentType: "executor"
       systemPrompt: "You are a legal assistant. Draft a professional {{payload.contract_type}} contract between our company and {{payload.party_name}}. Include standard clauses for: term ({{payload.duration_months}} months), termination, liability, confidentiality, and the specific terms provided. Value: ${{payload.value}}."
-      outputFormat: "text"
+      userPromptTemplate: "{{payload.text}}"
+      responseFormat: "text"
+
+  - id: "node-3-model"
+    type: "chat-model"
+    name: "OpenRouter Chat Model"
+    description: "LLM provider for contract drafting"
+    position: { x: 540, y: 390 }
+    config:
+      provider: "openrouter"
+      model: "gpt-4o"
+      temperature: 0.3
 
   - id: "node-4"
     type: "document-generator"
@@ -151,3 +163,5 @@ edges:
   - { id: "e-8", source: "node-8", target: "node-9" }
   - { id: "e-9", source: "node-6", target: "node-10", label: "Rejected" }
   - { id: "e-10", source: "node-9", target: "node-10" }
+  # Sub-node connections
+  - { id: "s-1", source: "node-3-model", sourceHandle: "model-out", target: "node-3", targetHandle: "chatModel" }

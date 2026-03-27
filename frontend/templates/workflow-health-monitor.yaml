@@ -3,7 +3,7 @@ name: "Workflow Health Monitor"
 description: "Continuously monitors your workflows for problems — catches process drift, predicts bottlenecks, and escalates before SLA breaches happen."
 category: "operations"
 icon: "Activity"
-version: "1.0.0"
+version: "2.0.0"
 tags:
   - monitoring
   - health
@@ -49,8 +49,20 @@ nodes:
     description: "AI analyzes metrics to spot anomalies and trends"
     position: { x: 600, y: 250 }
     config:
+      agentType: "analyzer"
       systemPrompt: "Analyze these workflow metrics and identify: 1) Any anomalies (unusual failure rates, slow execution times), 2) Trending issues (gradual degradation), 3) Workflows at risk of SLA breach, 4) Resource bottlenecks. Rate overall health as: Healthy, Warning, or Critical."
-      outputFormat: "json"
+      userPromptTemplate: "{{payload.text}}"
+      responseFormat: "json"
+
+  - id: "node-3-model"
+    type: "chat-model"
+    name: "OpenRouter Chat Model"
+    description: "LLM provider for health pattern analysis"
+    position: { x: 540, y: 390 }
+    config:
+      provider: "openrouter"
+      model: "gpt-4o"
+      temperature: 0.3
 
   - id: "node-4"
     type: "if-condition"
@@ -79,8 +91,20 @@ nodes:
     description: "AI predicts potential future problems based on current trends"
     position: { x: 1350, y: 150 }
     config:
+      agentType: "analyzer"
       systemPrompt: "Based on the current metrics and recent trends, predict: 1) Which workflows are likely to fail in the next 24 hours, 2) Where bottlenecks will form, 3) Recommended preventive actions. Provide confidence percentages."
-      outputFormat: "json"
+      userPromptTemplate: "{{payload.text}}"
+      responseFormat: "json"
+
+  - id: "node-6-model"
+    type: "chat-model"
+    name: "OpenRouter Chat Model"
+    description: "LLM provider for bottleneck prediction"
+    position: { x: 1290, y: 290 }
+    config:
+      provider: "openrouter"
+      model: "gpt-4o"
+      temperature: 0.3
 
   - id: "node-7"
     type: "sla-monitor"
@@ -141,3 +165,6 @@ edges:
   - { id: "e-8", source: "node-4", target: "node-9", label: "All Clear" }
   - { id: "e-9", source: "node-8", target: "node-9" }
   - { id: "e-10", source: "node-9", target: "node-10" }
+  # Sub-node connections
+  - { id: "s-1", source: "node-3-model", sourceHandle: "model-out", target: "node-3", targetHandle: "chatModel" }
+  - { id: "s-2", source: "node-6-model", sourceHandle: "model-out", target: "node-6", targetHandle: "chatModel" }

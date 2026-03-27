@@ -2,8 +2,8 @@ id: multi-agent-collaboration
 name: "Multi-Agent Collaboration"
 description: "Multiple AI agents work together to solve complex tasks — one breaks down the problem, others research, analyze, decide, and execute, with human verification at key points."
 category: "ai"
-icon: "Brain"
-version: "1.0.0"
+icon: "Bot"
+version: "2.0.0"
 tags:
   - multi-agent
   - ai
@@ -37,8 +37,20 @@ nodes:
     description: "Breaks down the complex task into smaller, manageable sub-tasks"
     position: { x: 350, y: 250 }
     config:
+      agentType: "planner"
       systemPrompt: "You are a task planning agent. Break down this complex task into 3-5 specific sub-tasks. For each sub-task, specify: what data is needed, what analysis to perform, and what output to produce. Return as structured JSON."
-      outputFormat: "json"
+      userPromptTemplate: "{{payload.text}}"
+      responseFormat: "json"
+
+  - id: "node-2-model"
+    type: "chat-model"
+    name: "OpenRouter Chat Model"
+    description: "LLM provider for task planning"
+    position: { x: 290, y: 390 }
+    config:
+      provider: "openrouter"
+      model: "gpt-4o"
+      temperature: 0.3
 
   - id: "node-3"
     type: "switch-case"
@@ -69,8 +81,20 @@ nodes:
     description: "Analyzes the gathered data and identifies patterns and insights"
     position: { x: 850, y: 250 }
     config:
+      agentType: "analyzer"
       systemPrompt: "You are a data analysis agent. Analyze this data and identify: key patterns, trends, strengths/weaknesses, and actionable insights. Provide quantitative comparisons where possible."
-      outputFormat: "json"
+      userPromptTemplate: "{{payload.text}}"
+      responseFormat: "json"
+
+  - id: "node-5-model"
+    type: "chat-model"
+    name: "OpenRouter Chat Model"
+    description: "LLM provider for data analysis"
+    position: { x: 790, y: 390 }
+    config:
+      provider: "openrouter"
+      model: "gpt-4o"
+      temperature: 0.3
 
   - id: "node-6"
     type: "ai-agent"
@@ -78,8 +102,20 @@ nodes:
     description: "Makes recommendations based on the analysis"
     position: { x: 1100, y: 250 }
     config:
+      agentType: "planner"
       systemPrompt: "You are a decision-making agent. Based on the research and analysis provided, make clear recommendations. Explain your reasoning, list pros/cons, and provide confidence levels for each recommendation."
-      outputFormat: "json"
+      userPromptTemplate: "{{payload.text}}"
+      responseFormat: "json"
+
+  - id: "node-6-model"
+    type: "chat-model"
+    name: "OpenRouter Chat Model"
+    description: "LLM provider for decision making"
+    position: { x: 1040, y: 390 }
+    config:
+      provider: "openrouter"
+      model: "gpt-4o"
+      temperature: 0.3
 
   - id: "node-7"
     type: "approval"
@@ -97,8 +133,20 @@ nodes:
     description: "Compiles all findings into a final deliverable"
     position: { x: 1600, y: 250 }
     config:
+      agentType: "executor"
       systemPrompt: "Compile all research, analysis, and approved recommendations into a comprehensive, well-structured final report. Include executive summary, detailed findings, recommendations, and next steps."
-      outputFormat: "text"
+      userPromptTemplate: "{{payload.text}}"
+      responseFormat: "text"
+
+  - id: "node-8-model"
+    type: "chat-model"
+    name: "OpenRouter Chat Model"
+    description: "LLM provider for final report compilation"
+    position: { x: 1540, y: 390 }
+    config:
+      provider: "openrouter"
+      model: "gpt-4o"
+      temperature: 0.3
 
   - id: "node-9"
     type: "document-generator"
@@ -135,3 +183,8 @@ edges:
   - { id: "e-8", source: "node-7", target: "node-8" }
   - { id: "e-9", source: "node-8", target: "node-9" }
   - { id: "e-10", source: "node-9", target: "node-10" }
+  # Sub-node connections
+  - { id: "s-1", source: "node-2-model", sourceHandle: "model-out", target: "node-2", targetHandle: "chatModel" }
+  - { id: "s-2", source: "node-5-model", sourceHandle: "model-out", target: "node-5", targetHandle: "chatModel" }
+  - { id: "s-3", source: "node-6-model", sourceHandle: "model-out", target: "node-6", targetHandle: "chatModel" }
+  - { id: "s-4", source: "node-8-model", sourceHandle: "model-out", target: "node-8", targetHandle: "chatModel" }

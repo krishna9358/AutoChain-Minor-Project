@@ -3,7 +3,7 @@ name: "Employee Onboarding"
 description: "Streamlines new hire onboarding — from collecting info to setting up accounts, assigning tasks, and scheduling check-ins. Nothing falls through the cracks."
 category: "enterprise"
 icon: "Users"
-version: "1.0.0"
+version: "2.0.0"
 tags:
   - hr
   - onboarding
@@ -45,8 +45,20 @@ nodes:
     description: "AI generates a personalized onboarding checklist based on the role"
     position: { x: 350, y: 250 }
     config:
+      agentType: "planner"
       systemPrompt: "Create a detailed 30-day onboarding plan for a new {{payload.role}} in the {{payload.department}} department. Include IT setup tasks, HR paperwork, team introductions, training modules, and milestone check-ins."
-      outputFormat: "json"
+      userPromptTemplate: "{{payload.text}}"
+      responseFormat: "json"
+
+  - id: "node-2-model"
+    type: "chat-model"
+    name: "OpenRouter Chat Model"
+    description: "LLM provider for onboarding plan creation"
+    position: { x: 290, y: 390 }
+    config:
+      provider: "openrouter"
+      model: "gpt-4o"
+      temperature: 0.3
 
   - id: "node-3"
     type: "task-assigner"
@@ -147,3 +159,5 @@ edges:
   - { id: "e-7", source: "node-6", target: "node-7" }
   - { id: "e-8", source: "node-7", target: "node-8" }
   - { id: "e-9", source: "node-8", target: "node-9" }
+  # Sub-node connections
+  - { id: "s-1", source: "node-2-model", sourceHandle: "model-out", target: "node-2", targetHandle: "chatModel" }

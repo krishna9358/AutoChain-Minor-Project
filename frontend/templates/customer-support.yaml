@@ -3,7 +3,7 @@ name: "Customer Support Automation"
 description: "AI-powered support — classifies tickets, checks customer history, drafts responses, and tracks resolution times. Handles routine issues automatically while escalating complex ones."
 category: "automation"
 icon: "MessageSquare"
-version: "1.0.0"
+version: "2.0.0"
 tags:
   - support
   - customer
@@ -37,8 +37,20 @@ nodes:
     description: "AI reads the ticket, determines the category and urgency"
     position: { x: 350, y: 250 }
     config:
+      agentType: "analyzer"
       systemPrompt: "Classify this support ticket by: 1) Category (billing, technical, account, general), 2) Urgency (low, medium, high, critical), 3) Sentiment (positive, neutral, frustrated, angry), 4) Whether it can be auto-resolved or needs human help. Return as JSON."
-      outputFormat: "json"
+      userPromptTemplate: "{{payload.text}}"
+      responseFormat: "json"
+
+  - id: "node-2-model"
+    type: "chat-model"
+    name: "OpenRouter Chat Model"
+    description: "LLM provider for ticket classification"
+    position: { x: 290, y: 390 }
+    config:
+      provider: "openrouter"
+      model: "gpt-4o"
+      temperature: 0.3
 
   - id: "node-3"
     type: "switch-case"
@@ -70,8 +82,20 @@ nodes:
     description: "AI creates a helpful, personalized response based on the issue and customer history"
     position: { x: 1100, y: 250 }
     config:
+      agentType: "executor"
       systemPrompt: "Draft a professional, empathetic support response for this {{payload.category}} ticket. Consider the customer's history and sentiment ({{payload.sentiment}}). Be helpful and provide specific solutions. If you can't resolve it, explain next steps clearly."
-      outputFormat: "text"
+      userPromptTemplate: "{{payload.text}}"
+      responseFormat: "text"
+
+  - id: "node-5-model"
+    type: "chat-model"
+    name: "OpenRouter Chat Model"
+    description: "LLM provider for response drafting"
+    position: { x: 1040, y: 390 }
+    config:
+      provider: "openrouter"
+      model: "gpt-4o"
+      temperature: 0.3
 
   - id: "node-6"
     type: "approval"
@@ -130,3 +154,6 @@ edges:
   - { id: "e-6", source: "node-6", target: "node-7" }
   - { id: "e-7", source: "node-7", target: "node-8" }
   - { id: "e-8", source: "node-8", target: "node-9" }
+  # Sub-node connections
+  - { id: "s-1", source: "node-2-model", sourceHandle: "model-out", target: "node-2", targetHandle: "chatModel" }
+  - { id: "s-2", source: "node-5-model", sourceHandle: "model-out", target: "node-5", targetHandle: "chatModel" }

@@ -3,7 +3,7 @@ name: "Procurement to Payment"
 description: "Automates the entire purchasing process — from request to payment. Handles approvals, budget checks, and keeps a complete audit trail of every decision."
 category: "enterprise"
 icon: "FileOutput"
-version: "1.0.0"
+version: "2.0.0"
 tags:
   - procurement
   - purchasing
@@ -45,8 +45,20 @@ nodes:
     description: "AI reviews the request, checks for completeness, and categorizes it"
     position: { x: 350, y: 250 }
     config:
+      agentType: "analyzer"
       systemPrompt: "You are a procurement assistant. Review this purchase request for completeness, categorize it (Office Supplies, Equipment, Software, Services, Other), and flag any concerns."
-      outputFormat: "json"
+      userPromptTemplate: "{{payload.text}}"
+      responseFormat: "json"
+
+  - id: "node-2-model"
+    type: "chat-model"
+    name: "OpenRouter Chat Model"
+    description: "LLM provider for request validation"
+    position: { x: 290, y: 390 }
+    config:
+      provider: "openrouter"
+      model: "gpt-4o"
+      temperature: 0.3
 
   - id: "node-3"
     type: "if-condition"
@@ -74,8 +86,20 @@ nodes:
     description: "AI creates a formal purchase order with all the details"
     position: { x: 1100, y: 250 }
     config:
+      agentType: "executor"
       systemPrompt: "Generate a formal purchase order document with PO number, item details, vendor info, payment terms, and delivery instructions based on the approved request."
-      outputFormat: "json"
+      userPromptTemplate: "{{payload.text}}"
+      responseFormat: "json"
+
+  - id: "node-5-model"
+    type: "chat-model"
+    name: "OpenRouter Chat Model"
+    description: "LLM provider for purchase order generation"
+    position: { x: 1040, y: 390 }
+    config:
+      provider: "openrouter"
+      model: "gpt-4o"
+      temperature: 0.3
 
   - id: "node-6"
     type: "document-generator"
@@ -138,3 +162,6 @@ edges:
   - { id: "e-7", source: "node-6", target: "node-7" }
   - { id: "e-8", source: "node-7", target: "node-8" }
   - { id: "e-9", source: "node-8", target: "node-9" }
+  # Sub-node connections
+  - { id: "s-1", source: "node-2-model", sourceHandle: "model-out", target: "node-2", targetHandle: "chatModel" }
+  - { id: "s-2", source: "node-5-model", sourceHandle: "model-out", target: "node-5", targetHandle: "chatModel" }

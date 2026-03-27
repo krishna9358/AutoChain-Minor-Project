@@ -3,7 +3,7 @@ name: "Incident Management"
 description: "Handles system incidents end-to-end — from alert to resolution. AI analyzes severity, assigns responders, tracks SLAs, and generates postmortem reports automatically."
 category: "operations"
 icon: "ShieldAlert"
-version: "1.0.0"
+version: "2.0.0"
 tags:
   - incident
   - alert
@@ -37,8 +37,20 @@ nodes:
     description: "AI determines how serious the incident is based on the alert data"
     position: { x: 350, y: 250 }
     config:
+      agentType: "analyzer"
       systemPrompt: "Analyze this system alert and determine: 1) Severity (P1-Critical, P2-High, P3-Medium, P4-Low), 2) Affected systems, 3) Potential root cause, 4) Blast radius (how many users/services affected), 5) Recommended immediate actions. Return as structured JSON."
-      outputFormat: "json"
+      userPromptTemplate: "{{payload.text}}"
+      responseFormat: "json"
+
+  - id: "node-2-model"
+    type: "chat-model"
+    name: "OpenRouter Chat Model"
+    description: "LLM provider for severity analysis"
+    position: { x: 290, y: 390 }
+    config:
+      provider: "openrouter"
+      model: "gpt-4o"
+      temperature: 0.3
 
   - id: "node-3"
     type: "switch-case"
@@ -110,8 +122,20 @@ nodes:
     description: "AI creates a postmortem report with root cause analysis"
     position: { x: 1600, y: 250 }
     config:
+      agentType: "analyzer"
       systemPrompt: "Generate a postmortem report for this incident. Include: Timeline of events, Root cause analysis, Impact assessment, What went well, What could be improved, Action items to prevent recurrence."
-      outputFormat: "text"
+      userPromptTemplate: "{{payload.text}}"
+      responseFormat: "text"
+
+  - id: "node-8-model"
+    type: "chat-model"
+    name: "OpenRouter Chat Model"
+    description: "LLM provider for postmortem generation"
+    position: { x: 1540, y: 390 }
+    config:
+      provider: "openrouter"
+      model: "gpt-4o"
+      temperature: 0.3
 
   - id: "node-9"
     type: "document-generator"
@@ -149,3 +173,6 @@ edges:
   - { id: "e-8", source: "node-7", target: "node-8" }
   - { id: "e-9", source: "node-8", target: "node-9" }
   - { id: "e-10", source: "node-9", target: "node-10" }
+  # Sub-node connections
+  - { id: "s-1", source: "node-2-model", sourceHandle: "model-out", target: "node-2", targetHandle: "chatModel" }
+  - { id: "s-2", source: "node-8-model", sourceHandle: "model-out", target: "node-8", targetHandle: "chatModel" }

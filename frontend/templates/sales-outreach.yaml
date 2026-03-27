@@ -3,7 +3,7 @@ name: "Sales Outreach"
 description: "Qualifies leads automatically — enriches company data, AI scores lead quality, personalizes outreach, and tracks follow-ups with smart timing."
 category: "automation"
 icon: "Mail"
-version: "1.0.0"
+version: "2.0.0"
 tags:
   - sales
   - leads
@@ -49,8 +49,20 @@ nodes:
     description: "AI evaluates how good this lead is based on enriched data"
     position: { x: 600, y: 250 }
     config:
+      agentType: "analyzer"
       systemPrompt: "Score this lead from 1-100 based on: company size fit, industry relevance, budget likelihood, and engagement signals. Provide the score, reasoning, and classify as: Hot (80+), Warm (50-79), or Cold (<50)."
-      outputFormat: "json"
+      userPromptTemplate: "{{payload.text}}"
+      responseFormat: "json"
+
+  - id: "node-3-model"
+    type: "chat-model"
+    name: "OpenRouter Chat Model"
+    description: "LLM provider for lead scoring"
+    position: { x: 540, y: 390 }
+    config:
+      provider: "openrouter"
+      model: "gpt-4o"
+      temperature: 0.3
 
   - id: "node-4"
     type: "if-condition"
@@ -68,8 +80,20 @@ nodes:
     description: "AI crafts a personalized outreach email for this specific lead"
     position: { x: 1100, y: 150 }
     config:
+      agentType: "executor"
       systemPrompt: "Write a personalized, conversational sales email to {{payload.contact_name}} at {{payload.company_name}}. Reference their industry ({{payload.industry}}), company size, and a specific pain point our product solves for them. Keep it under 150 words. Don't be salesy."
-      outputFormat: "text"
+      userPromptTemplate: "{{payload.text}}"
+      responseFormat: "text"
+
+  - id: "node-5-model"
+    type: "chat-model"
+    name: "OpenRouter Chat Model"
+    description: "LLM provider for message personalization"
+    position: { x: 1040, y: 290 }
+    config:
+      provider: "openrouter"
+      model: "gpt-4o"
+      temperature: 0.3
 
   - id: "node-6"
     type: "approval"
@@ -109,8 +133,20 @@ nodes:
     description: "AI checks if the prospect responded and analyzes their interest level"
     position: { x: 2100, y: 150 }
     config:
+      agentType: "analyzer"
       systemPrompt: "Check if the prospect has responded. If yes, analyze their response sentiment and interest level. If no response, draft a brief follow-up email."
-      outputFormat: "json"
+      userPromptTemplate: "{{payload.text}}"
+      responseFormat: "json"
+
+  - id: "node-9-model"
+    type: "chat-model"
+    name: "OpenRouter Chat Model"
+    description: "LLM provider for response analysis"
+    position: { x: 2040, y: 290 }
+    config:
+      provider: "openrouter"
+      model: "gpt-4o"
+      temperature: 0.3
 
   - id: "node-10"
     type: "audit-log"
@@ -135,3 +171,7 @@ edges:
   - { id: "e-8", source: "node-7", target: "node-8" }
   - { id: "e-9", source: "node-8", target: "node-9" }
   - { id: "e-10", source: "node-9", target: "node-10" }
+  # Sub-node connections
+  - { id: "s-1", source: "node-3-model", sourceHandle: "model-out", target: "node-3", targetHandle: "chatModel" }
+  - { id: "s-2", source: "node-5-model", sourceHandle: "model-out", target: "node-5", targetHandle: "chatModel" }
+  - { id: "s-3", source: "node-9-model", sourceHandle: "model-out", target: "node-9", targetHandle: "chatModel" }
