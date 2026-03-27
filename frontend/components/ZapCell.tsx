@@ -77,9 +77,9 @@ export const ZapCell = ({
       return "bg-slate-100";
     }
     if (isTrigger) {
-      return "bg-gradient-primary";
+      return "bg-[#1e9df1]";
     }
-    return "bg-gradient-to-br from-blue-500 to-purple-600";
+    return "bg-[#1e9df1]";
   };
 
   const getIcon = () => {
@@ -101,7 +101,7 @@ export const ZapCell = ({
     >
       {/* Animated gradient border effect */}
       {!isEmpty && (
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent -translate-x-full group-hover:animate-shimmer" />
+        <div className="absolute inset-0 bg-white/10 -translate-x-full group-hover:animate-shimmer" />
       )}
 
       {/* Content */}
@@ -169,14 +169,14 @@ export const ZapCell = ({
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: "100%" }}
-          className="absolute bottom-0 left-0 h-1 bg-gradient-primary"
+          className="absolute bottom-0 left-0 h-1 bg-[#1e9df1]"
         />
       )}
 
       {/* Hover glow effect */}
       <div
         className={`
-        absolute inset-0 bg-gradient-primary opacity-0 group-hover:opacity-5
+        absolute inset-0 bg-[#1e9df1] opacity-0 group-hover:opacity-5
         transition-opacity duration-300 pointer-events-none
       `}
       />
@@ -290,7 +290,7 @@ export const CompactZapCell = ({
     >
       <div
         className={`
-        w-10 h-10 rounded-lg ${isEmpty ? "bg-slate-100" : isTrigger ? "bg-gradient-primary" : "bg-gradient-to-br from-blue-500 to-purple-600"}
+        w-10 h-10 rounded-lg ${isEmpty ? "bg-slate-100" : "bg-[#1e9df1]"}
         flex items-center justify-center transition-all duration-300 group-hover:scale-110
       `}
       >

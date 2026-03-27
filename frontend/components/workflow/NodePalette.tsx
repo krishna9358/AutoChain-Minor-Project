@@ -32,7 +32,7 @@ const NodePalette: React.FC<NodePaletteProps> = ({ onNodeDragStart }) => {
 
   return (
     <div className="w-80 h-full bg-white border-r border-slate-200 overflow-y-auto">
-      <div className="p-4 border-b border-slate-200 bg-gradient-to-r from-blue-50 to-purple-50">
+      <div className="p-4 border-b border-slate-200 bg-slate-50">
         <h2 className="text-lg font-bold text-slate-800">Workflow Nodes</h2>
         <p className="text-sm text-slate-600 mt-1">Drag nodes to canvas</p>
       </div>
@@ -113,7 +113,7 @@ const NodePalette: React.FC<NodePaletteProps> = ({ onNodeDragStart }) => {
       </div>
 
       {/* Quick Tips Section */}
-      <div className="p-4 mt-4 border-t border-slate-200 bg-gradient-to-br from-slate-50 to-blue-50 rounded-lg mx-4 mb-4">
+      <div className="p-4 mt-4 border-t border-slate-200 bg-slate-50 rounded-lg mx-4 mb-4">
         <h3 className="font-semibold text-sm text-slate-800 mb-2">💡 Quick Tips</h3>
         <ul className="text-xs text-slate-600 space-y-1.5">
           <li>• Start with a Trigger node</li>

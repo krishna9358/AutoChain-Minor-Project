@@ -24,7 +24,7 @@ export const Feature = ({
   const variantClasses = {
     default: "group",
     highlight:
-      "bg-gradient-to-r from-primary-50 to-orange-50 px-4 py-3 rounded-xl border border-primary-100 shadow-sm hover:shadow-glow hover:scale-105",
+      "bg-[#e3ecf6] px-4 py-3 rounded-xl border border-primary-100 shadow-sm hover:shadow-glow hover:scale-105",
     dark: "bg-slate-800/50 px-4 py-3 rounded-xl border border-slate-700 hover:border-primary-500/50",
   };
 
@@ -84,7 +84,7 @@ export const Feature = ({
                   type: "spring",
                   stiffness: 200,
                 }}
-                className="px-2 py-0.5 bg-gradient-primary text-white text-[10px] font-bold rounded-full"
+                className="px-2 py-0.5 bg-[#1e9df1] text-white text-[10px] font-bold rounded-full"
               >
                 NEW
               </motion.span>
@@ -97,7 +97,7 @@ export const Feature = ({
 
         {/* Hover effect gradient */}
         {variant === "highlight" && (
-          <div className="absolute inset-0 bg-gradient-to-r from-primary-500/0 via-primary-500/5 to-primary-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 ease-in-out pointer-events-none" />
+          <div className="absolute inset-0 bg-[#1e9df1]/5 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 ease-in-out pointer-events-none" />
         )}
       </div>
     </motion.div>
@@ -129,10 +129,10 @@ export const FeatureCard = ({
       className="relative group bg-white rounded-2xl p-6 shadow-medium hover:shadow-glow border border-slate-200 hover:border-primary-300 transition-all duration-300 cursor-pointer"
     >
       {/* Gradient border effect on hover */}
-      <div className="absolute inset-0 rounded-2xl bg-gradient-primary opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10 blur-sm" />
+      <div className="absolute inset-0 rounded-2xl bg-[#1e9df1] opacity-0 group-hover:opacity-10 transition-opacity duration-300 -z-10 blur-sm" />
 
       <div className="relative z-10">
-        <div className="w-14 h-14 bg-gradient-primary rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300 shadow-glow">
+        <div className="w-14 h-14 bg-[#1e9df1] rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300 shadow-glow">
           {icon}
         </div>
 
@@ -186,7 +186,7 @@ export const StatsFeature = ({
       transition={{ duration: 0.5, delay, type: "spring", stiffness: 200 }}
       className="text-center"
     >
-      <div className="text-4xl md:text-5xl font-bold bg-gradient-primary bg-clip-text text-transparent mb-2">
+      <div className="text-4xl md:text-5xl font-bold text-[#1e9df1] mb-2">
         {value}
         <span className="text-primary-600">{suffix}</span>
       </div>

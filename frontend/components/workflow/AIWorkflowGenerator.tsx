@@ -41,7 +41,7 @@ const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
     <div className="w-full">
       {/* Hero Section */}
       <div className="text-center mb-8">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-blue-500 mb-4 shadow-lg animate-pulse">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[#1e9df1] mb-4 shadow-lg animate-pulse">
           <Sparkles className="w-8 h-8 text-white" />
         </div>
         <h2 className="text-3xl font-bold text-slate-800 mb-3">
@@ -68,8 +68,7 @@ const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
             onClick={handleGenerate}
             disabled={!description.trim() || isGenerating}
             className={cn(
-              "absolute right-3 bottom-3 bg-gradient-to-r text-white font-semibold py-3 px-8 rounded-xl transition-all flex items-center space-x-2 shadow-lg hover:shadow-xl",
-              "from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600",
+              "absolute right-3 bottom-3 bg-[#1e9df1] text-white font-semibold py-3 px-8 rounded-xl transition-all flex items-center space-x-2 shadow-lg hover:shadow-xl hover:bg-[#1c9cf0]",
               "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
             )}
           >
@@ -110,7 +109,7 @@ const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
               disabled={isGenerating}
               className="flex items-start space-x-3 p-4 bg-white rounded-xl border-2 border-slate-200 hover:border-purple-300 hover:shadow-md transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed group"
             >
-              <div className="w-6 h-6 rounded-full bg-gradient-to-r from-purple-100 to-blue-100 flex items-center justify-center text-purple-600 font-semibold text-xs shrink-0 mt-0.5">
+              <div className="w-6 h-6 rounded-full bg-[#e3ecf6] flex items-center justify-center text-[#1e9df1] font-semibold text-xs shrink-0 mt-0.5">
                 {index + 1}
               </div>
               <span className="text-sm text-slate-700 group-hover:text-purple-600 transition-colors flex-1">
@@ -124,7 +123,7 @@ const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
 
       {/* Explain Workflow Button (shows after workflow is generated) */}
       {workflowGenerated && onExplainWorkflow && (
-        <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl border-2 border-green-200 p-6 mb-6">
+        <div className="bg-[#f7f8f8] rounded-2xl border-2 border-green-200 p-6 mb-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="w-12 h-12 rounded-xl bg-green-500 flex items-center justify-center text-white shadow-lg">
@@ -137,7 +136,7 @@ const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
             </div>
             <button
               onClick={onExplainWorkflow}
-              className="bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold py-3 px-6 rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all flex items-center space-x-2 shadow-lg hover:shadow-xl"
+              className="bg-[#1e9df1] text-white font-semibold py-3 px-6 rounded-xl hover:bg-[#1c9cf0] transition-all flex items-center space-x-2 shadow-lg hover:shadow-xl"
             >
               <Play className="w-5 h-5" />
               <span>Explain Workflow</span>
@@ -147,7 +146,7 @@ const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
       )}
 
       {/* Demo Tip */}
-      <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border border-blue-200 p-4">
+      <div className="bg-[#e3ecf6] rounded-xl border border-blue-200 p-4">
         <div className="flex items-start space-x-3">
           <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center text-white shrink-0">
             <Lightbulb className="w-5 h-5" />

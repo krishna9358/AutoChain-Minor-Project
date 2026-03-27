@@ -28,12 +28,12 @@ export const PrimaryButton = ({
 
   const variantClasses = {
     default:
-      "bg-gradient-primary hover:bg-gradient-hover hover:shadow-glow hover:scale-105 active:scale-95",
+      "bg-[#1e9df1] hover:bg-[#1c9cf0] hover:shadow-glow hover:scale-105 active:scale-95",
     gradient:
-      "bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 hover:from-orange-400 hover:via-red-400 hover:to-pink-400 hover:shadow-glow-lg hover:scale-105 active:scale-95",
-    dark: "bg-gradient-dark hover:shadow-strong hover:scale-105 active:scale-95",
+      "bg-[#1e9df1] hover:bg-[#1c9cf0] hover:shadow-glow-lg hover:scale-105 active:scale-95",
+    dark: "bg-[#17181c] hover:shadow-strong hover:scale-105 active:scale-95",
     outline:
-      "bg-transparent border-2 border-primary-500 text-primary-600 hover:bg-primary-500 hover:text-white hover:shadow-glow hover:scale-105 active:scale-95",
+      "bg-transparent border-2 border-[#1e9df1] text-[#1e9df1] hover:bg-[#1e9df1] hover:text-white hover:shadow-glow hover:scale-105 active:scale-95",
   };
 
   const disabledClasses = "opacity-50 cursor-not-allowed pointer-events-none";
@@ -56,7 +56,7 @@ export const PrimaryButton = ({
         {children}
       </span>
       {/* Shine effect on hover */}
-      <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
+      <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out bg-white/10 pointer-events-none" />
     </div>
   );
 };

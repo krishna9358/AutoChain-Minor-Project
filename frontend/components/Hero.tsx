@@ -76,7 +76,7 @@ export const Hero = () => {
 
           {/* Right: Node Visualizer */}
           <div className="lg:col-span-8 relative min-h-[400px] flex items-center justify-center p-8 overflow-hidden">
-            <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,#000_10%,transparent_100%)]"></div>
+            <div className="absolute inset-0 opacity-10" style={{backgroundImage: 'repeating-linear-gradient(0deg, rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 1px, transparent 1px, transparent 40px), repeating-linear-gradient(90deg, rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 1px, transparent 1px, transparent 40px)'}}></div>
 
             {/* Network / Node Visual */}
             <div className="relative w-full h-full max-w-2xl flex items-center justify-center z-10">

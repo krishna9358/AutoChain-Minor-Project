@@ -55,7 +55,7 @@ const WorkflowExplanation: React.FC<WorkflowExplanationProps> = ({
     <div className="w-full">
       {/* Header */}
       <div className="mb-8 text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-blue-500 mb-4 shadow-lg">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[#1e9df1] mb-4 shadow-lg">
           <Brain className="w-8 h-8 text-white" />
         </div>
         <h2 className="text-3xl font-bold text-slate-800 mb-2">
@@ -84,7 +84,7 @@ const WorkflowExplanation: React.FC<WorkflowExplanationProps> = ({
         <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
           <div
             className={cn(
-              "h-full bg-gradient-to-r from-purple-500 to-blue-500 transition-all duration-500 ease-out",
+              "h-full bg-[#1e9df1] transition-all duration-500 ease-out",
               isAnimating && "animate-pulse"
             )}
             style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
@@ -110,7 +110,7 @@ const WorkflowExplanation: React.FC<WorkflowExplanationProps> = ({
             >
               {/* Connection Line */}
               {index < steps.length - 1 && (
-                <div className="absolute left-6 top-16 bottom-0 w-0.5 bg-gradient-to-b from-slate-200 to-transparent" />
+                <div className="absolute left-6 top-16 bottom-0 w-0.5 bg-slate-200" />
               )}
 
               <div className="flex items-start space-x-4">
@@ -131,7 +131,7 @@ const WorkflowExplanation: React.FC<WorkflowExplanationProps> = ({
                   </div>
                   {/* Glow effect for active step */}
                   {isActive && (
-                    <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-purple-400 to-blue-400 blur-xl opacity-50 animate-pulse" />
+                    <div className="absolute inset-0 rounded-xl bg-[#1e9df1] blur-xl opacity-30 animate-pulse" />
                   )}
                 </div>
 
@@ -201,7 +201,7 @@ const WorkflowExplanation: React.FC<WorkflowExplanationProps> = ({
       {/* Summary Section */}
       {currentStep === steps.length - 1 && (
         <div className="mt-8 max-w-3xl mx-auto">
-          <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl border-2 border-green-200 p-6">
+          <div className="bg-[#f7f8f8] rounded-2xl border-2 border-green-200 p-6">
             <div className="flex items-center space-x-3 mb-4">
               <div className="w-12 h-12 rounded-xl bg-green-500 flex items-center justify-center text-white shadow-lg">
                 <Sparkles className="w-6 h-6" />
@@ -239,7 +239,7 @@ const WorkflowExplanation: React.FC<WorkflowExplanationProps> = ({
 
       {/* Tip Section */}
       <div className="mt-8 max-w-3xl mx-auto">
-        <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border border-blue-200 p-4">
+        <div className="bg-[#e3ecf6] rounded-xl border border-blue-200 p-4">
           <div className="flex items-start space-x-3">
             <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center text-white shrink-0">
               <Lightbulb className="w-5 h-5" />

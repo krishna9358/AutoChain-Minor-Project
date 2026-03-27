@@ -20,8 +20,8 @@ export const IntegrationsReel = () => {
             {/* Slanted Marquee Container */}
             <div className="relative z-10 w-full max-w-[1400px] mx-auto overflow-hidden h-[300px]">
                 {/* Fade edges */}
-                <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-[#0B0B0F] to-transparent z-20"></div>
-                <div className="absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-[#0B0B0F] to-transparent z-20"></div>
+                <div className="absolute inset-y-0 left-0 w-32 bg-[#0B0B0F] z-20" style={{maskImage: 'linear-gradient(to right, #0B0B0F, transparent)'}}></div>
+                <div className="absolute inset-y-0 right-0 w-32 bg-[#0B0B0F] z-20" style={{maskImage: 'linear-gradient(to left, #0B0B0F, transparent)'}}></div>
 
                 <div 
                     className="flex flex-col gap-6 ml-[-100px] pt-8"

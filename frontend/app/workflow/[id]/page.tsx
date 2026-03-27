@@ -1852,7 +1852,7 @@ function WorkflowInner() {
               className="relative shrink-0 border-l flex flex-col overflow-hidden"
               style={{
                 background:
-                  "linear-gradient(180deg, var(--bg-secondary) 0%, color-mix(in srgb, var(--bg-secondary) 92%, #6366f1 8%) 100%)",
+                  "var(--bg-secondary)",
                 borderColor: "var(--border-subtle)",
               }}
             >

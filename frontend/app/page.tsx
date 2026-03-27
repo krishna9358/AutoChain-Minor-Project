@@ -164,10 +164,10 @@ export default function LandingPage() {
       <nav className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-lg">
         <div className="container flex h-16 items-center justify-between px-4">
           <div className="flex items-center space-x-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/60">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
               <Zap className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="text-xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+            <span className="text-xl font-bold text-foreground">
               AutoChain
             </span>
             <Badge variant="secondary" className="ml-2 text-xs">
@@ -246,7 +246,7 @@ export default function LandingPage() {
             className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6"
           >
             Build AI Workflows
-            <span className="block bg-gradient-to-r from-primary via-purple-500 to-pink-500 bg-clip-text text-transparent">
+            <span className="block text-primary">
               Without Writing Code
             </span>
           </motion.h1>
@@ -319,7 +319,7 @@ export default function LandingPage() {
         >
           {stats.map((stat, index) => (
             <div key={index} className="text-center">
-              <div className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent mb-2">
+              <div className="text-3xl md:text-4xl font-bold text-foreground mb-2">
                 {stat.value}
               </div>
               <div className="text-sm text-muted-foreground">{stat.label}</div>
@@ -359,7 +359,7 @@ export default function LandingPage() {
                 <Card className="h-full hover:shadow-lg transition-all duration-300 border-2 hover:border-primary/50 group">
                   <CardHeader>
                     <div
-                      className={`h-12 w-12 rounded-lg bg-gradient-to-br ${feature.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}
+                      className="h-12 w-12 rounded-lg bg-primary flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300"
                     >
                       <feature.icon className="h-6 w-6 text-white" />
                     </div>
@@ -598,7 +598,7 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center space-x-2 mb-4">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/60">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
                   <Zap className="h-4 w-4 text-primary-foreground" />
                 </div>
                 <span className="font-bold">AutoChain</span>

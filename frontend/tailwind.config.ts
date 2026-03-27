@@ -16,16 +16,7 @@ const config: Config = {
       },
     },
     extend: {
-      backgroundImage: {
-        "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
-        "gradient-conic":
-          "conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))",
-        "gradient-primary": "linear-gradient(135deg, #ff4f00 0%, #ff8c00 100%)",
-        "gradient-secondary":
-          "linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%)",
-        "gradient-dark": "linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)",
-        "gradient-hero": "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-      },
+      backgroundImage: {},
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

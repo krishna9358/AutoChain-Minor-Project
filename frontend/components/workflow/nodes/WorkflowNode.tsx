@@ -115,7 +115,7 @@ const WorkflowNode: React.FC<NodeProps<WorkflowNodeType>> = ({ data, isConnectab
           ? `0 0 0 2px ${color}40, 0 4px 16px rgba(0,0,0,0.12)`
           : '0 1px 4px rgba(0,0,0,0.08)',
         background: data.selected
-          ? `linear-gradient(135deg, white 0%, ${color}08 100%)`
+          ? 'white'
           : undefined,
       }}
     >

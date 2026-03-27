@@ -49,7 +49,7 @@ const WorkflowTemplates: React.FC<WorkflowTemplatesProps> = ({
                 {/* Header */}
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white shadow-lg">
+                    <div className="w-12 h-12 rounded-xl bg-[#1e9df1] flex items-center justify-center text-white shadow-lg">
                       <Icon className="w-6 h-6" />
                     </div>
                     <div>
@@ -72,19 +72,19 @@ const WorkflowTemplates: React.FC<WorkflowTemplatesProps> = ({
                       key={index}
                       className="flex items-center space-x-3 text-sm"
                     >
-                      <div className="w-6 h-6 rounded-full bg-gradient-to-r from-purple-100 to-blue-100 flex items-center justify-center text-purple-600 font-semibold text-xs shrink-0">
+                      <div className="w-6 h-6 rounded-full bg-[#e3ecf6] flex items-center justify-center text-[#1e9df1] font-semibold text-xs shrink-0">
                         {index + 1}
                       </div>
                       <div className="flex-1 text-slate-700">{step}</div>
                       {index < template.steps.length - 1 && (
-                        <div className="w-8 h-px bg-gradient-to-r from-slate-300 to-transparent" />
+                        <div className="w-8 h-px bg-slate-300" />
                       )}
                     </div>
                   ))}
                 </div>
 
                 {/* Generate Button */}
-                <button className="mt-6 w-full bg-gradient-to-r from-purple-500 to-blue-500 text-white font-semibold py-3 px-4 rounded-lg hover:from-purple-600 hover:to-blue-600 transition-all flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl">
+                <button className="mt-6 w-full bg-[#1e9df1] text-white font-semibold py-3 px-4 rounded-lg hover:bg-[#1c9cf0] transition-all flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl">
                   <Play className="w-4 h-4" />
                   <span>Generate Workflow</span>
                 </button>
@@ -95,7 +95,7 @@ const WorkflowTemplates: React.FC<WorkflowTemplatesProps> = ({
       </div>
 
       {/* AI Input Section */}
-      <div className="mt-8 bg-gradient-to-r from-purple-50 via-blue-50 to-purple-50 rounded-2xl border-2 border-dashed border-purple-200 p-8">
+      <div className="mt-8 bg-[#e3ecf6] rounded-2xl border-2 border-dashed border-[#1e9df1]/30 p-8">
         <div className="text-center">
           <Sparkles className="w-8 h-8 mx-auto mb-4 text-purple-500" />
           <h3 className="text-xl font-bold text-slate-800 mb-2">
@@ -111,7 +111,7 @@ const WorkflowTemplates: React.FC<WorkflowTemplatesProps> = ({
                 placeholder="e.g., Automate customer support ticket routing based on priority"
                 className="w-full px-6 py-4 rounded-xl border-2 border-purple-200 focus:border-purple-400 focus:outline-none text-slate-700 text-sm"
               />
-              <button className="absolute right-2 top-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white font-semibold py-2 px-6 rounded-lg hover:from-purple-600 hover:to-blue-600 transition-all flex items-center space-x-2">
+              <button className="absolute right-2 top-2 bg-[#1e9df1] text-white font-semibold py-2 px-6 rounded-lg hover:bg-[#1c9cf0] transition-all flex items-center space-x-2">
                 <Sparkles className="w-4 h-4" />
                 <span>Generate</span>
               </button>
