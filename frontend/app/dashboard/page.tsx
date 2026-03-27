@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import React, { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import TemplateLibrary, { type TemplatePreview } from "@/components/workflow/TemplateLibrary";
@@ -481,7 +481,7 @@ function DashboardPageContent() {
             {activeTab === tab && (
               <motion.div
                 layoutId="dashboard-main-tab-indicator"
-                className="absolute bottom-0 left-2 right-2 h-0.5 bg-indigo-500 rounded-full"
+                className="absolute bottom-0 left-2 right-2 h-0.5 bg-[var(--primary)] rounded-full"
               />
             )}
           </button>
@@ -518,7 +518,7 @@ function DashboardPageContent() {
             </p>
             <button
               onClick={() => openCreateWorkspace()}
-              className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors"
+              className="inline-flex items-center gap-2 bg-[var(--primary)] hover:opacity-90 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors"
             >
               <FolderPlus className="w-4 h-4" />
               Create Workspace
@@ -540,7 +540,7 @@ function DashboardPageContent() {
               {hasWorkspace && (
                 <button
                   onClick={() => router.push("/workflow/new")}
-                  className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors"
+                  className="flex items-center gap-2 bg-[var(--primary)] hover:opacity-90 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors"
                 >
                   <Plus className="w-4 h-4" />
                   New Workflow
@@ -580,7 +580,7 @@ function DashboardPageContent() {
                           >
                             Demo Workflow Ready
                           </p>
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-500/10 text-indigo-500">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>
                             DEMO
                           </span>
                         </div>
@@ -611,7 +611,7 @@ function DashboardPageContent() {
                         </button>
                         <button
                           onClick={() => router.push(`/workflow/${demo.id}?tab=runs`)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white transition-colors"
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--primary)] hover:opacity-90 text-white transition-colors"
                         >
                           <Play className="w-3 h-3" />
                           Run Demo
@@ -741,7 +741,7 @@ function DashboardPageContent() {
                       <div className="flex items-center justify-center gap-3">
                         <button
                           onClick={() => router.push("/workflow/new")}
-                          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-medium"
+                          className="flex items-center gap-2 bg-[var(--primary)] hover:opacity-90 text-white px-4 py-2 rounded-xl text-sm font-medium"
                         >
                           <Plus className="w-4 h-4" />
                           Create Workflow
@@ -833,7 +833,7 @@ function DashboardPageContent() {
                                   {wf.name}
                                 </p>
                                 {wf.name === "Support Ticket Triage AI" && (
-                                  <span className="shrink-0 px-1.5 py-0.5 rounded-full text-[9px] font-bold tracking-wider bg-indigo-500/10 text-indigo-500">
+                                  <span className="shrink-0 px-1.5 py-0.5 rounded-full text-[9px] font-bold tracking-wider" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>
                                     DEMO
                                   </span>
                                 )}
