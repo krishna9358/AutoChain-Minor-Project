@@ -1036,56 +1036,65 @@ function DashboardPageContent() {
                   key={t.id}
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="rounded-2xl border p-5 transition-all hover:border-indigo-500/30 group"
+                  className="rounded-xl border overflow-hidden transition-all group"
                   style={{
                     background: "var(--bg-card)",
                     borderColor: "var(--border-subtle)",
                   }}
                 >
-                  <div className="flex items-center gap-3 mb-3">
-                    <span className="text-2xl">{t.icon}</span>
-                    <div>
-                      <h3
-                        className="text-sm font-semibold"
-                        style={{ color: "var(--text-primary)" }}
-                      >
-                        {t.name}
-                      </h3>
-                      <p
-                        className="text-[11px]"
-                        style={{ color: "var(--text-muted)" }}
-                      >
-                        {t.nodes.length} nodes
-                      </p>
+                  {/* Mini workflow preview */}
+                  <div
+                    className="h-[90px] p-3 flex items-center justify-center overflow-hidden"
+                    style={{ background: "var(--bg-primary)" }}
+                  >
+                    <div className="flex items-center gap-1">
+                      {t.nodes.slice(0, 5).map((n, i) => (
+                        <React.Fragment key={i}>
+                          <div
+                            className="px-2 py-1 rounded text-[8px] font-semibold whitespace-nowrap"
+                            style={{
+                              background: n.category === "AI" ? "#8b5cf618" : n.category === "INPUT" ? "#f59e0b18" : n.category === "INTEGRATION" ? "#3b82f618" : n.category === "LOGIC" ? "#10b98118" : n.category === "CONTROL" ? "#6b728018" : "#6366f118",
+                              color: n.category === "AI" ? "#8b5cf6" : n.category === "INPUT" ? "#f59e0b" : n.category === "INTEGRATION" ? "#3b82f6" : n.category === "LOGIC" ? "#10b981" : n.category === "CONTROL" ? "#6b7280" : "#6366f1",
+                              border: `1px solid ${n.category === "AI" ? "#8b5cf640" : n.category === "INPUT" ? "#f59e0b40" : n.category === "INTEGRATION" ? "#3b82f640" : n.category === "LOGIC" ? "#10b98140" : n.category === "CONTROL" ? "#6b728040" : "#6366f140"}`,
+                            }}
+                          >
+                            {n.label.length > 10 ? n.label.slice(0, 10) + "..." : n.label}
+                          </div>
+                          {i < Math.min(t.nodes.length, 5) - 1 && (
+                            <ArrowRight className="w-2.5 h-2.5 shrink-0" style={{ color: "var(--primary, #1e9df1)" }} />
+                          )}
+                        </React.Fragment>
+                      ))}
+                      {t.nodes.length > 5 && (
+                        <span className="text-[9px] ml-1" style={{ color: "var(--text-muted)" }}>+{t.nodes.length - 5}</span>
+                      )}
                     </div>
                   </div>
-                  <p
-                    className="text-xs mb-4 leading-relaxed"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    {t.description}
-                  </p>
-                  <div className="flex flex-wrap gap-1 mb-4">
-                    {t.nodes.map((n, i) => (
-                      <span
-                        key={i}
-                        className="px-2 py-0.5 rounded-full text-[10px] font-medium"
-                        style={{
-                          background: "var(--bg-elevated)",
-                          color: "var(--text-muted)",
-                        }}
-                      >
-                        {n.label}
-                      </span>
-                    ))}
+
+                  <div className="p-4">
+                    <div className="flex items-center gap-2.5 mb-2">
+                      <span className="text-lg">{t.icon}</span>
+                      <div>
+                        <h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                          {t.name}
+                        </h3>
+                        <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+                          {t.nodes.length} nodes
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-xs mb-3 leading-relaxed line-clamp-2" style={{ color: "var(--text-secondary)" }}>
+                      {t.description}
+                    </p>
+                    <button
+                      onClick={() => importTemplate(t)}
+                      className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-white text-xs font-semibold transition-colors hover:opacity-90"
+                      style={{ background: "var(--primary, #1e9df1)" }}
+                    >
+                      Use Template
+                      <ArrowRight className="w-3 h-3" />
+                    </button>
                   </div>
-                  <button
-                    onClick={() => importTemplate(t)}
-                    className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition-colors"
-                  >
-                    Use Template
-                    <ArrowRight className="w-3 h-3" />
-                  </button>
                 </motion.div>
               ))}
             </div>
