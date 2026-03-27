@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600;700&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -6,106 +6,137 @@
 
 @layer base {
     :root {
-        --background: 0 0% 100%;
-        --foreground: 222.2 84% 4.9%;
-        --card: 0 0% 100%;
-        --card-foreground: 222.2 84% 4.9%;
-        --popover: 0 0% 100%;
-        --popover-foreground: 222.2 84% 4.9%;
-        --primary: 24.6 95% 53.1%;
-        --primary-foreground: 0 0% 100%;
-        --secondary: 210 40% 96.1%;
-        --secondary-foreground: 222.2 47.4% 11.2%;
-        --muted: 210 40% 96.1%;
-        --muted-foreground: 215.4 16.3% 46.9%;
-        --accent: 210 40% 96.1%;
-        --accent-foreground: 222.2 47.4% 11.2%;
-        --destructive: 0 84.2% 60.2%;
-        --destructive-foreground: 210 40% 98%;
-        --border: 214.3 31.8% 91.4%;
-        --input: 214.3 31.8% 91.4%;
-        --ring: 24.6 95% 53.1%;
-        --radius: 0.75rem;
+        --background: #ffffff;
+        --foreground: #0f1419;
+        --card: #f7f8f8;
+        --card-foreground: #0f1419;
+        --popover: #ffffff;
+        --popover-foreground: #0f1419;
+        --primary: #1e9df1;
+        --primary-foreground: #ffffff;
+        --secondary: #0f1419;
+        --secondary-foreground: #ffffff;
+        --muted: #e5e5e6;
+        --muted-foreground: #0f1419;
+        --accent: #e3ecf6;
+        --accent-foreground: #1e9df1;
+        --destructive: #f4212e;
+        --destructive-foreground: #ffffff;
+        --border: #e1eaef;
+        --input: #f7f9fa;
+        --ring: #1da1f2;
+        --radius: 1.3rem;
+
+        --chart-1: #1e9df1;
+        --chart-2: #00b87a;
+        --chart-3: #f7b928;
+        --chart-4: #17bf63;
+        --chart-5: #e0245e;
+
+        --sidebar: #f7f8f8;
+        --sidebar-foreground: #0f1419;
+        --sidebar-primary: #1e9df1;
+        --sidebar-primary-foreground: #ffffff;
+        --sidebar-accent: #e3ecf6;
+        --sidebar-accent-foreground: #1e9df1;
+        --sidebar-border: #e1e8ed;
+        --sidebar-ring: #1da1f2;
     }
 
     .dark {
-        --background: 222.2 84% 4.9%;
-        --foreground: 210 40% 98%;
-        --card: 222.2 84% 4.9%;
-        --card-foreground: 210 40% 98%;
-        --popover: 222.2 84% 4.9%;
-        --popover-foreground: 210 40% 98%;
-        --primary: 24.6 95% 53.1%;
-        --primary-foreground: 0 0% 100%;
-        --secondary: 217.2 32.6% 17.5%;
-        --secondary-foreground: 210 40% 98%;
-        --muted: 217.2 32.6% 17.5%;
-        --muted-foreground: 215 20.2% 65.1%;
-        --accent: 217.2 32.6% 17.5%;
-        --accent-foreground: 210 40% 98%;
-        --destructive: 0 62.8% 30.6%;
-        --destructive-foreground: 210 40% 98%;
-        --border: 217.2 32.6% 17.5%;
-        --input: 217.2 32.6% 17.5%;
-        --ring: 24.6 95% 53.1%;
+        --background: #000000;
+        --foreground: #e7e9ea;
+        --card: #17181c;
+        --card-foreground: #d9d9d9;
+        --popover: #000000;
+        --popover-foreground: #e7e9ea;
+        --primary: #1c9cf0;
+        --primary-foreground: #ffffff;
+        --secondary: #f0f3f4;
+        --secondary-foreground: #0f1419;
+        --muted: #181818;
+        --muted-foreground: #72767a;
+        --accent: #061622;
+        --accent-foreground: #1c9cf0;
+        --destructive: #f4212e;
+        --destructive-foreground: #ffffff;
+        --border: #242628;
+        --input: #22303c;
+        --ring: #1da1f2;
+
+        --chart-1: #1e9df1;
+        --chart-2: #00b87a;
+        --chart-3: #f7b928;
+        --chart-4: #17bf63;
+        --chart-5: #e0245e;
+
+        --sidebar: #17181c;
+        --sidebar-foreground: #d9d9d9;
+        --sidebar-primary: #1da1f2;
+        --sidebar-primary-foreground: #ffffff;
+        --sidebar-accent: #061622;
+        --sidebar-accent-foreground: #1c9cf0;
+        --sidebar-border: #38444d;
+        --sidebar-ring: #1da1f2;
     }
 }
 
 @layer base {
     * {
-        @apply border-border;
+        @apply border-[var(--border)];
     }
     body {
-        @apply bg-background text-foreground;
+        background: var(--background);
+        color: var(--foreground);
         font-family:
-            "Inter",
+            "Open Sans",
             -apple-system,
             BlinkMacSystemFont,
             sans-serif;
     }
 }
 
-/* ─── Legacy Theme Variables (for compatibility) ─── */
+/* ─── Legacy Theme Variables (for workflow canvas compatibility) ─── */
 [data-theme="dark"] {
-    --bg-primary: #09090b;
-    --bg-secondary: #0f0f12;
-    --bg-card: #18181b;
-    --bg-elevated: #27272a;
+    --bg-primary: #000000;
+    --bg-secondary: #0a0a0a;
+    --bg-card: #17181c;
+    --bg-elevated: #242628;
     --bg-hover: rgba(255, 255, 255, 0.03);
     --bg-active: rgba(255, 255, 255, 0.06);
     --border-subtle: rgba(255, 255, 255, 0.06);
     --border-medium: rgba(255, 255, 255, 0.1);
     --border-strong: rgba(255, 255, 255, 0.15);
-    --text-primary: #fafafa;
-    --text-secondary: #a1a1aa;
-    --text-muted: #71717a;
-    --text-inverse: #09090b;
+    --text-primary: #e7e9ea;
+    --text-secondary: #8b8d91;
+    --text-muted: #72767a;
+    --text-inverse: #000000;
     --input-bg: rgba(255, 255, 255, 0.04);
     --input-border: rgba(255, 255, 255, 0.08);
     --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3);
     --code-bg: rgba(0, 0, 0, 0.3);
-    --canvas-bg: #09090b;
+    --canvas-bg: #000000;
 }
 
 [data-theme="light"] {
-    --bg-primary: #fafafa;
-    --bg-secondary: #ffffff;
+    --bg-primary: #ffffff;
+    --bg-secondary: #f7f8f8;
     --bg-card: #ffffff;
-    --bg-elevated: #f4f4f5;
+    --bg-elevated: #f0f1f2;
     --bg-hover: rgba(0, 0, 0, 0.02);
     --bg-active: rgba(0, 0, 0, 0.04);
     --border-subtle: rgba(0, 0, 0, 0.06);
-    --border-medium: rgba(0, 0, 0, 0.1);
+    --border-medium: #e1eaef;
     --border-strong: rgba(0, 0, 0, 0.15);
-    --text-primary: #18181b;
-    --text-secondary: #52525b;
-    --text-muted: #a1a1aa;
+    --text-primary: #0f1419;
+    --text-secondary: #536471;
+    --text-muted: #8b98a5;
     --text-inverse: #ffffff;
-    --input-bg: rgba(0, 0, 0, 0.02);
-    --input-border: rgba(0, 0, 0, 0.1);
+    --input-bg: #f7f9fa;
+    --input-border: #e1eaef;
     --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.05);
     --code-bg: rgba(0, 0, 0, 0.03);
-    --canvas-bg: #f4f4f5;
+    --canvas-bg: #f7f8f8;
 }
 
 html {
@@ -121,11 +152,11 @@ html {
     background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-    background: hsl(var(--border));
+    background: var(--border);
     border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--muted-foreground));
+    background: var(--muted-foreground);
 }
 
 /* Animations */
@@ -146,22 +177,22 @@ html {
     background-color: var(--canvas-bg) !important;
 }
 .react-flow__controls {
-    background: hsl(var(--card)) !important;
-    border: 1px solid hsl(var(--border)) !important;
+    background: var(--card) !important;
+    border: 1px solid var(--border) !important;
     border-radius: var(--radius) !important;
     box-shadow: var(--shadow-card) !important;
 }
 .react-flow__controls-button {
     background: transparent !important;
     border: none !important;
-    fill: hsl(var(--muted-foreground)) !important;
+    fill: var(--muted-foreground) !important;
 }
 .react-flow__controls-button:hover {
-    background: hsl(var(--accent)) !important;
+    background: var(--accent) !important;
 }
 .react-flow__minimap {
-    background: hsl(var(--card)) !important;
-    border: 1px solid hsl(var(--border)) !important;
+    background: var(--card) !important;
+    border: 1px solid var(--border) !important;
     border-radius: var(--radius) !important;
 }
 /* Show handles on node hover */

@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Open_Sans } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { ToastProvider } from "@/components/hooks/use-toast";
 import { WorkspaceProvider } from "@/components/providers/WorkspaceProvider";
 
-const inter = Inter({ subsets: ["latin"] });
+const openSans = Open_Sans({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "AutoChain AI — Enterprise Workflow Automation",
@@ -20,7 +20,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" data-theme="dark">
-      <body className={inter.className}>
+      <body className={openSans.className}>
         <ThemeProvider>
           <ToastProvider>
             <WorkspaceProvider>{children}</WorkspaceProvider>

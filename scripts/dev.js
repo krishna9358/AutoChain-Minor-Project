@@ -76,22 +76,6 @@ const services = [
     url: "http://localhost:3001",
   },
   {
-    name: "hooks",
-    label: "Webhook Receiver",
-    port: 3002,
-    url: "http://localhost:3002",
-  },
-  {
-    name: "processor",
-    label: "Event Processor",
-    dependsOn: ["kafka", "postgres"],
-  },
-  {
-    name: "worker",
-    label: "Workflow Worker",
-    dependsOn: ["kafka", "postgres"],
-  },
-  {
     name: "frontend",
     label: "Frontend",
     port: 3000,
@@ -112,21 +96,6 @@ const envTemplates = {
     NEXT_PUBLIC_BACKEND_URL: "http://localhost:3001",
     NEXT_PUBLIC_DEV_MODE: "true",
     NEXT_PUBLIC_DEV_TOKEN: "dev-demo-token",
-  },
-  hooks: {
-    DATABASE_URL: "postgresql://postgres:autochain_dev@postgres:5432/autochain",
-    PORT: "3002",
-    NODE_ENV: "development",
-  },
-  processor: {
-    DATABASE_URL: "postgresql://postgres:autochain_dev@postgres:5432/autochain",
-    KAFKA_BROKER: "kafka:9092",
-    NODE_ENV: "development",
-  },
-  worker: {
-    DATABASE_URL: "postgresql://postgres:autochain_dev@postgres:5432/autochain",
-    KAFKA_BROKER: "kafka:9092",
-    NODE_ENV: "development",
   },
 };
 
