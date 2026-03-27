@@ -22,7 +22,7 @@ import { getToken } from "@/lib/auth-token";
 import { CreateWorkspaceModal } from "@/components/workspace/CreateWorkspaceModal";
 import { useToast } from "@/components/hooks/use-toast";
 import { useWorkflowStore } from "@/store/workflowStore";
-import { useAutosave } from "@/hooks/useAutosave";
+// autosave removed — workflow must be saved manually before running
 import {
   ReactFlow,
   Controls,
@@ -162,6 +162,9 @@ const LEGACY_NODE_CFG: Record<
   "data-enrichment": { icon: Search, color: "#8b5cf6", label: "Data Enrichment", cat: "AI" },
   "document-generator": { icon: FileOutput, color: "#6366f1", label: "Document Generator", cat: "OUTPUT" },
   "form-input": { icon: ClipboardList, color: "#f59e0b", label: "Form Input", cat: "INPUT" },
+  "chat-model": { icon: MessageSquare, color: "#8b5cf6", label: "Chat Model", cat: "AI" },
+  "agent-memory": { icon: Database, color: "#3b82f6", label: "Memory", cat: "AI" },
+  "agent-tool": { icon: Settings, color: "#f59e0b", label: "Tool", cat: "AI" },
 };
 
 function buildNodeCfg(
@@ -204,6 +207,7 @@ function FlowNode({ data, isConnectable }: NodeProps) {
   const isRunning = data.runStatus === "RUNNING";
   const isCompleted = data.runStatus === "COMPLETED";
   const isFailed = data.runStatus === "FAILED";
+  const hasIssue = data.hasValidationError === true;
   const isStartNode = ["TRIGGER", "INPUT"].includes(cfg.cat);
 
   return (
@@ -213,18 +217,22 @@ function FlowNode({ data, isConnectable }: NodeProps) {
         background: "var(--bg-card)",
         borderColor: data.selected
           ? "#6366f1"
-          : isRunning
-            ? "#3b82f6"
-            : isCompleted
-              ? "#10b981"
-              : isFailed
-                ? "#ef4444"
-                : "var(--border-medium)",
+          : hasIssue
+            ? "#f59e0b"
+            : isRunning
+              ? "#3b82f6"
+              : isCompleted
+                ? "#10b981"
+                : isFailed
+                  ? "#ef4444"
+                  : "var(--border-medium)",
         boxShadow: data.selected
           ? "0 0 0 2px rgba(99,102,241,0.2)"
-          : isRunning
-            ? "0 0 12px rgba(59,130,246,0.3)"
-            : "var(--shadow-card)",
+          : hasIssue
+            ? "0 0 0 2px rgba(245,158,11,0.25)"
+            : isRunning
+              ? "0 0 12px rgba(59,130,246,0.3)"
+              : "var(--shadow-card)",
       }}
     >
       {!isStartNode && (
@@ -261,6 +269,9 @@ function FlowNode({ data, isConnectable }: NodeProps) {
         {isRunning && (
           <Loader2 className="w-3.5 h-3.5 text-blue-500 animate-spin shrink-0" />
         )}
+        {hasIssue && !isRunning && !isCompleted && !isFailed && (
+          <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+        )}
       </div>
       <Handle
         type="source"
@@ -273,7 +284,24 @@ function FlowNode({ data, isConnectable }: NodeProps) {
   );
 }
 
-const nodeTypes = { workflowNode: FlowNode };
+// ─── Custom node type imports ─────────────────────────────────
+import AIAgentNode from "@/components/workflow/nodes/AIAgentNode";
+import ChatModelNode from "@/components/workflow/nodes/ChatModelNode";
+import MemoryNode from "@/components/workflow/nodes/MemoryNode";
+import ToolNode from "@/components/workflow/nodes/ToolNode";
+import { migrateWorkflow } from "@/components/workflow/utils/componentMigration";
+import {
+  validateWorkflowNodes,
+  type NodeIssue,
+} from "@/components/workflow/utils/nodeValidation";
+
+const nodeTypes = {
+  workflowNode: FlowNode,
+  aiAgentNode: AIAgentNode,
+  chatModelNode: ChatModelNode,
+  memoryNode: MemoryNode,
+  toolNode: ToolNode,
+};
 
 // ─── Main Workflow Component ────────────────────────────────────
 function WorkflowInner() {
@@ -463,14 +491,24 @@ function WorkflowInner() {
       if (tpl) {
         try {
           const t = JSON.parse(tpl);
+          // Run migration on template nodes
+          const migrated = migrateWorkflow(t.nodes || [], t.edges || []);
           loadWorkflow({
             name: t.name,
             description: t.description || "",
             status: "DRAFT",
-            nodes: t.nodes || [],
-            edges: t.edges || [],
+            nodes: migrated.nodes,
+            edges: migrated.edges,
             runs: [],
           });
+          if (migrated.migrations.length > 0) {
+            toast({
+              title: "Template components migrated",
+              description: migrated.migrations.join("; "),
+              variant: "default",
+              duration: 8000,
+            });
+          }
           // Defer removal so React Strict Mode re-mount can still read it
           setTimeout(() => sessionStorage.removeItem("template-import"), 500);
         } catch (err: unknown) {
@@ -483,21 +521,30 @@ function WorkflowInner() {
       try {
         const r = await api.get(`/api/v1/workflows/${wfId}`);
         const d = r.data;
-        const mappedNodes = (d.nodes || []).map((n: any) => ({
-          id: n.id,
-          type: "workflowNode",
-          position: n.position || { x: 300, y: 0 },
-          data: {
-            nodeType: n.nodeType,
-            componentId:
-              n.metadata?.componentId ||
-              n.componentId ||
-              n.nodeType?.toLowerCase?.().replace(/_/g, "-"),
-            category: n.category,
-            label: n.label,
-            config: n.config,
-          },
-        }));
+        const LOAD_NODE_MAP: Record<string, string> = {
+          "ai-agent": "aiAgentNode",
+          "chat-model": "chatModelNode",
+          "agent-memory": "memoryNode",
+          "agent-tool": "toolNode",
+        };
+        const mappedNodes = (d.nodes || []).map((n: any) => {
+          const cid =
+            n.metadata?.componentId ||
+            n.componentId ||
+            n.nodeType?.toLowerCase?.().replace(/_/g, "-");
+          return {
+            id: n.id,
+            type: LOAD_NODE_MAP[cid] || "workflowNode",
+            position: n.position || { x: 300, y: 0 },
+            data: {
+              nodeType: n.nodeType,
+              componentId: cid,
+              category: n.category,
+              label: n.label,
+              config: n.config,
+            },
+          };
+        });
         const mappedEdges = (d.edges || []).map((e: any) => ({
           id: e.id,
           source: e.sourceNodeId,
@@ -506,14 +553,24 @@ function WorkflowInner() {
           style: { stroke: "#6366f1", strokeWidth: 2 },
           markerEnd: { type: MarkerType.ArrowClosed, color: "#6366f1" },
         }));
+        // Run component migration on loaded workflow
+        const migrated = migrateWorkflow(mappedNodes, mappedEdges);
         loadWorkflow({
           name: d.name,
           description: d.description || "",
           status: d.status || "DRAFT",
-          nodes: mappedNodes,
-          edges: mappedEdges,
+          nodes: migrated.nodes,
+          edges: migrated.edges,
           runs: d.runs || [],
         });
+        if (migrated.migrations.length > 0) {
+          toast({
+            title: "Components migrated",
+            description: migrated.migrations.join("; "),
+            variant: "default",
+            duration: 8000,
+          });
+        }
         savedSnapshotRef.current = JSON.stringify({
           nodes: d.nodes || [],
           edges: d.edges || [],
@@ -585,14 +642,66 @@ function WorkflowInner() {
           normalizedByNode[n.id] = result.normalizedConfig;
         }
       }
+      // Also run structural validation (connections, required fields)
+      const structuralIssues = validateWorkflowNodes(curNodes, curEdges);
+      for (const issue of structuralIssues) {
+        if (issue.severity === "error") {
+          nodeValidation[issue.nodeId] = [
+            ...(nodeValidation[issue.nodeId] || []),
+            issue.message,
+          ];
+        }
+      }
+
       setValidationErrors(nodeValidation);
-      if (Object.keys(nodeValidation).length > 0) {
-        toast({
-          title: "Validation errors",
-          description: `${Object.keys(nodeValidation).length} node(s) have issues. Check the properties panel.`,
-          variant: "destructive",
-        });
-        return;
+
+      // Mark nodes with validation issues visually
+      const updatedNodes = curNodes.map((n) => ({
+        ...n,
+        data: {
+          ...n.data,
+          hasValidationError: !!nodeValidation[n.id] || structuralIssues.some(
+            (i) => i.nodeId === n.id,
+          ),
+        },
+      }));
+      setNodes(updatedNodes);
+
+      if (Object.keys(nodeValidation).length > 0 || structuralIssues.length > 0) {
+        // Show stacked toasts for each issue (limit to 5)
+        const allIssues = [
+          ...Object.entries(nodeValidation).flatMap(([id, errs]) => {
+            const node = curNodes.find((n) => n.id === id);
+            const label = (node?.data.label as string) || id;
+            return errs.map((msg) => ({ label, msg, severity: "error" as const }));
+          }),
+          ...structuralIssues
+            .filter((i) => i.severity === "warning")
+            .map((i) => ({ label: i.nodeLabel, msg: i.message, severity: "warning" as const })),
+        ];
+
+        const shown = allIssues.slice(0, 5);
+        const remaining = allIssues.length - shown.length;
+
+        for (const issue of shown) {
+          toast({
+            title: `${issue.severity === "error" ? "Error" : "Warning"}: ${issue.label}`,
+            description: issue.msg,
+            variant: issue.severity === "error" ? "destructive" : "default",
+            duration: 8000,
+          });
+        }
+
+        if (remaining > 0) {
+          toast({
+            title: "More issues found",
+            description: `${remaining} additional issue(s). Check node configurations.`,
+            variant: "destructive",
+            duration: 8000,
+          });
+        }
+
+        if (Object.keys(nodeValidation).length > 0) return;
       }
 
       const curComponentMap = useWorkflowStore.getState().componentMap;
@@ -652,8 +761,7 @@ function WorkflowInner() {
     }
   };
 
-  // Autosave for existing workflows
-  useAutosave(save, !isNew && hasWorkspace && !saving);
+  // Autosave removed — user must save manually before running
 
   const fetchRunDetails = async (
     runId: string,
@@ -720,7 +828,23 @@ function WorkflowInner() {
   };
 
   const exec = async () => {
-    if (isNew || !hasWorkspace) return;
+    if (isNew || !hasWorkspace) {
+      toast({
+        title: "Save required",
+        description: "Please save the workflow before running it.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const { isDirty } = useWorkflowStore.getState();
+    if (isDirty) {
+      toast({
+        title: "Unsaved changes",
+        description: "Save your workflow before running. Unsaved changes will not be executed.",
+        variant: "destructive",
+      });
+      return;
+    }
     const curNodes = useWorkflowStore.getState().nodes;
     const triggerData: Record<string, unknown> = {
       text: getEntryPointTestRunPlainText(curNodes),
@@ -827,18 +951,27 @@ function WorkflowInner() {
     try {
       const r = await api.post("/api/v1/generate/workflow", { prompt });
       const g = r.data;
-      const genNodes = g.nodes.map((n: any) => ({
-        id: n.tempId,
-        type: "workflowNode",
-        position: n.position,
-        data: {
-          nodeType: n.componentId || n.nodeType,
-          componentId: n.componentId || n.nodeType,
-          category: n.category,
-          label: n.label,
-          config: n.config,
-        },
-      }));
+      const AI_NODE_MAP: Record<string, string> = {
+        "ai-agent": "aiAgentNode",
+        "chat-model": "chatModelNode",
+        "agent-memory": "memoryNode",
+        "agent-tool": "toolNode",
+      };
+      const genNodes = g.nodes.map((n: any) => {
+        const cid = n.componentId || n.nodeType;
+        return {
+          id: n.tempId,
+          type: AI_NODE_MAP[cid] || "workflowNode",
+          position: n.position,
+          data: {
+            nodeType: cid,
+            componentId: cid,
+            category: n.category,
+            label: n.label,
+            config: n.config,
+          },
+        };
+      });
       const genEdges = g.edges.map((e: any, i: number) => ({
         id: `e-${i}`,
         source: e.source,
@@ -890,9 +1023,18 @@ function WorkflowInner() {
       const fallback =
         NODE_CFG[componentId] ||
         NODE_CFG[componentId.toUpperCase().replace(/-/g, "_")];
+      // Map special component IDs to custom node types
+      const CUSTOM_NODE_TYPE_MAP: Record<string, string> = {
+        "ai-agent": "aiAgentNode",
+        "chat-model": "chatModelNode",
+        "agent-memory": "memoryNode",
+        "agent-tool": "toolNode",
+      };
+      const reactFlowType = CUSTOM_NODE_TYPE_MAP[componentId] || "workflowNode";
+
       addNode({
         id: `${componentId}-${Date.now()}`,
-        type: "workflowNode",
+        type: reactFlowType,
         position: pos,
         data: {
           nodeType: componentId,

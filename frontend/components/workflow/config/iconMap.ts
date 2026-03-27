@@ -33,6 +33,8 @@ import {
   Search,
   FileOutput,
   ClipboardList,
+  Bot,
+  Wrench,
   type LucideIcon,
 } from "lucide-react";
 
@@ -72,6 +74,8 @@ const ICON_MAP: Record<string, LucideIcon> = {
   Search,
   FileOutput,
   ClipboardList,
+  Bot,
+  Wrench,
 };
 
 const ICON_ALIASES: Record<string, string> = {
@@ -109,6 +113,8 @@ const ICON_ALIASES: Record<string, string> = {
   search: "Search",
   fileoutput: "FileOutput",
   clipboardlist: "ClipboardList",
+  bot: "Bot",
+  wrench: "Wrench",
 };
 
 /**

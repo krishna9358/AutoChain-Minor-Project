@@ -91,6 +91,9 @@ const CATEGORY_FOR_TYPE: Record<string, string> = {
   'data-enrichment': 'ai',
   'document-generator': 'output',
   'form-input': 'input',
+  'chat-model': 'ai',
+  'agent-memory': 'ai',
+  'agent-tool': 'ai',
 };
 
 const WorkflowNode: React.FC<NodeProps<WorkflowNodeType>> = ({ data, isConnectable }) => {

@@ -152,19 +152,26 @@ export const useWorkflowStore = create<WorkflowStore>()(
           isDirty: true,
         })),
 
-      onConnect: (connection) =>
+      onConnect: (connection) => {
+        const isSubHandle = ["chatModel", "memory", "tool"].includes(
+          connection.targetHandle || "",
+        );
+        const style = isSubHandle
+          ? { stroke: "#555", strokeWidth: 1.5, strokeDasharray: "6 4" }
+          : EDGE_STYLE;
         set((s) => ({
           edges: addEdge(
             {
               ...connection,
-              animated: true,
-              style: EDGE_STYLE,
-              markerEnd: EDGE_MARKER,
+              animated: !isSubHandle,
+              style,
+              ...(isSubHandle ? {} : { markerEnd: EDGE_MARKER }),
             },
             s.edges,
           ),
           isDirty: true,
-        })),
+        }));
+      },
 
       // ── Selection ──
       selectNode: (id) => set({ selNodeId: id }),
