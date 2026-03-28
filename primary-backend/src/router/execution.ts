@@ -768,10 +768,6 @@ async function simulateExecution(runId: string, nodes: any[], edges: any[]) {
   }
 
   // BFS execution
-  console.log(`[BFS] Starting. Adjacency (${adjacency.size} parents):`);
-  adjacency.forEach((ch, p) => console.log(`  ${p} → ${ch.join(", ")}`));
-  console.log(`[BFS] Pre-visited (${visited.size}): ${[...visited].join(", ") || "none"}`);
-
   const WORKFLOW_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
   const workflowStartTime = Date.now();
 
@@ -794,17 +790,15 @@ async function simulateExecution(runId: string, nodes: any[], edges: any[]) {
 
     if (visited.has(nodeId)) {
       const nextNodes = adjacency.get(nodeId) || [];
-      const toQueue = nextNodes.filter(n => !visited.has(n));
-      if (toQueue.length > 0) console.log(`[BFS] ${nodeId} visited → queuing: ${toQueue.join(", ")}`);
-      for (const next of toQueue) queue.push(next);
+      for (const next of nextNodes) {
+        if (!visited.has(next)) queue.push(next);
+      }
       continue;
     }
     visited.add(nodeId);
 
     const node = nodes.find((n) => n.id === nodeId);
-    if (!node) { console.log(`[BFS] Node ${nodeId} not found in nodes array, skipping`); continue; }
-
-    console.log(`[BFS] Executing: ${nodeId} (${node.label || node.nodeType || "?"})`);
+    if (!node) continue;
 
     // Skip sub-nodes (chat-model, memory, tool) — they are config, not executable
     if (isSubNode(node)) {
