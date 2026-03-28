@@ -388,6 +388,8 @@ function WorkflowInner() {
   const [allRunsLoading, setAllRunsLoading] = useState(false);
   const [showWorkspaceModal, setShowWorkspaceModal] = useState(false);
   const [wsSwitcherOpen, setWsSwitcherOpen] = useState(false);
+  const [showIssuesModal, setShowIssuesModal] = useState(false);
+  const [validationIssuesList, setValidationIssuesList] = useState<{label: string, msg: string, severity: 'error'|'warning'}[]>([]);
 
   const viewingRunIdRef = useRef<string | null>(null);
   const savedSnapshotRef = useRef<string>("");
@@ -680,26 +682,22 @@ function WorkflowInner() {
             .map((i) => ({ label: i.nodeLabel, msg: i.message, severity: "warning" as const })),
         ];
 
-        const shown = allIssues.slice(0, 5);
-        const remaining = allIssues.length - shown.length;
+        setValidationIssuesList(allIssues);
 
-        for (const issue of shown) {
-          toast({
-            title: `${issue.severity === "error" ? "Error" : "Warning"}: ${issue.label}`,
-            description: issue.msg,
-            variant: issue.severity === "error" ? "destructive" : "default",
-            duration: 8000,
-          });
-        }
-
-        if (remaining > 0) {
-          toast({
-            title: "More issues found",
-            description: `${remaining} additional issue(s). Check node configurations.`,
-            variant: "destructive",
-            duration: 8000,
-          });
-        }
+        toast({
+          title: "Validation Issues",
+          description: `${allIssues.length} issue(s) found in node configurations.`,
+          variant: "destructive",
+          duration: 10000,
+          action: (
+            <button
+              onClick={() => setShowIssuesModal(true)}
+              className="mt-1.5 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-100 rounded-lg transition-colors text-xs font-semibold backdrop-blur"
+            >
+              View all
+            </button>
+          ),
+        });
 
         if (Object.keys(nodeValidation).length > 0) return;
       }
@@ -1051,18 +1049,26 @@ function WorkflowInner() {
 
   useEffect(() => {
     if (!isResizingRight) return;
+    let frameId: number;
     const onMove = (event: MouseEvent) => {
-      const nextWidth = window.innerWidth - event.clientX;
-      setRightWidth(Math.max(320, Math.min(560, nextWidth)));
+      cancelAnimationFrame(frameId);
+      frameId = requestAnimationFrame(() => {
+        const nextWidth = window.innerWidth - event.clientX;
+        setRightWidth(Math.max(320, Math.min(600, nextWidth)));
+      });
     };
     const onUp = () => setIsResizingRight(false);
+    
+    // Fallback cursor style
     const prevCursor = document.body.style.cursor;
     const prevUserSelect = document.body.style.userSelect;
     document.body.style.cursor = "col-resize";
     document.body.style.userSelect = "none";
+    
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
     return () => {
+      cancelAnimationFrame(frameId);
       document.body.style.cursor = prevCursor;
       document.body.style.userSelect = prevUserSelect;
       window.removeEventListener("mousemove", onMove);
@@ -2280,12 +2286,62 @@ function WorkflowInner() {
         </div>
       )}
 
+      {isResizingRight && (
+        <div className="fixed inset-0 z-[99999] cursor-col-resize select-none" />
+      )}
+
       {showWorkspaceModal && (
         <CreateWorkspaceModal
           open={showWorkspaceModal}
           onOpenChange={setShowWorkspaceModal}
           onSuccess={() => refreshWorkspaces()}
         />
+      )}
+
+      {showIssuesModal && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div 
+            className="w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
+            style={{ background: "var(--bg-card)", border: "1px solid var(--border-subtle)" }}
+          >
+            <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: "var(--border-subtle)" }}>
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-red-500" />
+                <h3 className="font-semibold text-lg" style={{ color: "var(--text-primary)" }}>Validation Issues</h3>
+              </div>
+              <button 
+                onClick={() => setShowIssuesModal(false)}
+                className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+              >
+                <X className="w-4 h-4" style={{ color: "var(--text-muted)" }} />
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto flex-1 space-y-3">
+              {validationIssuesList.map((issue, idx) => (
+                <div key={idx} className="p-3 rounded-xl border flex gap-3 items-start" style={{ background: "color-mix(in srgb, var(--primary) 2%, transparent)", borderColor: "var(--border-subtle)" }}>
+                  {issue.severity === "error" ? (
+                    <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                  )}
+                  <div>
+                    <h4 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{issue.label}</h4>
+                    <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>{issue.msg}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="p-4 border-t flex justify-end" style={{ borderColor: "var(--border-subtle)" }}>
+              <button
+                onClick={() => setShowIssuesModal(false)}
+                className="px-4 py-2 rounded-xl text-sm font-semibold bg-white/10 hover:bg-white/20 transition-colors"
+                style={{ color: "var(--text-primary)" }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

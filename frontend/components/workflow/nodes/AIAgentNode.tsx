@@ -34,7 +34,7 @@ export default function AIAgentNode({ data, isConnectable }: NodeProps) {
     <div className="flex flex-col items-center" style={{ width: 240 }}>
       {/* ── Main node body ── */}
       <div
-        className="rounded-xl border-2 transition-all w-full relative"
+        className="rounded-xl border-2 transition-all w-full relative z-10 bg-card"
         style={{
           background: "var(--bg-card, #1e1e2e)",
           borderColor,
@@ -97,57 +97,63 @@ export default function AIAgentNode({ data, isConnectable }: NodeProps) {
       </div>
 
       {/* ── Sub-connection handles ── */}
-      <div className="flex justify-center gap-10 mt-3 w-full">
+      <div className="flex justify-center gap-10 -mt-[10px] w-full relative z-20">
         {/* Chat Model */}
-        <div className="flex flex-col items-center gap-1.5">
+        <div className="flex flex-col items-center gap-1.5 relative group cursor-pointer transition-transform duration-300 hover:scale-110">
           <Handle
             type="target"
             position={Position.Bottom}
             id="chatModel"
-            className="!relative !transform-none !w-2.5 !h-2.5 !rounded-full !border-2"
+            className="!relative !transform-none !w-4 !h-4 !rounded-full !border-[3px] !bg-[var(--bg-card)] transition-colors group-hover:border-[var(--accent)] group-hover:shadow-[0_0_8px_hsla(var(--accent),0.5)]"
             style={{
-              background: "var(--bg-card, #1e1e2e)",
-              borderColor: "var(--border-medium, #555)",
+              borderColor: "hsl(var(--accent))",
             }}
             isConnectable={isConnectable}
           />
-          <span className="text-[10px] whitespace-nowrap font-medium" style={{ color: "var(--text-muted, #888)" }}>
-            Chat Model<span className="text-red-400">*</span>
+          <span
+            className="text-[11px] whitespace-nowrap font-bold tracking-wide transition-colors"
+            style={{ color: "hsl(var(--accent))" }}
+          >
+            Chat Model<span className="text-red-400 ml-0.5">*</span>
           </span>
         </div>
 
         {/* Memory */}
-        <div className="flex flex-col items-center gap-1.5">
+        <div className="flex flex-col items-center gap-1.5 relative group cursor-pointer transition-transform duration-300 hover:scale-110">
           <Handle
             type="target"
             position={Position.Bottom}
             id="memory"
-            className="!relative !transform-none !w-2.5 !h-2.5 !rounded-full !border-2"
+            className="!relative !transform-none !w-4 !h-4 !rounded-full !border-[3px] !bg-[var(--bg-card)] transition-colors group-hover:border-[#3b82f6] group-hover:shadow-[0_0_8px_rgba(59,130,246,0.5)]"
             style={{
-              background: "var(--bg-card, #1e1e2e)",
-              borderColor: "var(--border-medium, #555)",
+              borderColor: "#3b82f6",
             }}
             isConnectable={isConnectable}
           />
-          <span className="text-[10px] whitespace-nowrap font-medium" style={{ color: "var(--text-muted, #888)" }}>
+          <span
+            className="text-[11px] whitespace-nowrap font-semibold tracking-wide transition-colors"
+            style={{ color: "#3b82f6" }}
+          >
             Memory
           </span>
         </div>
 
         {/* Tool */}
-        <div className="flex flex-col items-center gap-1.5">
+        <div className="flex flex-col items-center gap-1.5 relative group cursor-pointer transition-transform duration-300 hover:scale-110">
           <Handle
             type="target"
             position={Position.Bottom}
             id="tool"
-            className="!relative !transform-none !w-2.5 !h-2.5 !rounded-full !border-2"
+            className="!relative !transform-none !w-4 !h-4 !rounded-full !border-[3px] !bg-[var(--bg-card)] transition-colors group-hover:border-[#f59e0b] group-hover:shadow-[0_0_8px_rgba(245,158,11,0.5)]"
             style={{
-              background: "var(--bg-card, #1e1e2e)",
-              borderColor: "var(--border-medium, #555)",
+              borderColor: "#f59e0b",
             }}
             isConnectable={isConnectable}
           />
-          <span className="text-[10px] whitespace-nowrap font-medium" style={{ color: "var(--text-muted, #888)" }}>
+          <span
+            className="text-[11px] whitespace-nowrap font-semibold tracking-wide transition-colors"
+            style={{ color: "#f59e0b" }}
+          >
             Tool
           </span>
         </div>
