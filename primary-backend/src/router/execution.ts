@@ -726,12 +726,26 @@ async function simulateExecution(runId: string, nodes: any[], edges: any[]) {
   const parents = buildParentMap(edges, nodeIds);
   const outputMap = new Map<string, unknown>();
 
+  // On resume after approval, pre-populate visited set and outputMap
+  // from already-completed RunSteps so BFS skips them
+  const existingSteps = await prisma.runStep.findMany({
+    where: { runId, status: { in: ["COMPLETED", "WAITING_APPROVAL"] } },
+  });
+  const visited = new Set<string>();
+  for (const step of existingSteps) {
+    if (step.status === "COMPLETED" && step.nodeId) {
+      visited.add(step.nodeId);
+      if (step.outputPayload) {
+        outputMap.set(step.nodeId, step.outputPayload);
+      }
+    }
+  }
+
   // BFS execution
   const WORKFLOW_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
   const workflowStartTime = Date.now();
 
   const queue = [triggerNode.id];
-  const visited = new Set<string>();
 
   while (queue.length > 0) {
     const nodeId = queue.shift()!;
@@ -748,7 +762,14 @@ async function simulateExecution(runId: string, nodes: any[], edges: any[]) {
       return;
     }
 
-    if (visited.has(nodeId)) continue;
+    if (visited.has(nodeId)) {
+      // Queue children of already-completed nodes (needed for resume after approval)
+      const nextNodes = adjacency.get(nodeId) || [];
+      for (const next of nextNodes) {
+        if (!visited.has(next)) queue.push(next);
+      }
+      continue;
+    }
     visited.add(nodeId);
 
     const node = nodes.find((n) => n.id === nodeId);
@@ -950,7 +971,7 @@ async function simulateExecution(runId: string, nodes: any[], edges: any[]) {
           executionTimeMs,
           inputPayload: stepInput as Prisma.InputJsonValue,
           outputPayload: output as Prisma.InputJsonValue,
-          reasoningSummary: getReasoningSummary(node),
+          reasoningSummary: getReasoningSummary(node, output),
           agentName: node.category === "AI_AGENT" ? node.label : null,
         },
       });
@@ -1361,30 +1382,20 @@ function generateNodeOutput(node: any): any {
   );
 }
 
-function getReasoningSummary(node: any): string | null {
+function getReasoningSummary(node: any, executionOutput: any): string | null {
   const cat = (node.category || "").toLowerCase();
   if (cat !== "ai_agent" && cat !== "ai") return null;
 
-  const summaries: Record<string, string> = {
-    EXTRACTION_AGENT: "Analyzed input text using NER model. Identified 2 task entities with high confidence scores.",
-    SUMMARIZATION_AGENT: "Processed 2,450 tokens of meeting transcript. Generated concise summary using abstractive summarization.",
-    CLASSIFICATION_AGENT: "Applied multi-label classification model. Top category: high_priority (0.92 confidence).",
-    REASONING_AGENT: "Evaluated 5 criteria against business rules. All conditions satisfied. Recommending approval.",
-    DECISION_AGENT: "Evaluated conditional expression. Branch 'true' selected based on input data.",
-    VERIFICATION_AGENT: "Ran 3 validation checks against input data. All checks passed.",
-    COMPLIANCE_AGENT: "Verified document against 12 compliance rules. No violations detected.",
-    "ai-agent": "LLM agent processed input using configured model and system prompt. Generated structured response.",
-    "text-transform": "Applied text transformation operation to input data.",
-  };
-
-  const componentId = node.metadata?.componentId || "";
-  const resolvedId = resolveComponentId(node.nodeType) || resolveComponentId(componentId);
-  return (
-    summaries[node.nodeType] ||
-    summaries[componentId] ||
-    (resolvedId ? summaries[resolvedId] : null) ||
-    "Agent processed input and generated structured output."
-  );
+  // Use real reasoning from the executor output if available
+  if (executionOutput?.reasoning) return executionOutput.reasoning;
+  if (executionOutput?.reasoning_summary) return executionOutput.reasoning_summary;
+  if (executionOutput?.content && typeof executionOutput.content === "string") {
+    // Truncate long AI responses to a summary
+    return executionOutput.content.length > 300
+      ? executionOutput.content.slice(0, 300) + "..."
+      : executionOutput.content;
+  }
+  return null;
 }
 
 // Get run details
@@ -1940,5 +1951,60 @@ router.get(
     }
   },
 );
+
+/**
+ * Resume workflow execution after an approval node is approved.
+ * Loads the workflow, resolves secrets, and continues BFS from the children
+ * of the approved node.
+ */
+export async function resumeAfterApproval(runId: string, approvedNodeId: string): Promise<void> {
+  const run = await prisma.workflowRun.findUnique({
+    where: { id: runId },
+    include: { workflow: { include: { nodes: true, edges: true } } },
+  });
+  if (!run || !run.workflow) return;
+
+  const workflow = run.workflow;
+  const secretMap = await getWorkspaceSecretsMap(workflow.workspaceId);
+  const nodesWithSecrets = applySecretsToWorkflowNodes(workflow.nodes, secretMap);
+
+  // Find child nodes of the approved node
+  const childNodeIds: string[] = [];
+  for (const edge of workflow.edges) {
+    if (edge.sourceNodeId === approvedNodeId) {
+      childNodeIds.push(edge.targetNodeId);
+    }
+  }
+
+  if (childNodeIds.length === 0) {
+    // No nodes after approval — workflow is done
+    await prisma.workflowRun.update({
+      where: { id: runId },
+      data: { status: "COMPLETED", completedAt: new Date() },
+    });
+    broadcastRunUpdate({
+      type: "run_completed",
+      runId,
+      status: "COMPLETED",
+      timestamp: new Date().toISOString(),
+    });
+    return;
+  }
+
+  // Resume execution — simulateExecution starts from the trigger, but we need
+  // to continue from specific nodes. We re-run the full BFS but pre-mark
+  // all already-completed nodes as visited so only remaining nodes execute.
+  simulateExecution(runId, nodesWithSecrets, workflow.edges).catch(async (err) => {
+    console.error(`Resumed workflow run ${runId} failed:`, err);
+    await prisma.workflowRun.update({
+      where: { id: runId },
+      data: {
+        status: "FAILED",
+        error: err.message || "Resumed execution failed",
+        completedAt: new Date(),
+      },
+    }).catch(() => {});
+  });
+}
 
 export const executionRouter = router;

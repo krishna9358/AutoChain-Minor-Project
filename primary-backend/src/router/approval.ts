@@ -1,6 +1,7 @@
 import { Router } from "express";
 import prisma from "../db";
 import { authMiddleware, AuthRequest } from "../middleware";
+import { resumeAfterApproval } from "./execution";
 
 const router = Router();
 
@@ -59,7 +60,10 @@ router.post("/:id", authMiddleware, async (req: AuthRequest, res) => {
         data: { status: "RUNNING" },
       });
 
-      // TODO: Resume execution from the next node
+      // Resume execution from the next node after the approval gate
+      resumeAfterApproval(approval.runId, approval.nodeId).catch((err) => {
+        console.error(`Failed to resume after approval: ${err.message}`);
+      });
     } else if (status === "REJECTED") {
       await prisma.runStep.updateMany({
         where: { runId: approval.runId, nodeId: approval.nodeId },
