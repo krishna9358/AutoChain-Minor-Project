@@ -44,13 +44,13 @@ const ACTION_COLORS: Record<string, string> = {
   "workflow.created": "text-emerald-500 bg-emerald-500/10",
   "workflow.updated": "text-blue-500 bg-blue-500/10",
   "workflow.deleted": "text-red-500 bg-red-500/10",
-  "run.started": "text-indigo-500 bg-indigo-500/10",
+  "run.started": "text-primary bg-primary/10",
   "run.completed": "text-emerald-500 bg-emerald-500/10",
   "run.failed": "text-red-500 bg-red-500/10",
   "secret.created": "text-amber-500 bg-amber-500/10",
   "secret.updated": "text-blue-500 bg-blue-500/10",
   "secret.deleted": "text-red-500 bg-red-500/10",
-  "api-key.created": "text-purple-500 bg-purple-500/10",
+  "api-key.created": "text-accent bg-accent/10",
   "api-key.updated": "text-blue-500 bg-blue-500/10",
   "api-key.deleted": "text-red-500 bg-red-500/10",
   "api-key.revoked": "text-amber-500 bg-amber-500/10",
@@ -249,7 +249,7 @@ export default function AuditLogsPage() {
               placeholder="Search logs..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+              className="w-full pl-10 pr-4 py-2 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
               style={{
                 background: "var(--bg-card)",
                 border: "1px solid var(--border-subtle)",
@@ -261,7 +261,7 @@ export default function AuditLogsPage() {
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              showFilters ? "bg-indigo-600 text-white" : ""
+              showFilters ? "bg-primary text-white" : ""
             }`}
             style={
               !showFilters
@@ -293,7 +293,7 @@ export default function AuditLogsPage() {
                   <select
                     value={actionFilter}
                     onChange={(e) => setActionFilter(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+                    className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
                     style={{
                       background: "var(--bg-elevated)",
                       border: "1px solid var(--border-subtle)",
@@ -316,7 +316,7 @@ export default function AuditLogsPage() {
                   <select
                     value={userFilter}
                     onChange={(e) => setUserFilter(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+                    className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
                     style={{
                       background: "var(--bg-elevated)",
                       border: "1px solid var(--border-subtle)",
@@ -339,7 +339,7 @@ export default function AuditLogsPage() {
                   <select
                     value={workflowFilter}
                     onChange={(e) => setWorkflowFilter(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+                    className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
                     style={{
                       background: "var(--bg-elevated)",
                       border: "1px solid var(--border-subtle)",
@@ -362,7 +362,7 @@ export default function AuditLogsPage() {
                   <select
                     value={dateFilter}
                     onChange={(e) => setDateFilter(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+                    className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
                     style={{
                       background: "var(--bg-elevated)",
                       border: "1px solid var(--border-subtle)",
@@ -415,7 +415,7 @@ export default function AuditLogsPage() {
                   className="p-4 rounded-lg border transition-colors"
                   style={{
                     background: "var(--bg-card)",
-                    borderColor: isExpanded ? "rgba(99,102,241,0.3)" : "var(--border-subtle)",
+                    borderColor: isExpanded ? "color-mix(in srgb, var(--primary) 30%, transparent)" : "var(--border-subtle)",
                   }}
                 >
                   <div className="flex items-start justify-between">
@@ -451,7 +451,7 @@ export default function AuditLogsPage() {
                         {log.workflow && (
                           <button
                             onClick={() => handleViewWorkflow(log.workflow!.id)}
-                            className="flex items-center space-x-1 text-xs hover:text-indigo-500 transition-colors"
+                            className="flex items-center space-x-1 text-xs hover:text-primary transition-colors"
                             style={{ color: "var(--text-secondary)" }}
                           >
                             <FileText className="w-3 h-3" />

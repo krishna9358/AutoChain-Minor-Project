@@ -120,11 +120,11 @@ const LEGACY_NODE_CFG: Record<
   SCHEDULE_TRIGGER: { icon: Clock, color: "#f59e0b", label: "Schedule", cat: "TRIGGER" },
   FILE_UPLOAD_TRIGGER: { icon: FileText, color: "#f59e0b", label: "File Upload", cat: "TRIGGER" },
   API_TRIGGER: { icon: Globe, color: "#f59e0b", label: "API Trigger", cat: "TRIGGER" },
-  EXTRACTION_AGENT: { icon: Brain, color: "#6366f1", label: "Extraction", cat: "AI_AGENT" },
-  SUMMARIZATION_AGENT: { icon: FileText, color: "#6366f1", label: "Summarizer", cat: "AI_AGENT" },
-  CLASSIFICATION_AGENT: { icon: GitBranch, color: "#8b5cf6", label: "Classifier", cat: "AI_AGENT" },
+  EXTRACTION_AGENT: { icon: Brain, color: "hsl(var(--primary))", label: "Extraction", cat: "AI_AGENT" },
+  SUMMARIZATION_AGENT: { icon: FileText, color: "hsl(var(--primary))", label: "Summarizer", cat: "AI_AGENT" },
+  CLASSIFICATION_AGENT: { icon: GitBranch, color: "hsl(var(--accent))", label: "Classifier", cat: "AI_AGENT" },
   REASONING_AGENT: { icon: Brain, color: "#7c3aed", label: "Reasoning", cat: "AI_AGENT" },
-  DECISION_AGENT: { icon: GitBranch, color: "#6366f1", label: "Decision", cat: "AI_AGENT" },
+  DECISION_AGENT: { icon: GitBranch, color: "hsl(var(--primary))", label: "Decision", cat: "AI_AGENT" },
   VERIFICATION_AGENT: { icon: Shield, color: "#10b981", label: "Verify", cat: "AI_AGENT" },
   COMPLIANCE_AGENT: { icon: Shield, color: "#3b82f6", label: "Compliance", cat: "AI_AGENT" },
   IF_CONDITION: { icon: GitBranch, color: "#06b6d4", label: "If / Else", cat: "LOGIC" },
@@ -148,21 +148,21 @@ const LEGACY_NODE_CFG: Record<
   "if-condition": { icon: GitBranch, color: "#10b981", label: "If / Else", cat: "LOGIC" },
   "switch-case": { icon: GitBranch, color: "#10b981", label: "Switch / Router", cat: "LOGIC" },
   "loop": { icon: RotateCcw, color: "#10b981", label: "Loop", cat: "LOGIC" },
-  "ai-agent": { icon: Brain, color: "#8b5cf6", label: "AI Agent", cat: "AI" },
-  "text-transform": { icon: FileText, color: "#8b5cf6", label: "Text Transform", cat: "AI" },
+  "ai-agent": { icon: Brain, color: "hsl(var(--accent))", label: "AI Agent", cat: "AI" },
+  "text-transform": { icon: FileText, color: "hsl(var(--accent))", label: "Text Transform", cat: "AI" },
   "delay": { icon: Timer, color: "#6b7280", label: "Delay / Wait", cat: "CONTROL" },
   "error-handler": { icon: AlertCircle, color: "#6b7280", label: "Error Handler", cat: "CONTROL" },
   "approval": { icon: Pause, color: "#6b7280", label: "Manual Approval", cat: "CONTROL" },
-  "artifact-writer": { icon: FileText, color: "#6366f1", label: "Artifact Writer", cat: "OUTPUT" },
-  "webhook-response": { icon: Globe, color: "#6366f1", label: "Webhook Response", cat: "OUTPUT" },
+  "artifact-writer": { icon: FileText, color: "hsl(var(--primary))", label: "Artifact Writer", cat: "OUTPUT" },
+  "webhook-response": { icon: Globe, color: "hsl(var(--primary))", label: "Webhook Response", cat: "OUTPUT" },
   "sla-monitor": { icon: Timer, color: "#ef4444", label: "SLA Monitor", cat: "CONTROL" },
-  "audit-log": { icon: ClipboardList, color: "#6366f1", label: "Audit Log", cat: "OUTPUT" },
+  "audit-log": { icon: ClipboardList, color: "hsl(var(--primary))", label: "Audit Log", cat: "OUTPUT" },
   "task-assigner": { icon: Users, color: "#6b7280", label: "Task Assigner", cat: "CONTROL" },
   "escalation": { icon: AlertTriangle, color: "#f59e0b", label: "Escalation", cat: "CONTROL" },
-  "data-enrichment": { icon: Search, color: "#8b5cf6", label: "Data Enrichment", cat: "AI" },
-  "document-generator": { icon: FileOutput, color: "#6366f1", label: "Document Generator", cat: "OUTPUT" },
+  "data-enrichment": { icon: Search, color: "hsl(var(--accent))", label: "Data Enrichment", cat: "AI" },
+  "document-generator": { icon: FileOutput, color: "hsl(var(--primary))", label: "Document Generator", cat: "OUTPUT" },
   "form-input": { icon: ClipboardList, color: "#f59e0b", label: "Form Input", cat: "INPUT" },
-  "chat-model": { icon: MessageSquare, color: "#8b5cf6", label: "Chat Model", cat: "AI" },
+  "chat-model": { icon: MessageSquare, color: "hsl(var(--accent))", label: "Chat Model", cat: "AI" },
   "agent-memory": { icon: Database, color: "#3b82f6", label: "Memory", cat: "AI" },
   "agent-tool": { icon: Settings, color: "#f59e0b", label: "Tool", cat: "AI" },
 };
@@ -216,7 +216,7 @@ function FlowNode({ data, isConnectable }: NodeProps) {
       style={{
         background: "var(--bg-card)",
         borderColor: data.selected
-          ? "#6366f1"
+          ? "hsl(var(--primary))"
           : hasIssue
             ? "#f59e0b"
             : isRunning
@@ -227,7 +227,7 @@ function FlowNode({ data, isConnectable }: NodeProps) {
                   ? "#ef4444"
                   : "var(--border-medium)",
         boxShadow: data.selected
-          ? "0 0 0 2px rgba(99,102,241,0.2)"
+          ? "0 0 0 2px color-mix(in srgb, var(--primary) 20%, transparent)"
           : hasIssue
             ? "0 0 0 2px rgba(245,158,11,0.25)"
             : isRunning
@@ -550,8 +550,8 @@ function WorkflowInner() {
           source: e.sourceNodeId,
           target: e.targetNodeId,
           animated: true,
-          style: { stroke: "#6366f1", strokeWidth: 2 },
-          markerEnd: { type: MarkerType.ArrowClosed, color: "#6366f1" },
+          style: { stroke: "hsl(var(--primary))", strokeWidth: 2 },
+          markerEnd: { type: MarkerType.ArrowClosed, color: "hsl(var(--primary))" },
         }));
         // Run component migration on loaded workflow
         const migrated = migrateWorkflow(mappedNodes, mappedEdges);
@@ -977,8 +977,8 @@ function WorkflowInner() {
         source: e.source,
         target: e.target,
         animated: true,
-        style: { stroke: "#6366f1", strokeWidth: 2 },
-        markerEnd: { type: MarkerType.ArrowClosed, color: "#6366f1" },
+        style: { stroke: "hsl(var(--primary))", strokeWidth: 2 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: "hsl(var(--primary))" },
       }));
       loadWorkflow({
         name: g.name,
@@ -1138,7 +1138,7 @@ function WorkflowInner() {
             >
               <div
                 className="w-4 h-4 rounded flex items-center justify-center text-[9px] font-bold text-white"
-                style={{ background: "rgba(99,102,241,0.7)" }}
+                style={{ background: "var(--primary-alpha-70)" }}
               >
                 {activeWorkspace?.name.charAt(0).toUpperCase() || "?"}
               </div>
@@ -1172,7 +1172,7 @@ function WorkflowInner() {
                       >
                         <div
                           className="w-5 h-5 rounded flex items-center justify-center text-[9px] font-bold text-white"
-                          style={{ background: "rgba(99,102,241,0.7)" }}
+                          style={{ background: "var(--primary-alpha-70)" }}
                         >
                           {ws.name.charAt(0).toUpperCase()}
                         </div>
@@ -1183,7 +1183,7 @@ function WorkflowInner() {
                           {ws.name}
                         </span>
                         {activeWorkspace?.id === ws.id && (
-                          <Check className="w-3 h-3 text-indigo-500" />
+                          <Check className="w-3 h-3 text-primary" />
                         )}
                       </button>
                     ))}
@@ -1285,7 +1285,8 @@ function WorkflowInner() {
           <button
             onClick={exec}
             disabled={executing || isNew || !hasWorkspace}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary hover:bg-primary/90 text-white disabled:opacity-50 transition-colors"
+            style={{ background: "hsl(var(--primary))" }}
           >
             {executing ? (
               <Loader2 className="w-3 h-3 animate-spin" />
@@ -1323,9 +1324,9 @@ function WorkflowInner() {
           <div className="text-center max-w-md px-4">
             <div
               className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5"
-              style={{ background: "rgba(99,102,241,0.08)" }}
+              style={{ background: "var(--primary-alpha-08)" }}
             >
-              <Building2 className="w-8 h-8 text-indigo-500" />
+              <Building2 className="w-8 h-8 text-primary" />
             </div>
             <h2
               className="text-lg font-semibold mb-2"
@@ -1342,7 +1343,8 @@ function WorkflowInner() {
             </p>
             <button
               onClick={() => setShowWorkspaceModal(true)}
-              className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors"
+              className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors"
+              style={{ background: "hsl(var(--primary))" }}
             >
               <FolderPlus className="w-4 h-4" />
               Create Workspace
@@ -1389,11 +1391,11 @@ function WorkflowInner() {
                           style={{
                             background:
                               leftTab === t.id
-                                ? "rgba(99,102,241,0.08)"
+                                ? "var(--primary-alpha-08)"
                                 : "transparent",
                             color:
                               leftTab === t.id
-                                ? "#6366f1"
+                                ? "hsl(var(--primary))"
                                 : "var(--text-muted)",
                           }}
                         >
@@ -1421,7 +1423,7 @@ function WorkflowInner() {
                         onKeyDown={(e) => e.stopPropagation()}
                         placeholder="Describe your workflow in plain English..."
                         rows={4}
-                        className="w-full p-2.5 rounded-xl text-xs resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                        className="w-full p-2.5 rounded-xl text-xs resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
                         style={{
                           background: "var(--input-bg)",
                           border: "1px solid var(--input-border)",
@@ -1431,7 +1433,8 @@ function WorkflowInner() {
                       <button
                         onClick={() => aiGenerate()}
                         disabled={aiGen || !aiPrompt.trim()}
-                        className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold disabled:opacity-50 transition-colors"
+                        className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-white text-xs font-semibold disabled:opacity-50 transition-colors"
+                        style={{ background: "hsl(var(--primary))" }}
                       >
                         {aiGen ? (
                           <Loader2 className="w-3 h-3 animate-spin" />
@@ -1504,7 +1507,7 @@ function WorkflowInner() {
                               return acc;
                             }, {}),
                           ).map(([cat, items]) => ({ cat, items }))
-                      ).map(({ cat, items }, groupIdx, all) => (
+                      ).filter(({ items }) => items.length > 0).map(({ cat, items }, groupIdx, all) => (
                         <div key={cat}>
                           <div
                             className="px-4 pt-4 pb-2"
@@ -1547,11 +1550,11 @@ function WorkflowInner() {
                                     (
                                       e.currentTarget as HTMLElement
                                     ).style.borderColor =
-                                      "rgba(99,102,241,0.4)";
+                                      "var(--primary-alpha-40)";
                                     (
                                       e.currentTarget as HTMLElement
                                     ).style.background =
-                                      "rgba(99,102,241,0.04)";
+                                      "var(--primary-alpha-04)";
                                   }}
                                   onMouseLeave={(e) => {
                                     (
@@ -1632,10 +1635,10 @@ function WorkflowInner() {
                 minZoom={0.2}
                 maxZoom={2.5}
                 deleteKeyCode="Backspace"
-                connectionLineStyle={{ stroke: "#6366f1", strokeWidth: 2 }}
+                connectionLineStyle={{ stroke: "hsl(var(--primary))", strokeWidth: 2 }}
                 defaultEdgeOptions={{
                   animated: true,
-                  style: { stroke: "#6366f1", strokeWidth: 2 },
+                  style: { stroke: "hsl(var(--primary))", strokeWidth: 2 },
                 }}
               >
                 <Background
@@ -1645,7 +1648,7 @@ function WorkflowInner() {
                 />
                 <Controls showInteractive={false} />
                 <MiniMap
-                  nodeColor={() => "#6366f1"}
+                  nodeColor={() => "hsl(var(--primary))"}
                   maskColor={
                     theme === "dark"
                       ? "rgba(9,9,11,0.8)"
@@ -1701,7 +1704,7 @@ function WorkflowInner() {
                   <select
                     value={activeRun?.id || ""}
                     onChange={(e) => { if (e.target.value) fetchRunDetails(e.target.value); }}
-                    className="flex-1 px-3 py-1.5 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+                    className="flex-1 px-3 py-1.5 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-primary/50"
                     style={{ background: "var(--input-bg)", border: "1px solid var(--input-border)", color: "var(--text-primary)" }}
                   >
                     <option value="">Select a run...</option>
@@ -1864,7 +1867,7 @@ function WorkflowInner() {
                 }}
                 title="Resize sidebar"
               >
-                <div className="h-full w-px mx-auto bg-transparent group-hover:bg-indigo-500/40 transition-colors" />
+                <div className="h-full w-px mx-auto bg-transparent group-hover:bg-primary/40 transition-colors" />
               </div>
               {selNode ? (
                 <div className="flex flex-col h-full">
@@ -1944,7 +1947,7 @@ function WorkflowInner() {
                         }
                         onKeyDown={(e) => e.stopPropagation()}
                         placeholder="Node label..."
-                        className="w-full px-3 py-2 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                        className="w-full px-3 py-2 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                         style={{
                           background: "var(--input-bg)",
                           border: "1px solid var(--input-border)",
@@ -2149,7 +2152,7 @@ function WorkflowInner() {
                       value={wfName}
                       onChange={(e) => setWfName(e.target.value)}
                       onKeyDown={(e) => e.stopPropagation()}
-                      className="w-full px-3 py-2.5 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                      className="w-full px-3 py-2.5 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/30"
                       style={{
                         background: "var(--input-bg)",
                         border: "1px solid var(--input-border)",
@@ -2197,7 +2200,7 @@ function WorkflowInner() {
                               onKeyDown={(e) => e.stopPropagation()}
                               placeholder="Describe what this workflow does..."
                               rows={3}
-                              className="w-full px-3 py-2 rounded-xl text-xs resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                              className="w-full px-3 py-2 rounded-xl text-xs resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
                               style={{
                                 background: "var(--input-bg)",
                                 border: "1px solid var(--input-border)",

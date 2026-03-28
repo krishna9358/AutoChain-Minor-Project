@@ -278,7 +278,7 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
         onClick={() => !disabled && setIsOpen(!isOpen)}
         className={cn(
           "w-full flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-all",
-          "focus-within:ring-2 focus-within:ring-indigo-500/40",
+          "focus-within:ring-2 focus-within:ring-primary/40",
           disabled && "opacity-50 cursor-not-allowed",
         )}
         style={{
@@ -392,12 +392,12 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
                         currentMonth,
                         currentYear,
                       )
-                        ? "var(--accent-primary, #6366f1)"
+                        ? "hsl(var(--primary))"
                         : "transparent",
                       color: isSelectedDate(day || 0, currentMonth, currentYear)
                         ? "white"
                         : isToday(day || 0, currentMonth, currentYear)
-                          ? "var(--accent-primary, #6366f1)"
+                          ? "hsl(var(--primary))"
                           : "var(--text-primary)",
                       fontWeight:
                         isSelectedDate(day || 0, currentMonth, currentYear) ||
@@ -451,7 +451,7 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
                     value={nativeTimeValue}
                     step={showSeconds ? 1 : 60}
                     onChange={(e) => handleNativeTimeChange(e.target.value)}
-                    className="w-full h-9 rounded-md px-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+                    className="w-full h-9 rounded-md px-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
                     style={{
                       background: "var(--input-bg, rgba(0,0,0,0.2))",
                       color: "var(--text-primary)",

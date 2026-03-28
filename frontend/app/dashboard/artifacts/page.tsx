@@ -83,7 +83,7 @@ export default function ArtifactsLibraryPage() {
         className="min-h-screen flex items-center justify-center"
         style={{ background: "var(--bg-primary)" }}
       >
-        <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+        <Loader2 className="w-6 h-6 animate-spin text-primary" />
       </div>
     );
   }
@@ -93,7 +93,7 @@ export default function ArtifactsLibraryPage() {
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Archive className="w-6 h-6 text-indigo-500 shrink-0" />
+            <Archive className="w-6 h-6 text-primary shrink-0" />
             <h1
               className="text-xl font-semibold"
               style={{ color: "var(--text-primary)" }}
@@ -145,7 +145,7 @@ export default function ArtifactsLibraryPage() {
 
         {hasWorkspace && loading && (
           <div className="flex justify-center py-12">
-            <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
           </div>
         )}
 
@@ -163,9 +163,9 @@ export default function ArtifactsLibraryPage() {
             <p className="text-xs mt-1 max-w-sm mx-auto">
               Run a workflow that includes an Artifact Writer node. If runs show
               &quot;Completed&quot; but nothing appears here, ensure the database has the{" "}
-              <code className="text-indigo-400">Artifact</code> table (
-              <code className="text-indigo-400">npx prisma db push</code> in{" "}
-              <code className="text-indigo-400">primary-backend</code>) and check
+              <code className="text-primary">Artifact</code> table (
+              <code className="text-primary">npx prisma db push</code> in{" "}
+              <code className="text-primary">primary-backend</code>) and check
               server logs for insert errors.
             </p>
           </div>
@@ -182,7 +182,7 @@ export default function ArtifactsLibraryPage() {
                   background: "var(--bg-card)",
                 }}
               >
-                <Archive className="w-4 h-4 mt-0.5 shrink-0 text-indigo-400" />
+                <Archive className="w-4 h-4 mt-0.5 shrink-0 text-primary" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>
                     {a.name}

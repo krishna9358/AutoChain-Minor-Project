@@ -41,7 +41,7 @@ const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
     <div className="w-full">
       {/* Hero Section */}
       <div className="text-center mb-8">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[#1e9df1] mb-4 shadow-lg animate-pulse">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary mb-4 shadow-lg animate-pulse">
           <Sparkles className="w-8 h-8 text-white" />
         </div>
         <h2 className="text-3xl font-bold text-slate-800 mb-3">
@@ -53,13 +53,13 @@ const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
       </div>
 
       {/* Main Input Section */}
-      <div className="bg-white rounded-2xl border-2 border-purple-200 p-6 mb-6 shadow-xl">
+      <div className="bg-white rounded-2xl border-2 border-accent-200 p-6 mb-6 shadow-xl">
         <div className="relative">
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Describe your workflow... e.g., 'When a new customer support ticket is created, classify the issue, search the knowledge base, draft a response, send for human approval, and email the customer'"
-            className="w-full px-6 py-4 rounded-xl border-2 border-slate-200 focus:border-purple-400 focus:outline-none text-slate-700 text-sm resize-none h-32 transition-colors"
+            className="w-full px-6 py-4 rounded-xl border-2 border-slate-200 focus:border-accent-400 focus:outline-none text-slate-700 text-sm resize-none h-32 transition-colors"
             disabled={isGenerating}
           />
 
@@ -68,7 +68,7 @@ const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
             onClick={handleGenerate}
             disabled={!description.trim() || isGenerating}
             className={cn(
-              "absolute right-3 bottom-3 bg-[#1e9df1] text-white font-semibold py-3 px-8 rounded-xl transition-all flex items-center space-x-2 shadow-lg hover:shadow-xl hover:bg-[#1c9cf0]",
+              "absolute right-3 bottom-3 bg-primary text-white font-semibold py-3 px-8 rounded-xl transition-all flex items-center space-x-2 shadow-lg hover:shadow-xl hover:bg-primary",
               "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
             )}
           >
@@ -107,15 +107,15 @@ const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
               key={index}
               onClick={() => handleSuggestionClick(suggestion)}
               disabled={isGenerating}
-              className="flex items-start space-x-3 p-4 bg-white rounded-xl border-2 border-slate-200 hover:border-purple-300 hover:shadow-md transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed group"
+              className="flex items-start space-x-3 p-4 bg-white rounded-xl border-2 border-slate-200 hover:border-accent-300 hover:shadow-md transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed group"
             >
-              <div className="w-6 h-6 rounded-full bg-[#e3ecf6] flex items-center justify-center text-[#1e9df1] font-semibold text-xs shrink-0 mt-0.5">
+              <div className="w-6 h-6 rounded-full bg-accent flex items-center justify-center text-primary font-semibold text-xs shrink-0 mt-0.5">
                 {index + 1}
               </div>
-              <span className="text-sm text-slate-700 group-hover:text-purple-600 transition-colors flex-1">
+              <span className="text-sm text-slate-700 group-hover:text-accent-600 transition-colors flex-1">
                 {suggestion}
               </span>
-              <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-purple-500 group-hover:translate-x-1 transition-all shrink-0 mt-1" />
+              <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-accent-500 group-hover:translate-x-1 transition-all shrink-0 mt-1" />
             </button>
           ))}
         </div>
@@ -136,7 +136,7 @@ const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
             </div>
             <button
               onClick={onExplainWorkflow}
-              className="bg-[#1e9df1] text-white font-semibold py-3 px-6 rounded-xl hover:bg-[#1c9cf0] transition-all flex items-center space-x-2 shadow-lg hover:shadow-xl"
+              className="bg-primary text-white font-semibold py-3 px-6 rounded-xl hover:bg-primary transition-all flex items-center space-x-2 shadow-lg hover:shadow-xl"
             >
               <Play className="w-5 h-5" />
               <span>Explain Workflow</span>
@@ -146,7 +146,7 @@ const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
       )}
 
       {/* Demo Tip */}
-      <div className="bg-[#e3ecf6] rounded-xl border border-blue-200 p-4">
+      <div className="bg-accent rounded-xl border border-blue-200 p-4">
         <div className="flex items-start space-x-3">
           <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center text-white shrink-0">
             <Lightbulb className="w-5 h-5" />

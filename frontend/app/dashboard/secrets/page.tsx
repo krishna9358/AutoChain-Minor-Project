@@ -262,7 +262,7 @@ export default function SecretsPage() {
     const colors: Record<string, string> = {
       API_KEY: "text-blue-500 bg-blue-500/10",
       PASSWORD: "text-red-500 bg-red-500/10",
-      TOKEN: "text-purple-500 bg-purple-500/10",
+      TOKEN: "text-accent bg-accent/10",
       CERTIFICATE: "text-amber-500 bg-amber-500/10",
       DATABASE_URL: "text-emerald-500 bg-emerald-500/10",
       OTHER: "text-gray-500 bg-gray-500/10",
@@ -286,7 +286,7 @@ export default function SecretsPage() {
             </h1>
             <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
               Store keys here and use{" "}
-              <code className="text-indigo-400">{"{{secrets.KEY}}"}</code> in node configs —{" "}
+              <code className="text-primary">{"{{secrets.KEY}}"}</code> in node configs —{" "}
               <strong>workflow runs</strong> replace it with the decrypted value for this workspace (KEY must match
               the secret&apos;s reference name).
             </p>
@@ -296,7 +296,7 @@ export default function SecretsPage() {
               resetForm();
               setShowCreateModal(true);
             }}
-            className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition-colors"
+            className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-primary hover:bg-primary/90 text-white text-sm font-medium transition-colors"
           >
             <Plus className="w-4 h-4" />
             <span>New Secret</span>
@@ -312,7 +312,7 @@ export default function SecretsPage() {
               placeholder="Search secrets..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+              className="w-full pl-10 pr-4 py-2 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
               style={{
                 background: "var(--bg-card)",
                 border: "1px solid var(--border-subtle)",
@@ -324,7 +324,7 @@ export default function SecretsPage() {
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
-            className="px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+            className="px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
             style={{
               background: "var(--bg-card)",
               border: "1px solid var(--border-subtle)",
@@ -381,7 +381,7 @@ export default function SecretsPage() {
             return (
               <div
                 key={secret.id}
-                className="p-4 rounded-lg border transition-colors hover:border-indigo-500/30"
+                className="p-4 rounded-lg border transition-colors hover:border-primary/30"
                 style={{
                   background: "var(--bg-card)",
                   borderColor: isExpiredValue ? "rgba(239,68,68,0.2)" : "var(--border-subtle)",
@@ -563,7 +563,7 @@ export default function SecretsPage() {
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     placeholder="e.g., Production API Key"
-                    className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+                    className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
                     style={{
                       background: "var(--bg-elevated)",
                       border: "1px solid var(--border-subtle)",
@@ -581,7 +581,7 @@ export default function SecretsPage() {
                     value={formData.key}
                     onChange={(e) => setFormData({ ...formData, key: e.target.value })}
                     placeholder="e.g., API_KEY_PRODUCTION"
-                    className="w-full px-3 py-2 rounded-lg text-sm font-mono focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+                    className="w-full px-3 py-2 rounded-lg text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary/50"
                     style={{
                       background: "var(--bg-elevated)",
                       border: "1px solid var(--border-subtle)",
@@ -589,9 +589,9 @@ export default function SecretsPage() {
                     }}
                   />
                   <p className="text-[10px] mt-1 leading-relaxed" style={{ color: "var(--text-muted)" }}>
-                    Reference name for <code className="text-indigo-400">{"{{secrets.KEY}}"}</code> — use
+                    Reference name for <code className="text-primary">{"{{secrets.KEY}}"}</code> — use
                     letters, numbers, and underscores (e.g.{" "}
-                    <code className="text-indigo-400/90">STRIPE_API_KEY</code>). This is not your encryption
+                    <code className="text-primary/90">STRIPE_API_KEY</code>). This is not your encryption
                     passphrase.
                   </p>
                 </div>
@@ -603,7 +603,7 @@ export default function SecretsPage() {
                   <select
                     value={formData.type}
                     onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+                    className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
                     style={{
                       background: "var(--bg-elevated)",
                       border: "1px solid var(--border-subtle)",
@@ -627,7 +627,7 @@ export default function SecretsPage() {
                     onChange={(e) => setFormData({ ...formData, value: e.target.value })}
                     placeholder="Enter secret value..."
                     rows={3}
-                    className="w-full px-3 py-2 rounded-lg text-sm font-mono focus:outline-none focus:ring-1 focus:ring-indigo-500/50 resize-none"
+                    className="w-full px-3 py-2 rounded-lg text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary/50 resize-none"
                     style={{
                       background: "var(--bg-elevated)",
                       border: "1px solid var(--border-subtle)",
@@ -650,7 +650,7 @@ export default function SecretsPage() {
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     placeholder="Optional description..."
                     rows={2}
-                    className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50 resize-none"
+                    className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary/50 resize-none"
                     style={{
                       background: "var(--bg-elevated)",
                       border: "1px solid var(--border-subtle)",
@@ -668,7 +668,7 @@ export default function SecretsPage() {
                     value={formData.expiresAt}
                     onChange={(e) => setFormData({ ...formData, expiresAt: e.target.value })}
                     min={new Date().toISOString().split("T")[0]}
-                    className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+                    className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
                     style={{
                       background: "var(--bg-elevated)",
                       border: "1px solid var(--border-subtle)",
@@ -693,7 +693,7 @@ export default function SecretsPage() {
                 <button
                   onClick={showCreateModal ? handleCreate : handleUpdate}
                   disabled={saving || !formData.name || !formData.key || (!showEditModal && !formData.value)}
-                  className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition-colors disabled:opacity-50"
+                  className="px-4 py-2 rounded-lg bg-primary hover:bg-primary/90 text-white text-sm font-medium transition-colors disabled:opacity-50"
                 >
                   {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : showCreateModal ? "Create Secret" : "Update Secret"}
                 </button>

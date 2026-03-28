@@ -387,8 +387,8 @@ function DashboardPageContent() {
         source: n.id,
         target: mainNodes[i + 1].id,
         animated: true,
-        style: { stroke: "#6366f1", strokeWidth: 2 },
-        markerEnd: { type: "arrowclosed", color: "#6366f1" },
+        style: { stroke: "hsl(var(--primary))", strokeWidth: 2 },
+        markerEnd: { type: "arrowclosed", color: "hsl(var(--primary))" },
       });
     });
 
@@ -495,13 +495,13 @@ function DashboardPageContent() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             className="mb-6 p-8 rounded-2xl border-2 border-dashed text-center"
-            style={{ borderColor: "rgba(99,102,241,0.25)" }}
+            style={{ borderColor: "color-mix(in srgb, var(--primary) 25%, transparent)" }}
           >
             <div
               className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
-              style={{ background: "rgba(99,102,241,0.08)" }}
+              style={{ background: "color-mix(in srgb, var(--primary) 8%, transparent)" }}
             >
-              <Building2 className="w-7 h-7 text-indigo-500" />
+              <Building2 className="w-7 h-7 text-primary" />
             </div>
             <h3
               className="text-base font-semibold mb-2"
@@ -562,15 +562,15 @@ function DashboardPageContent() {
                       animate={{ opacity: 1, y: 0 }}
                       className="flex items-start gap-4 mb-5 p-4 rounded-2xl border"
                       style={{
-                        background: "rgba(99,102,241,0.04)",
-                        borderColor: "rgba(99,102,241,0.2)",
+                        background: "color-mix(in srgb, var(--primary) 4%, transparent)",
+                        borderColor: "color-mix(in srgb, var(--primary) 20%, transparent)",
                       }}
                     >
                       <div
                         className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
-                        style={{ background: "rgba(99,102,241,0.12)" }}
+                        style={{ background: "color-mix(in srgb, var(--primary) 12%, transparent)" }}
                       >
-                        <FlaskConical className="w-5 h-5 text-indigo-500" />
+                        <FlaskConical className="w-5 h-5 text-primary" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
@@ -580,7 +580,7 @@ function DashboardPageContent() {
                           >
                             Demo Workflow Ready
                           </p>
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "hsl(var(--primary))" }}>
                             DEMO
                           </span>
                         </div>
@@ -602,8 +602,8 @@ function DashboardPageContent() {
                           onClick={() => router.push(`/workflow/${demo.id}`)}
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors hover:bg-white/5"
                           style={{
-                            borderColor: "rgba(99,102,241,0.3)",
-                            color: "#6366f1",
+                            borderColor: "color-mix(in srgb, var(--primary) 30%, transparent)",
+                            color: "hsl(var(--primary))",
                           }}
                         >
                           Open
@@ -634,15 +634,15 @@ function DashboardPageContent() {
                         style={{
                           background:
                             statusFilter === s
-                              ? "rgba(99,102,241,0.08)"
+                              ? "color-mix(in srgb, var(--primary) 8%, transparent)"
                               : "transparent",
                           borderColor:
                             statusFilter === s
-                              ? "rgba(99,102,241,0.3)"
+                              ? "color-mix(in srgb, var(--primary) 30%, transparent)"
                               : "var(--border-subtle)",
                           color:
                             statusFilter === s
-                              ? "#6366f1"
+                              ? "hsl(var(--primary))"
                               : "var(--text-muted)",
                         }}
                       >
@@ -662,7 +662,7 @@ function DashboardPageContent() {
                     <select
                       value={sortBy}
                       onChange={(e) => setSortBy(e.target.value as SortBy)}
-                      className="text-xs rounded-lg px-2 py-1.5 border bg-transparent focus:outline-none focus:ring-1 focus:ring-indigo-500/30"
+                      className="text-xs rounded-lg px-2 py-1.5 border bg-transparent focus:outline-none focus:ring-1 focus:ring-primary/30"
                       style={{
                         borderColor: "var(--border-subtle)",
                         color: "var(--text-secondary)",
@@ -820,9 +820,9 @@ function DashboardPageContent() {
                           <div className="flex items-center gap-2.5 min-w-0">
                             <div
                               className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-                              style={{ background: "rgba(99,102,241,0.08)" }}
+                              style={{ background: "color-mix(in srgb, var(--primary) 8%, transparent)" }}
                             >
-                              <Workflow className="w-3.5 h-3.5 text-indigo-500" />
+                              <Workflow className="w-3.5 h-3.5 text-primary" />
                             </div>
                             <div className="min-w-0">
                               <div className="flex items-center gap-1.5">
@@ -833,7 +833,7 @@ function DashboardPageContent() {
                                   {wf.name}
                                 </p>
                                 {wf.name === "Support Ticket Triage AI" && (
-                                  <span className="shrink-0 px-1.5 py-0.5 rounded-full text-[9px] font-bold tracking-wider" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "var(--primary)" }}>
+                                  <span className="shrink-0 px-1.5 py-0.5 rounded-full text-[9px] font-bold tracking-wider" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)", color: "hsl(var(--primary))" }}>
                                     DEMO
                                   </span>
                                 )}
@@ -995,8 +995,8 @@ function DashboardPageContent() {
                       source: idMap[e.source] || e.source,
                       target: idMap[e.target] || e.target,
                       animated: true,
-                      style: { stroke: "#6366f1", strokeWidth: 2 },
-                      markerEnd: { type: "arrowclosed", color: "#6366f1" },
+                      style: { stroke: "hsl(var(--primary))", strokeWidth: 2 },
+                      markerEnd: { type: "arrowclosed", color: "hsl(var(--primary))" },
                       label: e.label || "",
                     }));
                     sessionStorage.setItem("template-import", JSON.stringify({
@@ -1053,15 +1053,15 @@ function DashboardPageContent() {
                           <div
                             className="px-2 py-1 rounded text-[8px] font-semibold whitespace-nowrap"
                             style={{
-                              background: n.category === "AI" ? "#8b5cf618" : n.category === "INPUT" ? "#f59e0b18" : n.category === "INTEGRATION" ? "#3b82f618" : n.category === "LOGIC" ? "#10b98118" : n.category === "CONTROL" ? "#6b728018" : "#6366f118",
-                              color: n.category === "AI" ? "#8b5cf6" : n.category === "INPUT" ? "#f59e0b" : n.category === "INTEGRATION" ? "#3b82f6" : n.category === "LOGIC" ? "#10b981" : n.category === "CONTROL" ? "#6b7280" : "#6366f1",
-                              border: `1px solid ${n.category === "AI" ? "#8b5cf640" : n.category === "INPUT" ? "#f59e0b40" : n.category === "INTEGRATION" ? "#3b82f640" : n.category === "LOGIC" ? "#10b98140" : n.category === "CONTROL" ? "#6b728040" : "#6366f140"}`,
+                              background: n.category === "AI" ? "#8b5cf618" : n.category === "INPUT" ? "#f59e0b18" : n.category === "INTEGRATION" ? "#3b82f618" : n.category === "LOGIC" ? "#10b98118" : n.category === "CONTROL" ? "#6b728018" : "color-mix(in srgb, var(--primary) 10%, transparent)",
+                              color: n.category === "AI" ? "#8b5cf6" : n.category === "INPUT" ? "#f59e0b" : n.category === "INTEGRATION" ? "#3b82f6" : n.category === "LOGIC" ? "#10b981" : n.category === "CONTROL" ? "#6b7280" : "hsl(var(--primary))",
+                              border: `1px solid ${n.category === "AI" ? "#8b5cf640" : n.category === "INPUT" ? "#f59e0b40" : n.category === "INTEGRATION" ? "#3b82f640" : n.category === "LOGIC" ? "#10b98140" : n.category === "CONTROL" ? "#6b728040" : "color-mix(in srgb, var(--primary) 25%, transparent)"}`,
                             }}
                           >
                             {n.label.length > 10 ? n.label.slice(0, 10) + "..." : n.label}
                           </div>
                           {i < Math.min(t.nodes.length, 5) - 1 && (
-                            <ArrowRight className="w-2.5 h-2.5 shrink-0" style={{ color: "var(--primary, #1e9df1)" }} />
+                            <ArrowRight className="w-2.5 h-2.5 shrink-0" style={{ color: "hsl(var(--primary))" }} />
                           )}
                         </React.Fragment>
                       ))}
@@ -1089,7 +1089,7 @@ function DashboardPageContent() {
                     <button
                       onClick={() => importTemplate(t)}
                       className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-white text-xs font-semibold transition-colors hover:opacity-90"
-                      style={{ background: "var(--primary, #1e9df1)" }}
+                      style={{ background: "hsl(var(--primary))" }}
                     >
                       Use Template
                       <ArrowRight className="w-3 h-3" />
@@ -1131,11 +1131,11 @@ function DashboardPageContent() {
                     style={{
                       borderColor:
                         theme === "light"
-                          ? "#6366f1"
+                          ? "hsl(var(--primary))"
                           : "var(--border-subtle)",
                       background:
                         theme === "light"
-                          ? "rgba(99,102,241,0.05)"
+                          ? "color-mix(in srgb, var(--primary) 5%, transparent)"
                           : "transparent",
                       color: "var(--text-primary)",
                     }}
@@ -1148,10 +1148,10 @@ function DashboardPageContent() {
                     className="flex-1 flex flex-col items-center py-4 rounded-xl border text-sm font-medium transition-all"
                     style={{
                       borderColor:
-                        theme === "dark" ? "#6366f1" : "var(--border-subtle)",
+                        theme === "dark" ? "hsl(var(--primary))" : "var(--border-subtle)",
                       background:
                         theme === "dark"
-                          ? "rgba(99,102,241,0.05)"
+                          ? "color-mix(in srgb, var(--primary) 5%, transparent)"
                           : "transparent",
                       color: "var(--text-primary)",
                     }}

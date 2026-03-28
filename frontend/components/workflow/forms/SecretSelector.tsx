@@ -171,7 +171,7 @@ export const SecretSelector: React.FC<SecretSelectorProps> = ({
   // Get color for secret type
   const getSecretColor = (type: string) => {
     const colorMap: Record<string, string> = {
-      API_KEY: "text-purple-400",
+      API_KEY: "text-accent-400",
       PASSWORD: "text-amber-400",
       TOKEN: "text-blue-400",
       CERTIFICATE: "text-green-400",
@@ -226,7 +226,7 @@ export const SecretSelector: React.FC<SecretSelectorProps> = ({
                 placeholder="Search secrets..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="flex-1 px-3 py-2 text-xs rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+                className="flex-1 px-3 py-2 text-xs rounded-md focus:outline-none focus:ring-2 focus:ring-primary/40"
                 style={{
                   background: "var(--input-bg, rgba(0,0,0,0.2))",
                   color: "var(--text-primary)",
@@ -248,7 +248,7 @@ export const SecretSelector: React.FC<SecretSelectorProps> = ({
             </div>
             <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>
               Select a secret to insert{" "}
-              <code className="text-indigo-400">{"{{secrets.KEY}}"}</code>
+              <code className="text-primary">{"{{secrets.KEY}}"}</code>
             </p>
           </div>
 
@@ -335,7 +335,7 @@ export const SecretSelector: React.FC<SecretSelectorProps> = ({
                           </span>
                         </div>
                         <div className="flex items-center gap-2 mt-1">
-                          <code className="text-[10px] text-indigo-400">{`{{secrets.${secret.key}}}`}</code>
+                          <code className="text-[10px] text-primary">{`{{secrets.${secret.key}}}`}</code>
                         </div>
                         {secret.description && (
                           <p
@@ -362,7 +362,7 @@ export const SecretSelector: React.FC<SecretSelectorProps> = ({
               <button
                 type="button"
                 onClick={() => window.open("/dashboard/secrets", "_blank")}
-                className="text-[10px] text-indigo-400 hover:text-indigo-300 transition-colors"
+                className="text-[10px] text-primary hover:text-primary/80 transition-colors"
               >
                 Manage secrets →
               </button>

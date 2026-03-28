@@ -6,7 +6,7 @@ export const IntegrationsReel = () => {
     return (
         <section className="relative overflow-hidden py-32 bg-[#0B0B0F] border-t border-white/[0.02]">
             {/* Background Gradients */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[800px] h-[400px] bg-purple-600/10 rounded-full blur-[120px] pointer-events-none" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[800px] h-[400px] bg-accent-600/10 rounded-full blur-[120px] pointer-events-none" />
 
             <div className="max-w-4xl mx-auto px-6 text-center mb-16 relative z-10">
                 <h2 className="text-4xl md:text-5xl font-bold tracking-tight text-white mb-6">
@@ -35,7 +35,7 @@ export const IntegrationsReel = () => {
             </div>
 
             <div className="mt-16 text-center relative z-10">
-                <button className="bg-[#6B4BFF] hover:bg-[#5E40E3] text-white px-8 py-3 rounded-full font-medium transition-colors shadow-[0_0_20px_rgba(107,75,255,0.4)] hover:shadow-[0_0_30px_rgba(107,75,255,0.6)]">
+                <button className="bg-accent-500 hover:bg-accent-600 text-white px-8 py-3 rounded-full font-medium transition-colors shadow-glow hover:shadow-glow-lg">
                     Browse all integrations
                 </button>
             </div>

@@ -180,9 +180,9 @@ export default function SLAMonitorPage() {
         <div className="flex items-center gap-3">
           <div
             className="w-10 h-10 rounded-xl flex items-center justify-center"
-            style={{ background: "rgba(99, 102, 241, 0.12)" }}
+            style={{ background: "color-mix(in srgb, var(--primary) 12%, transparent)" }}
           >
-            <Activity className="w-5 h-5 text-indigo-400" />
+            <Activity className="w-5 h-5 text-primary" />
           </div>
           <div>
             <h1
@@ -246,7 +246,7 @@ export default function SLAMonitorPage() {
                           : "var(--text-secondary)",
                       background:
                         wf.id === selectedWorkflowId
-                          ? "rgba(99, 102, 241, 0.08)"
+                          ? "color-mix(in srgb, var(--primary) 8%, transparent)"
                           : "transparent",
                     }}
                   >

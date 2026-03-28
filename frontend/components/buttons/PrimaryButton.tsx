@@ -28,12 +28,12 @@ export const PrimaryButton = ({
 
   const variantClasses = {
     default:
-      "bg-[#1e9df1] hover:bg-[#1c9cf0] hover:shadow-glow hover:scale-105 active:scale-95",
+      "bg-primary hover:bg-primary hover:shadow-glow hover:scale-105 active:scale-95",
     gradient:
-      "bg-[#1e9df1] hover:bg-[#1c9cf0] hover:shadow-glow-lg hover:scale-105 active:scale-95",
-    dark: "bg-[#17181c] hover:shadow-strong hover:scale-105 active:scale-95",
+      "bg-primary hover:bg-primary hover:shadow-glow-lg hover:scale-105 active:scale-95",
+    dark: "bg-card hover:shadow-strong hover:scale-105 active:scale-95",
     outline:
-      "bg-transparent border-2 border-[#1e9df1] text-[#1e9df1] hover:bg-[#1e9df1] hover:text-white hover:shadow-glow hover:scale-105 active:scale-95",
+      "bg-transparent border-2 border-primary text-primary hover:bg-primary hover:text-white hover:shadow-glow hover:scale-105 active:scale-95",
   };
 
   const disabledClasses = "opacity-50 cursor-not-allowed pointer-events-none";

@@ -277,7 +277,7 @@ export default function ApiKeysPage() {
               resetForm();
               setShowCreateModal(true);
             }}
-            className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition-colors"
+            className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-primary hover:bg-primary/90 text-white text-sm font-medium transition-colors"
           >
             <Plus className="w-4 h-4" />
             <span>New API Key</span>
@@ -293,7 +293,7 @@ export default function ApiKeysPage() {
               placeholder="Search API keys..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+              className="w-full pl-10 pr-4 py-2 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
               style={{
                 background: "var(--bg-card)",
                 border: "1px solid var(--border-subtle)",
@@ -307,7 +307,7 @@ export default function ApiKeysPage() {
               type="checkbox"
               checked={showRevoked}
               onChange={(e) => setShowRevoked(e.target.checked)}
-              className="rounded focus:ring-1 focus:ring-indigo-500/50"
+              className="rounded focus:ring-1 focus:ring-primary/50"
             />
             <span>Show revoked</span>
           </label>
@@ -326,7 +326,7 @@ export default function ApiKeysPage() {
           className="mt-4 rounded-xl border p-4 text-sm"
           style={{
             borderColor: "var(--border-subtle)",
-            background: "rgba(99, 102, 241, 0.06)",
+            background: "color-mix(in srgb, var(--primary) 6%, transparent)",
           }}
         >
           <p className="font-medium mb-2" style={{ color: "var(--text-primary)" }}>
@@ -335,18 +335,18 @@ export default function ApiKeysPage() {
           <ul className="space-y-1.5 list-disc pl-4" style={{ color: "var(--text-muted)" }}>
             <li>
               Authenticate with{" "}
-              <code className="text-indigo-400 text-xs">X-Api-Key: ak_…</code> or{" "}
-              <code className="text-indigo-400 text-xs">Authorization: Bearer ak_…</code>{" "}
+              <code className="text-primary text-xs">X-Api-Key: ak_…</code> or{" "}
+              <code className="text-primary text-xs">Authorization: Bearer ak_…</code>{" "}
               (not your login JWT).
             </li>
             <li>
               <strong>EXECUTE</strong> — start/cancel/approve:{" "}
-              <code className="text-indigo-400 text-xs">POST …/execution/run/:workflowId</code>
+              <code className="text-primary text-xs">POST …/execution/run/:workflowId</code>
             </li>
             <li>
               <strong>READ</strong> — poll runs &amp; steps:{" "}
-              <code className="text-indigo-400 text-xs">GET …/execution/run/:runId</code>,{" "}
-              <code className="text-indigo-400 text-xs">/logs/:runId</code>, etc.
+              <code className="text-primary text-xs">GET …/execution/run/:runId</code>,{" "}
+              <code className="text-primary text-xs">/logs/:runId</code>, etc.
             </li>
             <li>
               Workspace-scoped keys can only access workflows in that workspace.
@@ -381,7 +381,7 @@ export default function ApiKeysPage() {
             return (
               <div
                 key={apiKey.id}
-                className="p-4 rounded-lg border transition-colors hover:border-indigo-500/30"
+                className="p-4 rounded-lg border transition-colors hover:border-primary/30"
                 style={{
                   background: "var(--bg-card)",
                   borderColor: apiKey.isRevoked ? "rgba(156,163,175,0.2)" : isExpiredValue ? "rgba(239,68,68,0.2)" : "var(--border-subtle)",
@@ -419,7 +419,7 @@ export default function ApiKeysPage() {
                         {apiKey.scopes.map((scope) => (
                           <span
                             key={scope}
-                            className="px-2 py-0.5 rounded text-[10px] font-medium bg-indigo-500/10 text-indigo-500"
+                            className="px-2 py-0.5 rounded text-[10px] font-medium bg-primary/10 text-primary"
                           >
                             {scope}
                           </span>
@@ -543,7 +543,7 @@ export default function ApiKeysPage() {
 
               <button
                 onClick={() => setNewKey(null)}
-                className="w-full mt-4 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition-colors"
+                className="w-full mt-4 px-4 py-2 rounded-lg bg-primary hover:bg-primary/90 text-white text-sm font-medium transition-colors"
               >
                 I&apos;ve copied the key
               </button>
@@ -602,7 +602,7 @@ export default function ApiKeysPage() {
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     placeholder="e.g., Production Integration"
-                    className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+                    className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
                     style={{
                       background: "var(--bg-elevated)",
                       border: "1px solid var(--border-subtle)",
@@ -622,7 +622,7 @@ export default function ApiKeysPage() {
                           type="checkbox"
                           checked={formData.scopes.includes(scope.value)}
                           onChange={() => toggleScope(scope.value)}
-                          className="mt-0.5 rounded focus:ring-1 focus:ring-indigo-500/50"
+                          className="mt-0.5 rounded focus:ring-1 focus:ring-primary/50"
                         />
                         <div className="flex-1">
                           <div className="flex items-center space-x-2">
@@ -650,7 +650,7 @@ export default function ApiKeysPage() {
                     <select
                       value={formData.expiresInDays}
                       onChange={(e) => setFormData({ ...formData, expiresInDays: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+                      className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
                       style={{
                         background: "var(--bg-elevated)",
                         border: "1px solid var(--border-subtle)",
@@ -682,7 +682,7 @@ export default function ApiKeysPage() {
                 <button
                   onClick={showCreateModal ? handleCreate : handleUpdate}
                   disabled={saving || !formData.name || formData.scopes.length === 0}
-                  className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition-colors disabled:opacity-50"
+                  className="px-4 py-2 rounded-lg bg-primary hover:bg-primary/90 text-white text-sm font-medium transition-colors disabled:opacity-50"
                 >
                   {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : showCreateModal ? "Create API Key" : "Update API Key"}
                 </button>

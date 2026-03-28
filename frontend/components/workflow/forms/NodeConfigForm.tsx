@@ -85,7 +85,7 @@ export const NodeConfigForm: React.FC<NodeConfigFormProps> = ({
   };
 
   const inputBaseClass =
-    "w-full px-3 py-2 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/40 transition-all";
+    "w-full px-3 py-2 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all";
 
   // Filter fields based on showWhen conditions
   const visibleFields = fields.filter((field) => {
@@ -473,7 +473,7 @@ function GoogleAccountField({
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px]">
         <Link
           href="/dashboard/integrations/google"
-          className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2"
+          className="text-primary hover:text-primary/80 underline underline-offset-2"
         >
           Connect Google account…
         </Link>
@@ -654,7 +654,7 @@ function JsonEditor({
           "w-full px-3 py-2 rounded-lg text-xs font-mono focus:outline-none focus:ring-2 transition-all resize-none leading-relaxed",
           hasError
             ? "focus:ring-red-500/40 border-red-500/50"
-            : "focus:ring-indigo-500/40",
+            : "focus:ring-primary/40",
         )}
         style={{
           background: "var(--code-bg, rgba(0,0,0,0.2))",
@@ -796,14 +796,14 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
                   style={{
                     color: "var(--text-primary)",
                     background: isSelected
-                      ? "rgba(99,102,241,0.08)"
+                      ? "color-mix(in srgb, var(--primary) 8%, transparent)"
                       : "transparent",
                   }}
                 >
                   <span>{option.label}</span>
                   {isSelected && (
-                    <div className="w-4 h-4 rounded bg-indigo-500/20 flex items-center justify-center">
-                      <Plus className="w-2.5 h-2.5 text-indigo-400 rotate-45" />
+                    <div className="w-4 h-4 rounded bg-primary/20 flex items-center justify-center">
+                      <Plus className="w-2.5 h-2.5 text-primary rotate-45" />
                     </div>
                   )}
                 </button>

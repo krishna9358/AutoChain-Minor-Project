@@ -77,9 +77,9 @@ export const ZapCell = ({
       return "bg-slate-100";
     }
     if (isTrigger) {
-      return "bg-[#1e9df1]";
+      return "bg-primary";
     }
-    return "bg-[#1e9df1]";
+    return "bg-primary";
   };
 
   const getIcon = () => {
@@ -169,14 +169,14 @@ export const ZapCell = ({
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: "100%" }}
-          className="absolute bottom-0 left-0 h-1 bg-[#1e9df1]"
+          className="absolute bottom-0 left-0 h-1 bg-primary"
         />
       )}
 
       {/* Hover glow effect */}
       <div
         className={`
-        absolute inset-0 bg-[#1e9df1] opacity-0 group-hover:opacity-5
+        absolute inset-0 bg-primary opacity-0 group-hover:opacity-5
         transition-opacity duration-300 pointer-events-none
       `}
       />
@@ -290,7 +290,7 @@ export const CompactZapCell = ({
     >
       <div
         className={`
-        w-10 h-10 rounded-lg ${isEmpty ? "bg-slate-100" : "bg-[#1e9df1]"}
+        w-10 h-10 rounded-lg ${isEmpty ? "bg-slate-100" : "bg-primary"}
         flex items-center justify-center transition-all duration-300 group-hover:scale-110
       `}
       >

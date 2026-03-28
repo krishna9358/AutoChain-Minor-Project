@@ -93,10 +93,10 @@ export interface WorkflowActions {
 export type WorkflowStore = WorkflowState & WorkflowActions;
 
 // ─── Default edge style ─────────────────────────────────────────
-const EDGE_STYLE = { stroke: "#6366f1", strokeWidth: 2 };
+const EDGE_STYLE = { stroke: "hsl(var(--primary))", strokeWidth: 2 };
 const EDGE_MARKER = {
   type: MarkerType.ArrowClosed as const,
-  color: "#6366f1",
+  color: "hsl(var(--primary))",
   width: 14,
   height: 14,
 };

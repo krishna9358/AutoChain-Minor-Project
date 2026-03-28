@@ -54,7 +54,7 @@ const features = [
     title: "AI-Powered Generation",
     description:
       "Describe your workflow in plain English and let AI create it for you instantly.",
-    color: "from-purple-500 to-pink-500",
+    color: "from-accent-500 to-pink-500",
   },
   {
     icon: Bot,
@@ -75,13 +75,13 @@ const features = [
     title: "Enterprise Security",
     description:
       "JWT authentication, workspace isolation, RBAC, and comprehensive audit trails.",
-    color: "from-indigo-500 to-blue-500",
+    color: "from-primary to-secondary-500",
   },
   {
     icon: ZapIcon,
     title: "Scalable Architecture",
     description:
-      "Kafka-based event processing with distributed workers for maximum performance.",
+      "Event-driven processing with distributed workers for maximum performance.",
     color: "from-yellow-500 to-orange-500",
   },
 ];
@@ -157,7 +157,7 @@ export default function LandingPage() {
       <div className="fixed inset-0 -z-10">
         <div className="absolute inset-0 bg-grid-pattern opacity-[0.02]" />
         <div className="absolute top-0 -left-4 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 -right-4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 -right-4 w-96 h-96 bg-accent/10 rounded-full blur-3xl" />
       </div>
 
       {/* Navigation */}

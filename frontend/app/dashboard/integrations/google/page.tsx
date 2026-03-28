@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Cloud,
   Loader2,
   Trash2,
   CheckCircle2,
@@ -12,6 +11,7 @@ import {
   Save,
   KeyRound,
 } from "lucide-react";
+import { GoogleLogo } from "@/components/workflow/icons/ServiceLogos";
 import { BACKEND_URL } from "@/app/config";
 import { getAuthHeaders } from "@/lib/auth-token";
 import { useWorkspace } from "@/components/providers/WorkspaceProvider";
@@ -208,7 +208,7 @@ export default function GoogleIntegrationsPage() {
   };
 
   const inputClass =
-    "w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40 border border-white/10 bg-black/20 text-[var(--text-primary)]";
+    "w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 border transition-colors border-[var(--border-medium)] bg-[var(--input-bg)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)]";
 
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-6">
@@ -217,7 +217,7 @@ export default function GoogleIntegrationsPage() {
           className="p-2.5 rounded-xl border"
           style={{ borderColor: "var(--border-subtle)", background: "var(--bg-card)" }}
         >
-          <Cloud className="w-6 h-6 text-indigo-400" />
+          <GoogleLogo className="w-6 h-6" />
         </div>
         <div>
           <h1 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
@@ -272,7 +272,7 @@ export default function GoogleIntegrationsPage() {
                   href="https://console.cloud.google.com/apis/credentials"
                   target="_blank"
                   rel="noreferrer"
-                  className="text-indigo-400 underline"
+                  className="text-primary underline"
                 >
                   Google Cloud Console → APIs & Services → Credentials
                 </a>
@@ -335,7 +335,8 @@ export default function GoogleIntegrationsPage() {
                   type="button"
                   disabled={savingApp}
                   onClick={saveAppSettings}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 text-white"
+                  style={{ background: "hsl(var(--primary))" }}
                 >
                   {savingApp ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                   Save OAuth settings
@@ -380,7 +381,8 @@ export default function GoogleIntegrationsPage() {
               type="button"
               disabled={connecting || !wsId}
               onClick={startConnect}
-              className="px-4 py-2 rounded-lg text-sm font-medium bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:pointer-events-none text-white"
+              className="px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-40 disabled:pointer-events-none text-white"
+              style={{ background: "hsl(var(--primary))" }}
             >
               {connecting ? (
                 <span className="inline-flex items-center gap-2">
@@ -417,7 +419,7 @@ export default function GoogleIntegrationsPage() {
             </div>
             {loading ? (
               <div className="p-8 flex justify-center">
-                <Loader2 className="w-6 h-6 animate-spin text-indigo-400" />
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
               </div>
             ) : connections.length === 0 ? (
               <p className="p-6 text-sm" style={{ color: "var(--text-muted)" }}>
@@ -457,7 +459,7 @@ export default function GoogleIntegrationsPage() {
 
           <p className="text-xs flex items-center gap-1" style={{ color: "var(--text-muted)" }}>
             <ExternalLink className="w-3 h-3" />
-            In the workflow editor, pick <strong className="text-indigo-400">Connected Google account</strong> on Calendar /
+            In the workflow editor, pick <strong className="text-primary">Connected Google account</strong> on Calendar /
             Meet / Docs / Sheets nodes and choose one of these connections.
           </p>
         </>

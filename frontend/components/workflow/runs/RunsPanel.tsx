@@ -175,7 +175,7 @@ export const RunsPanel: React.FC<RunsPanelProps> = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search runs..."
-              className="w-full pl-10 pr-3 py-2 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+              className="w-full pl-10 pr-3 py-2 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-primary/50"
               style={{ background: "var(--input-bg)", border: "1px solid var(--input-border)", color: "var(--text-primary)" }}
             />
           </div>
@@ -186,7 +186,7 @@ export const RunsPanel: React.FC<RunsPanelProps> = ({
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="flex-1 px-2 py-1.5 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500/50 appearance-none cursor-pointer"
+              className="flex-1 px-2 py-1.5 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-primary/50 appearance-none cursor-pointer"
               style={{ background: "var(--input-bg)", border: "1px solid var(--input-border)", color: "var(--text-primary)" }}
             >
               <option value="all">All Status</option>
@@ -214,11 +214,11 @@ export const RunsPanel: React.FC<RunsPanelProps> = ({
                 key={run.id}
                 onClick={() => onRunSelect(run)}
                 className={`w-full text-left p-3 rounded-lg border transition-all ${
-                  activeRun?.id === run.id ? "ring-2 ring-indigo-500/20" : ""
+                  activeRun?.id === run.id ? "ring-2 ring-primary/20" : ""
                 }`}
                 style={{
-                  background: activeRun?.id === run.id ? "rgba(99,102,241,0.05)" : "var(--bg-card)",
-                  borderColor: activeRun?.id === run.id ? "rgba(99,102,241,0.2)" : "var(--border-subtle)",
+                  background: activeRun?.id === run.id ? "color-mix(in srgb, var(--primary) 5%, transparent)" : "var(--bg-card)",
+                  borderColor: activeRun?.id === run.id ? "color-mix(in srgb, var(--primary) 20%, transparent)" : "var(--border-subtle)",
                 }}
               >
                 <div className="flex items-start justify-between mb-2">
@@ -342,7 +342,7 @@ export const RunsPanel: React.FC<RunsPanelProps> = ({
                       const isSelected = selectedStep?.id === step.id;
 
                       return (
-                        <div key={step.id} className="rounded-lg border overflow-hidden" style={{ background: "var(--bg-card)", borderColor: isSelected ? "rgba(99,102,241,0.2)" : "var(--border-subtle)" }}>
+                        <div key={step.id} className="rounded-lg border overflow-hidden" style={{ background: "var(--bg-card)", borderColor: isSelected ? "color-mix(in srgb, var(--primary) 20%, transparent)" : "var(--border-subtle)" }}>
                           {/* Step Header */}
                           <button
                             onClick={() => {

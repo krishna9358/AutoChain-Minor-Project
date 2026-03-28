@@ -55,7 +55,7 @@ const WorkflowExplanation: React.FC<WorkflowExplanationProps> = ({
     <div className="w-full">
       {/* Header */}
       <div className="mb-8 text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[#1e9df1] mb-4 shadow-lg">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary mb-4 shadow-lg">
           <Brain className="w-8 h-8 text-white" />
         </div>
         <h2 className="text-3xl font-bold text-slate-800 mb-2">
@@ -77,14 +77,14 @@ const WorkflowExplanation: React.FC<WorkflowExplanationProps> = ({
           <span className="text-sm font-semibold text-slate-600">
             Progress
           </span>
-          <span className="text-sm font-semibold text-purple-600">
+          <span className="text-sm font-semibold text-accent-600">
             {currentStep + 1} of {steps.length} steps
           </span>
         </div>
         <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
           <div
             className={cn(
-              "h-full bg-[#1e9df1] transition-all duration-500 ease-out",
+              "h-full bg-primary transition-all duration-500 ease-out",
               isAnimating && "animate-pulse"
             )}
             style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
@@ -119,7 +119,7 @@ const WorkflowExplanation: React.FC<WorkflowExplanationProps> = ({
                   <div
                     className={cn(
                       "w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-lg transition-all",
-                      isActive ? "scale-110 ring-4 ring-purple-200" : "",
+                      isActive ? "scale-110 ring-4 ring-accent-200" : "",
                       isCompleted ? "bg-green-500" : step.iconBgColor
                     )}
                   >
@@ -131,7 +131,7 @@ const WorkflowExplanation: React.FC<WorkflowExplanationProps> = ({
                   </div>
                   {/* Glow effect for active step */}
                   {isActive && (
-                    <div className="absolute inset-0 rounded-xl bg-[#1e9df1] blur-xl opacity-30 animate-pulse" />
+                    <div className="absolute inset-0 rounded-xl bg-primary blur-xl opacity-30 animate-pulse" />
                   )}
                 </div>
 
@@ -139,7 +139,7 @@ const WorkflowExplanation: React.FC<WorkflowExplanationProps> = ({
                 <div className="flex-1 bg-white rounded-xl border-2 p-4 shadow-sm hover:shadow-md transition-all">
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center space-x-2">
-                      <span className="text-xs font-semibold text-purple-600 bg-purple-50 px-2 py-1 rounded-full">
+                      <span className="text-xs font-semibold text-accent-600 bg-accent-50 px-2 py-1 rounded-full">
                         Step {step.step}
                       </span>
                       {isCompleted && (
@@ -168,7 +168,7 @@ const WorkflowExplanation: React.FC<WorkflowExplanationProps> = ({
                   {/* AI Insight Badge */}
                   {isActive && (
                     <div className="mt-3 pt-3 border-t border-slate-100">
-                      <div className="flex items-center space-x-2 text-xs text-purple-600">
+                      <div className="flex items-center space-x-2 text-xs text-accent-600">
                         <Brain className="w-4 h-4" />
                         <span className="font-medium">AI Insight</span>
                       </div>
@@ -213,7 +213,7 @@ const WorkflowExplanation: React.FC<WorkflowExplanationProps> = ({
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-white rounded-lg p-4 text-center shadow-sm">
-                <div className="text-2xl font-bold text-purple-600">{steps.length}</div>
+                <div className="text-2xl font-bold text-accent-600">{steps.length}</div>
                 <div className="text-xs text-slate-600 mt-1">Total Steps</div>
               </div>
               <div className="bg-white rounded-lg p-4 text-center shadow-sm">
@@ -239,7 +239,7 @@ const WorkflowExplanation: React.FC<WorkflowExplanationProps> = ({
 
       {/* Tip Section */}
       <div className="mt-8 max-w-3xl mx-auto">
-        <div className="bg-[#e3ecf6] rounded-xl border border-blue-200 p-4">
+        <div className="bg-accent rounded-xl border border-blue-200 p-4">
           <div className="flex items-start space-x-3">
             <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center text-white shrink-0">
               <Lightbulb className="w-5 h-5" />
@@ -273,13 +273,13 @@ export const generateWorkflowSteps = (nodes: any[]): WorkflowStep[] => {
     'if-condition': { icon: GitFork, color: '#10b981', bgColor: 'bg-emerald-500' },
     'switch-case': { icon: GitBranch, color: '#10b981', bgColor: 'bg-emerald-500' },
     'loop': { icon: RefreshCw, color: '#10b981', bgColor: 'bg-emerald-500' },
-    'ai-agent': { icon: Brain, color: '#8b5cf6', bgColor: 'bg-purple-500' },
-    'text-transform': { icon: FileText, color: '#8b5cf6', bgColor: 'bg-purple-500' },
+    'ai-agent': { icon: Brain, color: '#8b5cf6', bgColor: 'bg-accent-500' },
+    'text-transform': { icon: FileText, color: '#8b5cf6', bgColor: 'bg-accent-500' },
     'delay': { icon: Clock, color: '#6b7280', bgColor: 'bg-gray-500' },
     'error-handler': { icon: ShieldAlert, color: '#6b7280', bgColor: 'bg-gray-500' },
     'approval': { icon: CheckCircle2, color: '#6b7280', bgColor: 'bg-gray-500' },
-    'artifact-writer': { icon: Archive, color: '#6366f1', bgColor: 'bg-indigo-500' },
-    'webhook-response': { icon: Send, color: '#6366f1', bgColor: 'bg-indigo-500' },
+    'artifact-writer': { icon: Archive, color: 'hsl(var(--primary))', bgColor: 'bg-primary' },
+    'webhook-response': { icon: Send, color: 'hsl(var(--primary))', bgColor: 'bg-primary' },
   };
 
   return nodes.map((node, index) => {

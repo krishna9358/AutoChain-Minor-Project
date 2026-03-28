@@ -264,10 +264,10 @@ export default function DecisionTrailPage() {
                     className="w-full text-left p-3 rounded-lg border transition-colors"
                     style={{
                       background: isActive
-                        ? "rgba(99, 102, 241, 0.08)"
+                        ? "var(--primary-alpha-08)"
                         : "var(--bg-card)",
                       borderColor: isActive
-                        ? "rgba(99, 102, 241, 0.35)"
+                        ? "var(--primary-alpha-35)"
                         : "var(--border-subtle)",
                     }}
                   >
@@ -371,8 +371,8 @@ export default function DecisionTrailPage() {
                 </div>
                 <div className="flex items-center space-x-6">
                   <div className="flex items-center space-x-2">
-                    <div className="p-1.5 rounded-md bg-indigo-500/10">
-                      <Brain className="w-3.5 h-3.5 text-indigo-400" />
+                    <div className="p-1.5 rounded-md bg-primary/10">
+                      <Brain className="w-3.5 h-3.5 text-primary" />
                     </div>
                     <div>
                       <p
@@ -489,7 +489,7 @@ export default function DecisionTrailPage() {
                                   ? "rgb(245, 158, 11)"
                                   : decision.status === "COMPLETED"
                                     ? "rgb(16, 185, 129)"
-                                    : "rgb(99, 102, 241)",
+                                    : "hsl(var(--primary))",
                               borderColor: "var(--bg-secondary)",
                             }}
                           />
@@ -515,10 +515,10 @@ export default function DecisionTrailPage() {
                             <div className="flex items-start justify-between">
                               <div className="flex items-start space-x-3 flex-1 min-w-0">
                                 <div
-                                  className={`p-2 rounded-lg shrink-0 ${isFallback ? "bg-amber-500/10" : isFailed ? "bg-red-500/10" : "bg-indigo-500/10"}`}
+                                  className={`p-2 rounded-lg shrink-0 ${isFallback ? "bg-amber-500/10" : isFailed ? "bg-red-500/10" : "bg-primary/10"}`}
                                 >
                                   <Bot
-                                    className={`w-4 h-4 ${isFallback ? "text-amber-400" : isFailed ? "text-red-400" : "text-indigo-400"}`}
+                                    className={`w-4 h-4 ${isFallback ? "text-amber-400" : isFailed ? "text-red-400" : "text-primary"}`}
                                   />
                                 </div>
 

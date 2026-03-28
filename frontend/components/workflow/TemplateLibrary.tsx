@@ -144,8 +144,8 @@ function buildPreviewFlow(template: TemplatePreview): { nodes: Node[]; edges: Ed
       source: e.source,
       target: e.target,
       animated: false,
-      style: { stroke: "#1e9df1", strokeWidth: 1.5 },
-      markerEnd: { type: MarkerType.ArrowClosed, color: "#1e9df1", width: 10, height: 10 },
+      style: { stroke: "hsl(var(--primary))", strokeWidth: 1.5 },
+      markerEnd: { type: MarkerType.ArrowClosed, color: "hsl(var(--primary))", width: 10, height: 10 },
     }));
 
   return { nodes, edges };
@@ -249,7 +249,7 @@ const TemplateLibrary: React.FC<TemplateLibraryProps> = ({
       {/* Header */}
       <div className="mb-6">
         <h2 className="text-2xl font-bold flex items-center gap-3" style={{ color: "var(--text-primary)" }}>
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "var(--primary, #1e9df1)" }}>
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "hsl(var(--primary))" }}>
             <Sparkles className="w-5 h-5 text-white" />
           </div>
           Template Library
@@ -269,7 +269,7 @@ const TemplateLibrary: React.FC<TemplateLibraryProps> = ({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm focus:outline-none transition-colors"
-            style={{ background: "var(--input-bg, var(--input))", borderColor: "var(--border)", color: "var(--text-primary)" }}
+            style={{ background: "var(--input-bg, var(--input))", borderColor: "hsl(var(--border))", color: "var(--text-primary)" }}
           />
           {searchQuery && (
             <button onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -280,7 +280,7 @@ const TemplateLibrary: React.FC<TemplateLibraryProps> = ({
         <button
           onClick={() => fileInputRef.current?.click()}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-all hover:opacity-80"
-          style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
+          style={{ borderColor: "hsl(var(--border))", color: "var(--text-secondary)" }}
         >
           <FileUp className="w-4 h-4" />
           Import YAML
@@ -319,7 +319,7 @@ const TemplateLibrary: React.FC<TemplateLibraryProps> = ({
               onClick={() => setActiveCategory(cat.id)}
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all"
               style={{
-                background: isActive ? "var(--primary, #1e9df1)" : "transparent",
+                background: isActive ? "hsl(var(--primary))" : "transparent",
                 color: isActive ? "#fff" : "var(--text-muted)",
                 border: isActive ? "none" : "1px solid var(--border)",
               }}
@@ -342,7 +342,7 @@ const TemplateLibrary: React.FC<TemplateLibraryProps> = ({
           {filteredTemplates.map((template) => {
             const Icon = resolveIcon(template.icon);
             const diff = DIFFICULTY_COLORS[template.preview?.difficulty || "beginner"];
-            const previewColor = template.preview?.color || "#1e9df1";
+            const previewColor = template.preview?.color || "hsl(var(--primary))";
             return (
               <motion.div
                 key={template.id}
@@ -381,14 +381,14 @@ const TemplateLibrary: React.FC<TemplateLibraryProps> = ({
                     <button
                       onClick={(e) => { e.stopPropagation(); setSelectedTemplate(template); }}
                       className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-white text-xs font-semibold transition-colors hover:opacity-90"
-                      style={{ background: "var(--primary, #1e9df1)" }}
+                      style={{ background: "hsl(var(--primary))" }}
                     >
                       <Play className="w-3.5 h-3.5" />Use Template
                     </button>
                     <button
                       onClick={(e) => handleExportTemplate(template, e)}
                       className="p-2 rounded-lg border transition-all hover:opacity-80"
-                      style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}
+                      style={{ borderColor: "hsl(var(--border))", color: "var(--text-muted)" }}
                       title="Export as YAML"
                     >
                       <FileDown className="w-3.5 h-3.5" />
@@ -419,13 +419,13 @@ const TemplateLibrary: React.FC<TemplateLibraryProps> = ({
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               className="rounded-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto shadow-2xl border"
-              style={{ background: "var(--bg-card, #17181c)", borderColor: "var(--border)" }}
+              style={{ background: "var(--bg-card, #17181c)", borderColor: "hsl(var(--border))" }}
               onClick={(e) => e.stopPropagation()}
             >
               {(() => {
                 const Icon = resolveIcon(selectedTemplate.icon);
                 const diff = DIFFICULTY_COLORS[selectedTemplate.preview?.difficulty || "beginner"];
-                const previewColor = selectedTemplate.preview?.color || "#1e9df1";
+                const previewColor = selectedTemplate.preview?.color || "hsl(var(--primary))";
                 return (
                   <div>
                     <div className="w-full h-[200px] rounded-t-2xl overflow-hidden" style={{ background: "var(--bg-primary, #000)" }}>
@@ -490,7 +490,7 @@ const TemplateLibrary: React.FC<TemplateLibraryProps> = ({
                         <div className="space-y-2">
                           {selectedTemplate.nodes?.filter((n) => !["chat-model", "agent-memory", "agent-tool"].includes(n.type)).map((node, idx) => (
                             <div key={node.id} className="flex items-start gap-2.5">
-                              <div className="w-6 h-6 rounded flex items-center justify-center text-[10px] font-bold shrink-0" style={{ background: "var(--accent, #061622)", color: "var(--primary, #1e9df1)" }}>{idx + 1}</div>
+                              <div className="w-6 h-6 rounded flex items-center justify-center text-[10px] font-bold shrink-0" style={{ background: "var(--accent, #061622)", color: "hsl(var(--primary))" }}>{idx + 1}</div>
                               <div>
                                 <div className="text-xs font-medium" style={{ color: "var(--text-primary)" }}>{node.name}</div>
                                 <div className="text-[11px]" style={{ color: "var(--text-muted)" }}>{node.description}</div>
@@ -505,10 +505,10 @@ const TemplateLibrary: React.FC<TemplateLibraryProps> = ({
                         ))}
                       </div>
                       <div className="flex gap-3">
-                        <button onClick={handleUseTemplate} className="flex-1 text-white font-semibold py-2.5 px-5 rounded-xl transition-all flex items-center justify-center gap-2 text-sm hover:opacity-90" style={{ background: "var(--primary, #1e9df1)" }}>
+                        <button onClick={handleUseTemplate} className="flex-1 text-white font-semibold py-2.5 px-5 rounded-xl transition-all flex items-center justify-center gap-2 text-sm hover:opacity-90" style={{ background: "hsl(var(--primary))" }}>
                           <Play className="w-4 h-4" />Use This Template
                         </button>
-                        <button onClick={(e) => handleExportTemplate(selectedTemplate, e)} className="px-5 py-2.5 rounded-xl border transition-all flex items-center gap-2 text-sm font-medium hover:opacity-80" style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}>
+                        <button onClick={(e) => handleExportTemplate(selectedTemplate, e)} className="px-5 py-2.5 rounded-xl border transition-all flex items-center gap-2 text-sm font-medium hover:opacity-80" style={{ borderColor: "hsl(var(--border))", color: "var(--text-secondary)" }}>
                           <FileDown className="w-4 h-4" />Export
                         </button>
                       </div>

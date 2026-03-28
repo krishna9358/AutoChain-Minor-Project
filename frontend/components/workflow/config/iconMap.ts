@@ -142,7 +142,7 @@ export const CATEGORY_COLORS: Record<string, { color: string; bg: string }> = {
   ai: { color: "#8b5cf6", bg: "rgba(139,92,246,0.1)" },
   logic: { color: "#10b981", bg: "rgba(16,185,129,0.1)" },
   control: { color: "#6b7280", bg: "rgba(107,114,128,0.1)" },
-  output: { color: "#6366f1", bg: "rgba(99,102,241,0.1)" },
+  output: { color: "hsl(var(--primary))", bg: "color-mix(in srgb, var(--primary) 10%, transparent)" },
   core: { color: "#3b82f6", bg: "rgba(59,130,246,0.1)" },
 };
 
