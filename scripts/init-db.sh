@@ -27,7 +27,7 @@ echo "✅ Extensions created successfully"
 # Create initial tables for the outbox pattern (if not created by Prisma)
 echo "📝 Creating outbox pattern tables..."
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
-    -- Outbox table for events that need to be published to Kafka
+    -- Outbox table for events that need to be processed
     CREATE TABLE IF NOT EXISTS outbox_events (
         id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
         aggregate_type VARCHAR(255) NOT NULL,
@@ -63,18 +63,9 @@ EOSQL
 
 echo "✅ Outbox pattern tables created successfully"
 
-# Create Kafka-related tables for tracking offsets and processing status
-echo "📝 Creating Kafka tracking tables..."
+# Create webhook and tracking tables
+echo "📝 Creating webhook tracking tables..."
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
-    -- Kafka consumer offsets tracking
-    CREATE TABLE IF NOT EXISTS kafka_consumer_offsets (
-        consumer_group VARCHAR(255) PRIMARY KEY,
-        topic VARCHAR(255) NOT NULL,
-        partition INTEGER NOT NULL,
-        offset BIGINT NOT NULL,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-    );
-
     -- Webhook tracking table
     CREATE TABLE IF NOT EXISTS webhooks (
         id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -107,7 +98,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
         ON webhook_deliveries (status, created_at DESC);
 EOSQL
 
-echo "✅ Kafka tracking tables created successfully"
+echo "✅ Webhook tracking tables created successfully"
 
 # Create performance monitoring tables
 echo "📝 Creating performance monitoring tables..."
@@ -191,31 +182,6 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 EOSQL
 
 echo "✅ Permissions set successfully"
-
-# Create initial Kafka topics (this would normally be done by Kafka, but we store metadata)
-echo "📝 Setting up Kafka topics metadata..."
-psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
-    -- Kafka topics metadata
-    CREATE TABLE IF NOT EXISTS kafka_topics (
-        name VARCHAR(255) PRIMARY KEY,
-        partitions INTEGER DEFAULT 3,
-        replication_factor INTEGER DEFAULT 1,
-        retention_ms BIGINT DEFAULT 604800000, -- 7 days
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-    );
-
-    -- Insert default topics
-    INSERT INTO kafka_topics (name, partitions, replication_factor) VALUES
-        ('workflow.events', 3, 1),
-        ('workflow.actions', 3, 1),
-        ('workflow.approvals', 3, 1),
-        ('webhook.events', 5, 1),
-        ('system.metrics', 3, 1)
-    ON CONFLICT (name) DO NOTHING;
-EOSQL
-
-echo "✅ Kafka topics metadata set up successfully"
 
 echo ""
 echo "🎉 Database initialization completed successfully!"

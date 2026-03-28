@@ -23,72 +23,6 @@ services:
     networks:
       - autochain-network
 
-  # ─── Kafka (for scalable event processing) ───────────────────────────────
-  zookeeper:
-    image: confluentinc/cp-zookeeper:7.6.0
-    container_name: autochain-zookeeper
-    restart: unless-stopped
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-    ports:
-      - "2181:2181"
-    volumes:
-      - zkdata:/var/lib/zookeeper/data
-      - zklogs:/var/lib/zookeeper/log
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-    healthcheck:
-      test: ["CMD-SHELL", "echo srvr | nc localhost 2181 | grep -q Mode"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
-    networks:
-      - autochain-network
-
-  kafka:
-    image: confluentinc/cp-kafka:7.6.0
-    container_name: autochain-kafka
-    restart: unless-stopped
-    depends_on:
-      zookeeper:
-        condition: service_healthy
-    environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-    ports:
-      - "9092:9092"
-      - "9094:9094"
-    volumes:
-      - kafkadata:/var/lib/kafka/data
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "kafka-topics",
-          "--bootstrap-server",
-          "localhost:9092",
-          "--list",
-        ]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
-    networks:
-      - autochain-network
-
   # ─── Backend API ────────────────────────────────────────────────────────
   backend:
     build:
@@ -102,7 +36,6 @@ services:
       DATABASE_URL: postgresql://postgres:autochain_dev@postgres:5432/autochain
       JWT_SECRET: autochain-dev-secret-key
       PORT: "3001"
-      KAFKA_BROKER: kafka:9092
       NODE_ENV: development
       ENCRYPTION_KEY: autochain-dev-encryption-key-32ch
     ports:
@@ -115,8 +48,6 @@ services:
       - backend_dist:/app/dist
     depends_on:
       postgres:
-        condition: service_healthy
-      kafka:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:3001/health"]
@@ -166,12 +97,6 @@ services:
 
 volumes:
   pgdata:
-    driver: local
-  kafkadata:
-    driver: local
-  zkdata:
-    driver: local
-  zklogs:
     driver: local
   backend_node_modules:
     driver: local

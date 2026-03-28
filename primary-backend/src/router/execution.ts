@@ -1615,7 +1615,7 @@ router.get("/events/:runId", dualAuthMiddleware([ApiScope.READ]), async (req: Au
   });
 
   // In a real implementation with a proper execution engine:
-  // - Subscribe to the run's event stream from a message queue (Kafka, Redis, etc.)
+  // - Subscribe to the run's event stream from a message queue (Redis, etc.)
   // - Forward events to the client as they arrive
   // - Monitor for connection closure and clean up subscriptions
   // - Send periodic keep-alive comments

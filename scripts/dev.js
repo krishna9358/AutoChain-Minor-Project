@@ -68,7 +68,6 @@ const services = [
     port: 5432,
     healthCheck: "pg_isready",
   },
-  { name: "kafka", label: "Kafka", port: 9094, healthCheck: "kafka-topics" },
   {
     name: "backend",
     label: "Backend API",
@@ -89,7 +88,6 @@ const envTemplates = {
     DATABASE_URL: "postgresql://postgres:autochain_dev@postgres:5432/autochain",
     JWT_SECRET: "autochain-dev-secret-key",
     PORT: "3001",
-    KAFKA_BROKER: "kafka:9092",
     NODE_ENV: "development",
   },
   frontend: {
@@ -241,12 +239,6 @@ function cmdUp() {
     );
     console.log(
       colorize(
-        "  │ 📨 Kafka Broker      : " + "localhost:9092, localhost:9094 ",
-        "green",
-      ) + "│",
-    );
-    console.log(
-      colorize(
         "  └─────────────────────────────────────────────────────────┘",
         "cyan",
       ),
@@ -259,15 +251,7 @@ function cmdUp() {
     console.log(
       "  • Backend        : REST API for workflows, secrets, API keys",
     );
-    console.log(
-      "  • Hooks          : Receives external webhooks & forwards to Kafka",
-    );
-    console.log("  • Processor      : Reads DB changes and publishes to Kafka");
-    console.log(
-      "  • Worker         : Consumes Kafka events and executes actions",
-    );
     console.log("  • PostgreSQL     : Persists workflows, secrets, API keys");
-    console.log("  • Kafka          : Event streaming between microservices");
     console.log("");
     log("⚡ QUICK COMMANDS:", "yellow");
     console.log("  • View logs      : node scripts/dev.js logs");
