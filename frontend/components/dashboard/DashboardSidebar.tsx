@@ -8,12 +8,12 @@ import {
   Archive,
   ChevronLeft,
   ChevronRight,
-  Cloud,
   FileSearch,
   Key,
   KeyRound,
   LayoutDashboard,
   Library,
+  Plug,
   ScrollText,
 } from "lucide-react";
 
@@ -43,10 +43,10 @@ export function DashboardSidebar() {
       match: (p: string) => p.startsWith("/dashboard/secrets"),
     },
     {
-      href: "/dashboard/integrations/google",
-      label: "Google",
-      Icon: Cloud,
-      match: (p: string) => p.startsWith("/dashboard/integrations/google"),
+      href: "/dashboard/integrations",
+      label: "Integrations",
+      Icon: Plug,
+      match: (p: string) => p.startsWith("/dashboard/integrations"),
     },
     {
       href: "/dashboard/api-keys",
@@ -89,7 +89,7 @@ export function DashboardSidebar() {
         style={{ borderColor: "var(--border-subtle)" }}
       >
         <Library
-          className="w-4 h-4 shrink-0 text-indigo-400"
+          className="w-4 h-4 shrink-0 text-primary"
           aria-hidden
         />
         {!collapsed && (
@@ -103,7 +103,7 @@ export function DashboardSidebar() {
         <button
           type="button"
           onClick={() => setCollapsed(!collapsed)}
-          className="ml-auto p-1.5 rounded-lg hover:bg-white/5 transition-colors"
+          className="ml-auto p-1.5 rounded-lg hover:bg-[var(--bg-hover)] transition-colors"
           style={{ color: "var(--text-muted)" }}
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           aria-expanded={!collapsed}
@@ -126,11 +126,11 @@ export function DashboardSidebar() {
               title={collapsed ? label : undefined}
               className="flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors"
               style={{
-                background: active ? "rgba(99, 102, 241, 0.12)" : "transparent",
+                background: active ? "color-mix(in srgb, var(--primary) 15%, transparent)" : "transparent",
                 color: active
                   ? "var(--text-primary)"
                   : "var(--text-secondary)",
-                border: active ? "1px solid rgba(99,102,241,0.35)" : "1px solid transparent",
+                border: active ? "1px solid color-mix(in srgb, var(--primary) 40%, transparent)" : "1px solid transparent",
               }}
             >
               <Icon className="w-4 h-4 shrink-0 opacity-90" />

@@ -54,7 +54,7 @@ export default function AIAgentNode({ data, isConnectable }: NodeProps) {
           id="input"
           className="!w-3 !h-3 !border-2 !rounded-full"
           style={{
-            background: "#8b5cf6",
+            background: "hsl(var(--primary))",
             borderColor: "var(--bg-card, #1e1e2e)",
             left: -7,
             top: "50%",
@@ -79,8 +79,8 @@ export default function AIAgentNode({ data, isConnectable }: NodeProps) {
 
         {/* Node content */}
         <div className="p-3 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-[#8b5cf618]">
-            <Bot className="w-5 h-5 text-[#8b5cf6]" />
+          <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-accent-500/10">
+            <Bot className="w-5 h-5 text-accent-500" />
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold truncate" style={{ color: "var(--text-primary)" }}>

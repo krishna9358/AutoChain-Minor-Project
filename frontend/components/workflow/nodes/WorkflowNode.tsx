@@ -19,6 +19,7 @@ type WorkflowNodeData = {
   config?: Record<string, any>;
   selected?: boolean;
   runStatus?: string;
+  hasValidationError?: boolean;
   [key: string]: unknown;
 };
 
@@ -60,7 +61,7 @@ const NODE_COLORS: Record<string, string> = {
   'ai': '#8b5cf6',
   'logic': '#10b981',
   'control': '#6b7280',
-  'output': '#6366f1',
+  'output': 'hsl(var(--primary))',
 };
 
 const CATEGORY_FOR_TYPE: Record<string, string> = {
@@ -106,25 +107,57 @@ const WorkflowNode: React.FC<NodeProps<WorkflowNodeType>> = ({ data, isConnectab
   const isTrigger = category === 'input';
   const isConfigured = Boolean(data.config && Object.keys(data.config).length > 0);
 
+  const hasError = data.hasValidationError === true;
+  const isUnconfigured = !data.config || Object.keys(data.config as Record<string, any>).length === 0;
+  const showUnconfiguredWarning = isUnconfigured && !isTrigger;
+
+  // Border color logic
+  const borderColor = hasError
+    ? '#ef4444'
+    : data.selected
+      ? color
+      : showUnconfiguredWarning
+        ? '#f59e0b'
+        : `${color}50`;
+
+  // Box shadow logic
+  const boxShadow = hasError
+    ? '0 0 0 2px rgba(239,68,68,0.25), 0 1px 4px rgba(0,0,0,0.08)'
+    : data.selected
+      ? `0 0 0 2px ${color}40, 0 4px 16px rgba(0,0,0,0.12)`
+      : showUnconfiguredWarning
+        ? '0 0 0 1px rgba(245,158,11,0.15), 0 1px 4px rgba(0,0,0,0.08)'
+        : '0 1px 4px rgba(0,0,0,0.08)';
+
   return (
     <div
-      className="rounded-2xl border bg-white dark:bg-[#1e1e2e] transition-all w-[220px] flex items-center gap-3 px-3 py-2.5"
+      className="relative rounded-2xl border bg-white dark:bg-[var(--bg-card)] transition-all w-[220px] flex items-center gap-3 px-3 py-2.5 hover:shadow-md cursor-pointer"
       style={{
-        borderColor: data.selected ? color : `${color}50`,
-        boxShadow: data.selected
-          ? `0 0 0 2px ${color}40, 0 4px 16px rgba(0,0,0,0.12)`
-          : '0 1px 4px rgba(0,0,0,0.08)',
+        borderColor,
+        boxShadow,
         background: data.selected
           ? 'white'
           : undefined,
       }}
     >
+      {/* Validation error indicator */}
+      {hasError && (
+        <div className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 flex items-center justify-center z-10 shadow-sm">
+          <AlertTriangle className="w-2.5 h-2.5 text-white" />
+        </div>
+      )}
+
+      {/* Unconfigured warning dot */}
+      {!hasError && showUnconfiguredWarning && (
+        <div className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-400 z-10 shadow-sm" />
+      )}
+
       {/* Target handle */}
       {!isTrigger && (
         <Handle
           type="target"
           position={Position.Top}
-          className="!w-2.5 !h-2.5 !border-2 !border-white dark:!border-[#1e1e2e]"
+          className="!w-2.5 !h-2.5 !border-2 !border-white dark:!border-[var(--bg-card)]"
           style={{ background: color }}
           isConnectable={isConnectable}
         />
@@ -157,7 +190,7 @@ const WorkflowNode: React.FC<NodeProps<WorkflowNodeType>> = ({ data, isConnectab
       <Handle
         type="source"
         position={Position.Bottom}
-        className="!w-2.5 !h-2.5 !border-2 !border-white dark:!border-[#1e1e2e]"
+        className="!w-2.5 !h-2.5 !border-2 !border-white dark:!border-[var(--bg-card)]"
         style={{ background: color }}
         isConnectable={isConnectable}
       />

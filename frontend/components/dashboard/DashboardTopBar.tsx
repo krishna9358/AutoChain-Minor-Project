@@ -12,8 +12,6 @@ import {
   Zap,
   Sun,
   Moon,
-  Bell,
-  Settings,
   ChevronsUpDown,
   Check,
   FolderPlus,
@@ -49,10 +47,6 @@ export function DashboardTopBar() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const goSettings = () => {
-    router.push("/dashboard?view=settings");
-  };
-
   return (
     <header
       className="sticky top-0 z-40 h-12 flex items-center border-b px-4 gap-3 shrink-0"
@@ -63,11 +57,11 @@ export function DashboardTopBar() {
     >
       <Link
         href="/dashboard"
-        className="flex items-center gap-2 shrink-0 rounded-lg pr-2 py-1 hover:bg-white/5 transition-colors"
+        className="flex items-center gap-2 shrink-0 rounded-lg pr-2 py-1 hover:bg-[var(--bg-hover)] transition-colors"
         style={{ color: "var(--text-primary)" }}
       >
-        <div className="w-6 h-6 rounded-lg bg-indigo-600 flex items-center justify-center">
-          <Zap className="w-3.5 h-3.5 text-white" />
+        <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: "hsl(var(--primary))" }}>
+          <Zap className="w-3.5 h-3.5 text-primary-foreground" />
         </div>
         <span className="text-sm font-semibold hidden sm:inline">AutoChain</span>
       </Link>
@@ -81,17 +75,17 @@ export function DashboardTopBar() {
         <button
           type="button"
           onClick={() => setWsSwitcherOpen(!wsSwitcherOpen)}
-          className="flex items-center gap-1.5 pl-1 pr-2 py-1 rounded-lg text-sm font-medium transition-colors hover:bg-white/5 max-w-[200px]"
+          className="flex items-center gap-1.5 pl-1 pr-2 py-1 rounded-lg text-sm font-medium transition-colors hover:bg-[var(--bg-hover)] max-w-[200px]"
           style={{
             background: wsSwitcherOpen
-              ? "rgba(99,102,241,0.08)"
+              ? "var(--primary-alpha-08)"
               : "transparent",
             color: "var(--text-primary)",
           }}
         >
           <div
             className="w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold text-white shrink-0"
-            style={{ background: "rgba(99,102,241,0.8)" }}
+            style={{ background: "var(--primary-alpha-80)" }}
           >
             {activeWorkspace
               ? activeWorkspace.name.charAt(0).toUpperCase()
@@ -135,17 +129,17 @@ export function DashboardTopBar() {
                         variant: "success",
                       });
                     }}
-                    className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg transition-colors hover:bg-white/5"
+                    className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg transition-colors hover:bg-[var(--bg-hover)]"
                     style={{
                       background:
                         activeWorkspace?.id === ws.id
-                          ? "rgba(99,102,241,0.06)"
+                          ? "var(--primary-alpha-06)"
                           : "transparent",
                     }}
                   >
                     <div
                       className="w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-bold text-white shrink-0"
-                      style={{ background: "rgba(99,102,241,0.7)" }}
+                      style={{ background: "var(--primary-alpha-70)" }}
                     >
                       {ws.name.charAt(0).toUpperCase()}
                     </div>
@@ -166,7 +160,7 @@ export function DashboardTopBar() {
                       )}
                     </div>
                     {activeWorkspace?.id === ws.id && (
-                      <Check className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                      <Check className="w-3.5 h-3.5 text-primary shrink-0" />
                     )}
                   </button>
                 ))}
@@ -181,7 +175,7 @@ export function DashboardTopBar() {
                     setWsSwitcherOpen(false);
                     openCreateWorkspace();
                   }}
-                  className="w-full flex items-center gap-2 px-2 py-2 rounded-lg transition-colors hover:bg-white/5"
+                  className="w-full flex items-center gap-2 px-2 py-2 rounded-lg transition-colors hover:bg-[var(--bg-hover)]"
                   style={{ color: "var(--text-muted)" }}
                 >
                   <FolderPlus className="w-3.5 h-3.5" />
@@ -209,7 +203,7 @@ export function DashboardTopBar() {
         <button
           type="button"
           onClick={toggleTheme}
-          className="p-2 rounded-lg transition-colors hover:bg-white/5"
+          className="p-2 rounded-lg transition-colors hover:bg-[var(--bg-hover)]"
           style={{ color: "var(--text-muted)" }}
           title="Toggle theme"
         >
@@ -219,25 +213,9 @@ export function DashboardTopBar() {
             <Moon className="w-4 h-4" />
           )}
         </button>
-        <button
-          type="button"
-          className="p-2 rounded-lg transition-colors hover:bg-white/5"
-          style={{ color: "var(--text-muted)" }}
-          title="Notifications"
-        >
-          <Bell className="w-4 h-4" />
-        </button>
-        <button
-          type="button"
-          className="p-2 rounded-lg transition-colors hover:bg-white/5"
-          style={{ color: "var(--text-muted)" }}
-          title="Dashboard settings"
-          onClick={goSettings}
-        >
-          <Settings className="w-4 h-4" />
-        </button>
         <div
-          className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-[11px] font-bold text-white ml-1"
+          className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold text-white ml-1 ring-2 ring-[var(--border-medium)]"
+          style={{ background: "hsl(var(--primary))" }}
           title={userName}
         >
           {userName.charAt(0).toUpperCase()}
