@@ -2,8 +2,8 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
-import { GoogleLogo, GitHubLogo, SlackLogo, PostgreSQLLogo } from "@/components/workflow/icons/ServiceLogos";
-import { Mail, Globe, Plug, ChevronRight, Info, Circle } from "lucide-react";
+import { GoogleLogo, GitHubLogo, SlackLogo, PostgreSQLLogo, NotionLogo } from "@/components/workflow/icons/ServiceLogos";
+import { Mail, Globe, Plug, ChevronRight, Info, Circle, ListChecks, Facebook, FileSpreadsheet, Users, Send } from "lucide-react";
 
 interface Integration {
   name: string;
@@ -54,6 +54,48 @@ const integrations: Integration[] = [
     name: "HTTP / API",
     description: "REST APIs, webhooks",
     icon: Globe,
+    status: "Coming soon",
+    disabled: true,
+  },
+  {
+    name: "Linear",
+    description: "Issues, projects, cycles",
+    icon: ListChecks,
+    status: "Coming soon",
+    disabled: true,
+  },
+  {
+    name: "Notion",
+    description: "Pages, databases, wikis",
+    icon: NotionLogo,
+    status: "Coming soon",
+    disabled: true,
+  },
+  {
+    name: "Facebook Lead Ads",
+    description: "Lead forms, audiences, campaigns",
+    icon: Facebook,
+    status: "Coming soon",
+    disabled: true,
+  },
+  {
+    name: "Google Forms",
+    description: "Form submissions, responses",
+    icon: FileSpreadsheet,
+    status: "Coming soon",
+    disabled: true,
+  },
+  {
+    name: "Microsoft Teams",
+    description: "Messages, channels, meetings",
+    icon: Users,
+    status: "Coming soon",
+    disabled: true,
+  },
+  {
+    name: "Microsoft Outlook",
+    description: "Email, calendar, contacts",
+    icon: Send,
     status: "Coming soon",
     disabled: true,
   },

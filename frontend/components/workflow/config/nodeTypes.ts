@@ -27,6 +27,7 @@ import {
   ClipboardList,
   Bot,
   Wrench,
+  StickyNote,
 } from "lucide-react";
 import { SlackLogo } from "../icons/ServiceLogos";
 
@@ -509,6 +510,19 @@ export const NODE_TYPES: Record<string, NodeTypeConfig> = {
     borderColor: "border-amber-400",
     requiresConfig: true,
     exampleWorkflows: ["Employee Onboarding", "Procurement"],
+  },
+  "text-label": {
+    id: "text-label",
+    name: "Text Label",
+    category: "output",
+    icon: StickyNote,
+    description:
+      "Adds a text annotation or note to the workflow canvas for documentation.",
+    color: "#94a3b8",
+    bgColor: "bg-slate-50",
+    borderColor: "border-slate-400",
+    requiresConfig: false,
+    exampleWorkflows: [],
   },
 };
 
