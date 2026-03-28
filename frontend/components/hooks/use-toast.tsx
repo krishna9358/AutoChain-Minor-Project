@@ -36,7 +36,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   const toast = useCallback((data: Omit<Toast, "id">) => {
     const id = Math.random().toString(36).substring(2, 9);
-    setToasts((prev) => [...prev, { ...data, id }]);
+    setToasts((prev) => {
+      const nextToasts = [...prev, { ...data, id }];
+      // Limit to max 3 visible toasts to prevent overflowing the page
+      return nextToasts.slice(-3);
+    });
   }, []);
 
   const dismiss = useCallback((id: string) => {
