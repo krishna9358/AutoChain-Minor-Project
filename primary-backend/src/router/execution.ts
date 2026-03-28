@@ -823,15 +823,20 @@ async function simulateExecution(runId: string, nodes: any[], edges: any[]) {
       const cfg = (node.config || {}) as Record<string, any>;
       const approverEmail = cfg.approvers || cfg.assigned_to || "";
       let approvalMessage = cfg.message || "Workflow step requires your approval";
-      // Resolve {{payload.field}} in the message using parent outputs
-      for (const pid of parentIds) {
-        const prevOut = outputMap.get(pid) as Record<string, any> | undefined;
-        if (prevOut) {
-          approvalMessage = approvalMessage.replace(/\{\{payload\.(\w+)\}\}/g, (_: string, key: string) => {
-            return prevOut[key] || prevOut.result?.[key] || `[${key}]`;
-          });
+      // Resolve {{payload.field}} using: trigger data, all upstream outputs, parent outputs
+      approvalMessage = approvalMessage.replace(/\{\{payload\.(\w+)\}\}/g, (_: string, key: string) => {
+        // Check trigger payload first (customer_name, customer_email, etc.)
+        if (triggerPayload[key] !== undefined) return String(triggerPayload[key]);
+        // Check all upstream node outputs
+        for (const [, out] of outputMap) {
+          const o = out as Record<string, any>;
+          if (o?.[key] !== undefined) return String(o[key]);
+          if (o?.result?.[key] !== undefined) return String(o.result[key]);
+          if (o?.payload?.[key] !== undefined) return String(o.payload[key]);
+          if (o?.triggerInput?.[key] !== undefined) return String(o.triggerInput[key]);
         }
-      }
+        return `[${key}]`;
+      });
 
       await prisma.runStep.updateMany({
         where: { runId, nodeId },
