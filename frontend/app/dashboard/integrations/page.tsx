@@ -91,7 +91,7 @@ export default function IntegrationsPage() {
             </div>
             <div>
               <h1
-                className="text-3xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-indigo-500"
+                className="text-3xl font-bold tracking-tight text-primary"
               >
                 Integrations
               </h1>

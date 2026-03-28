@@ -481,7 +481,7 @@ function DashboardPageContent() {
             {activeTab === tab && (
               <motion.div
                 layoutId="dashboard-main-tab-indicator"
-                className="absolute bottom-0 left-2 right-2 h-0.5 bg-[var(--primary)] rounded-full"
+                className="absolute bottom-0 left-2 right-2 h-0.5 bg-primary rounded-full"
               />
             )}
           </button>
@@ -518,7 +518,7 @@ function DashboardPageContent() {
             </p>
             <button
               onClick={() => openCreateWorkspace()}
-              className="inline-flex items-center gap-2 bg-[var(--primary)] hover:opacity-90 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors"
+              className="inline-flex items-center gap-2 bg-primary hover:opacity-90 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors"
             >
               <FolderPlus className="w-4 h-4" />
               Create Workspace
@@ -540,7 +540,7 @@ function DashboardPageContent() {
               {hasWorkspace && (
                 <button
                   onClick={() => router.push("/workflow/new")}
-                  className="flex items-center gap-2 bg-[var(--primary)] hover:opacity-90 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors"
+                  className="flex items-center gap-2 bg-primary hover:opacity-90 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors"
                 >
                   <Plus className="w-4 h-4" />
                   New Workflow
@@ -611,7 +611,7 @@ function DashboardPageContent() {
                         </button>
                         <button
                           onClick={() => router.push(`/workflow/${demo.id}?tab=runs`)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--primary)] hover:opacity-90 text-white transition-colors"
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary hover:opacity-90 text-white transition-colors"
                         >
                           <Play className="w-3 h-3" />
                           Run Demo
@@ -741,7 +741,7 @@ function DashboardPageContent() {
                       <div className="flex items-center justify-center gap-3">
                         <button
                           onClick={() => router.push("/workflow/new")}
-                          className="flex items-center gap-2 bg-[var(--primary)] hover:opacity-90 text-white px-4 py-2 rounded-xl text-sm font-medium"
+                          className="flex items-center gap-2 bg-primary hover:opacity-90 text-white px-4 py-2 rounded-xl text-sm font-medium"
                         >
                           <Plus className="w-4 h-4" />
                           Create Workflow

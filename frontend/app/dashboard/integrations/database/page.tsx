@@ -10,8 +10,8 @@ import {
   Save,
   KeyRound,
   Play,
+  Database,
 } from "lucide-react";
-import { PostgreSQLLogo } from "@/components/workflow/icons/ServiceLogos";
 import { BACKEND_URL } from "@/app/config";
 import { getAuthHeaders } from "@/lib/auth-token";
 import { useWorkspace } from "@/components/providers/WorkspaceProvider";
@@ -138,7 +138,7 @@ export default function DatabaseIntegrationsPage() {
           className="p-2.5 rounded-xl border"
           style={{ borderColor: "var(--border-subtle)", background: "var(--bg-card)" }}
         >
-          <PostgreSQLLogo className="w-6 h-6" />
+          <Database className="w-6 h-6 text-primary" />
         </div>
         <div>
           <h1 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>

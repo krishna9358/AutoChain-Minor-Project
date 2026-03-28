@@ -29,7 +29,7 @@ export const BentoGrid = () => {
                                 Handle multi-agent setups and RAG systems. Use multiple cloud or offline AI models. 
                                 Integrate with legacy systems while staying set up for the future with MCP support.
                             </p>
-                            <button className="flex items-center gap-2 bg-[var(--primary)] text-white px-6 py-2.5 rounded-xl font-medium hover:shadow-glow transition-all hover:bg-[var(--primary)]">
+                            <button className="flex items-center gap-2 bg-primary text-white px-6 py-2.5 rounded-xl font-medium hover:shadow-glow transition-all hover:bg-primary">
                                 Explore AI
                             </button>
                         </div>

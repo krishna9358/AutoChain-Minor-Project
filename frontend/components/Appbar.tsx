@@ -48,7 +48,7 @@ export const Appbar = () => {
                 </button>
                 <button
                     onClick={() => router.push("/signup")}
-                    className="text-sm font-semibold bg-[var(--primary)] text-white px-5 py-2.5 rounded-full hover:shadow-glow transition-all hover:scale-105 active:scale-95 hover:bg-[var(--primary)]"
+                    className="text-sm font-semibold bg-primary text-white px-5 py-2.5 rounded-full hover:shadow-glow transition-all hover:scale-105 active:scale-95 hover:bg-primary"
                 >
                     Get Started
                 </button>

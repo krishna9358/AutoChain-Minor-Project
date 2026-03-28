@@ -60,10 +60,10 @@ export function DashboardTopBar() {
         className="flex items-center gap-2.5 shrink-0 rounded-xl px-2 py-1.5 hover:bg-white/5 transition-all duration-300"
         style={{ color: "var(--text-primary)" }}
       >
-        <div className="w-7 h-7 rounded-xl flex items-center justify-center shadow-sm bg-gradient-to-br from-blue-600 to-indigo-600">
+        <div className="w-7 h-7 rounded-xl flex items-center justify-center shadow-sm bg-primary">
           <Zap className="w-4 h-4 text-white" />
         </div>
-        <span className="text-sm font-bold tracking-tight hidden sm:inline bg-clip-text text-transparent bg-gradient-to-r from-primary to-indigo-500">AutoChain</span>
+        <span className="text-sm font-bold tracking-tight hidden sm:inline text-primary">AutoChain</span>
       </Link>
 
       <div
@@ -133,13 +133,13 @@ export function DashboardTopBar() {
                     style={{
                       background:
                         activeWorkspace?.id === ws.id
-                          ? "var(--primary-alpha-06)"
+                          ? "color-mix(in srgb, hsl(var(--primary)) 8%, transparent)"
                           : "transparent",
                     }}
                   >
                     <div
                       className="w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-bold text-white shrink-0"
-                      style={{ background: "var(--primary-alpha-70)" }}
+                      style={{ background: "color-mix(in srgb, hsl(var(--primary)) 80%, transparent)" }}
                     >
                       {ws.name.charAt(0).toUpperCase()}
                     </div>

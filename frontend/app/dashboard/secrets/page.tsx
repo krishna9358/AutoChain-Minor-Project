@@ -296,7 +296,7 @@ export default function SecretsPage() {
               resetForm();
               setShowCreateModal(true);
             }}
-            className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-md hover:shadow-lg text-white text-sm font-semibold transition-all duration-300 transform hover:scale-105 active:scale-95"
+            className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-primary hover:opacity-90 shadow-md hover:shadow-lg text-white text-sm font-semibold transition-all duration-300 transform hover:scale-105 active:scale-95"
           >
             <Plus className="w-4 h-4" />
             <span>New Secret</span>
