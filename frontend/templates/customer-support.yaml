@@ -42,23 +42,13 @@ nodes:
       userPromptTemplate: "{{payload.text}}"
       responseFormat: "json"
 
-  - id: "node-2-model"
-    type: "chat-model"
-    name: "OpenRouter Chat Model"
-    description: "LLM provider for ticket classification"
-    position: { x: 290, y: 390 }
-    config:
-      provider: "openrouter"
-      model: "gpt-4o"
-      temperature: 0.3
-
   - id: "node-3"
     type: "switch-case"
     name: "Route by Category"
     description: "Routes the ticket to the right team based on category"
     position: { x: 600, y: 250 }
     config:
-      switchField: "payload.category"
+      valuePath: "payload.category"
       cases:
         - { value: "billing", label: "Billing Team" }
         - { value: "technical", label: "Tech Support" }
@@ -76,6 +66,16 @@ nodes:
       outputFields: "past_tickets\naccount_status\nsubscription_plan\nlast_contact"
       aiPrompt: "Look up all available information about this customer including their support history, account status, and subscription details"
 
+  - id: "node-2-model"
+    type: "chat-model"
+    name: "Chat Model"
+    description: "LLM configuration — set your provider & model here"
+    position: { x: 290, y: 390 }
+    config:
+      provider: "groq"
+      model: "llama-3.3-70b-versatile"
+      temperature: 0.3
+
   - id: "node-5"
     type: "ai-agent"
     name: "Draft Response"
@@ -89,12 +89,12 @@ nodes:
 
   - id: "node-5-model"
     type: "chat-model"
-    name: "OpenRouter Chat Model"
-    description: "LLM provider for response drafting"
+    name: "Chat Model"
+    description: "LLM configuration — set your provider & model here"
     position: { x: 1040, y: 390 }
     config:
-      provider: "openrouter"
-      model: "gpt-4o"
+      provider: "groq"
+      model: "llama-3.3-70b-versatile"
       temperature: 0.3
 
   - id: "node-6"
@@ -154,6 +154,5 @@ edges:
   - { id: "e-6", source: "node-6", target: "node-7" }
   - { id: "e-7", source: "node-7", target: "node-8" }
   - { id: "e-8", source: "node-8", target: "node-9" }
-  # Sub-node connections
   - { id: "s-1", source: "node-2-model", sourceHandle: "model-out", target: "node-2", targetHandle: "chatModel" }
   - { id: "s-2", source: "node-5-model", sourceHandle: "model-out", target: "node-5", targetHandle: "chatModel" }

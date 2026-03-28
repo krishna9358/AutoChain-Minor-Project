@@ -52,12 +52,12 @@ nodes:
 
   - id: "node-2-model"
     type: "chat-model"
-    name: "OpenRouter Chat Model"
-    description: "LLM provider for request validation"
+    name: "Chat Model"
+    description: "LLM configuration — set your provider & model here"
     position: { x: 290, y: 390 }
     config:
-      provider: "openrouter"
-      model: "gpt-4o"
+      provider: "groq"
+      model: "llama-3.3-70b-versatile"
       temperature: 0.3
 
   - id: "node-3"
@@ -93,12 +93,12 @@ nodes:
 
   - id: "node-5-model"
     type: "chat-model"
-    name: "OpenRouter Chat Model"
-    description: "LLM provider for purchase order generation"
+    name: "Chat Model"
+    description: "LLM configuration — set your provider & model here"
     position: { x: 1040, y: 390 }
     config:
-      provider: "openrouter"
-      model: "gpt-4o"
+      provider: "groq"
+      model: "llama-3.3-70b-versatile"
       temperature: 0.3
 
   - id: "node-6"
@@ -162,6 +162,5 @@ edges:
   - { id: "e-7", source: "node-6", target: "node-7" }
   - { id: "e-8", source: "node-7", target: "node-8" }
   - { id: "e-9", source: "node-8", target: "node-9" }
-  # Sub-node connections
   - { id: "s-1", source: "node-2-model", sourceHandle: "model-out", target: "node-2", targetHandle: "chatModel" }
   - { id: "s-2", source: "node-5-model", sourceHandle: "model-out", target: "node-5", targetHandle: "chatModel" }

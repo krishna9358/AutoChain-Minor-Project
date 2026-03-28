@@ -44,12 +44,12 @@ nodes:
 
   - id: "node-2-model"
     type: "chat-model"
-    name: "OpenRouter Chat Model"
-    description: "LLM provider for task planning"
+    name: "Chat Model"
+    description: "LLM configuration — set your provider & model here"
     position: { x: 290, y: 390 }
     config:
-      provider: "openrouter"
-      model: "gpt-4o"
+      provider: "groq"
+      model: "llama-3.3-70b-versatile"
       temperature: 0.3
 
   - id: "node-3"
@@ -58,7 +58,7 @@ nodes:
     description: "Sends each sub-task to the right specialist agent"
     position: { x: 600, y: 250 }
     config:
-      switchField: "payload.task_type"
+      valuePath: "payload.task_type"
       cases:
         - { value: "research", label: "Data Research" }
         - { value: "analysis", label: "Analysis" }
@@ -88,12 +88,12 @@ nodes:
 
   - id: "node-5-model"
     type: "chat-model"
-    name: "OpenRouter Chat Model"
-    description: "LLM provider for data analysis"
+    name: "Chat Model"
+    description: "LLM configuration — set your provider & model here"
     position: { x: 790, y: 390 }
     config:
-      provider: "openrouter"
-      model: "gpt-4o"
+      provider: "groq"
+      model: "llama-3.3-70b-versatile"
       temperature: 0.3
 
   - id: "node-6"
@@ -109,12 +109,12 @@ nodes:
 
   - id: "node-6-model"
     type: "chat-model"
-    name: "OpenRouter Chat Model"
-    description: "LLM provider for decision making"
+    name: "Chat Model"
+    description: "LLM configuration — set your provider & model here"
     position: { x: 1040, y: 390 }
     config:
-      provider: "openrouter"
-      model: "gpt-4o"
+      provider: "groq"
+      model: "llama-3.3-70b-versatile"
       temperature: 0.3
 
   - id: "node-7"
@@ -140,12 +140,12 @@ nodes:
 
   - id: "node-8-model"
     type: "chat-model"
-    name: "OpenRouter Chat Model"
-    description: "LLM provider for final report compilation"
+    name: "Chat Model"
+    description: "LLM configuration — set your provider & model here"
     position: { x: 1540, y: 390 }
     config:
-      provider: "openrouter"
-      model: "gpt-4o"
+      provider: "groq"
+      model: "llama-3.3-70b-versatile"
       temperature: 0.3
 
   - id: "node-9"
@@ -183,7 +183,6 @@ edges:
   - { id: "e-8", source: "node-7", target: "node-8" }
   - { id: "e-9", source: "node-8", target: "node-9" }
   - { id: "e-10", source: "node-9", target: "node-10" }
-  # Sub-node connections
   - { id: "s-1", source: "node-2-model", sourceHandle: "model-out", target: "node-2", targetHandle: "chatModel" }
   - { id: "s-2", source: "node-5-model", sourceHandle: "model-out", target: "node-5", targetHandle: "chatModel" }
   - { id: "s-3", source: "node-6-model", sourceHandle: "model-out", target: "node-6", targetHandle: "chatModel" }

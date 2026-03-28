@@ -44,12 +44,12 @@ nodes:
 
   - id: "node-2-model"
     type: "chat-model"
-    name: "OpenRouter Chat Model"
-    description: "LLM provider for severity analysis"
+    name: "Chat Model"
+    description: "LLM configuration — set your provider & model here"
     position: { x: 290, y: 390 }
     config:
-      provider: "openrouter"
-      model: "gpt-4o"
+      provider: "groq"
+      model: "llama-3.3-70b-versatile"
       temperature: 0.3
 
   - id: "node-3"
@@ -58,7 +58,7 @@ nodes:
     description: "Routes the incident based on its severity level"
     position: { x: 600, y: 250 }
     config:
-      switchField: "payload.severity"
+      valuePath: "payload.severity"
       cases:
         - { value: "P1", label: "Critical" }
         - { value: "P2", label: "High" }
@@ -129,12 +129,12 @@ nodes:
 
   - id: "node-8-model"
     type: "chat-model"
-    name: "OpenRouter Chat Model"
-    description: "LLM provider for postmortem generation"
+    name: "Chat Model"
+    description: "LLM configuration — set your provider & model here"
     position: { x: 1540, y: 390 }
     config:
-      provider: "openrouter"
-      model: "gpt-4o"
+      provider: "groq"
+      model: "llama-3.3-70b-versatile"
       temperature: 0.3
 
   - id: "node-9"
@@ -173,6 +173,5 @@ edges:
   - { id: "e-8", source: "node-7", target: "node-8" }
   - { id: "e-9", source: "node-8", target: "node-9" }
   - { id: "e-10", source: "node-9", target: "node-10" }
-  # Sub-node connections
   - { id: "s-1", source: "node-2-model", sourceHandle: "model-out", target: "node-2", targetHandle: "chatModel" }
   - { id: "s-2", source: "node-8-model", sourceHandle: "model-out", target: "node-8", targetHandle: "chatModel" }

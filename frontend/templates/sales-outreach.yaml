@@ -56,12 +56,12 @@ nodes:
 
   - id: "node-3-model"
     type: "chat-model"
-    name: "OpenRouter Chat Model"
-    description: "LLM provider for lead scoring"
+    name: "Chat Model"
+    description: "LLM configuration — set your provider & model here"
     position: { x: 540, y: 390 }
     config:
-      provider: "openrouter"
-      model: "gpt-4o"
+      provider: "groq"
+      model: "llama-3.3-70b-versatile"
       temperature: 0.3
 
   - id: "node-4"
@@ -87,12 +87,12 @@ nodes:
 
   - id: "node-5-model"
     type: "chat-model"
-    name: "OpenRouter Chat Model"
-    description: "LLM provider for message personalization"
+    name: "Chat Model"
+    description: "LLM configuration — set your provider & model here"
     position: { x: 1040, y: 290 }
     config:
-      provider: "openrouter"
-      model: "gpt-4o"
+      provider: "groq"
+      model: "llama-3.3-70b-versatile"
       temperature: 0.3
 
   - id: "node-6"
@@ -140,12 +140,12 @@ nodes:
 
   - id: "node-9-model"
     type: "chat-model"
-    name: "OpenRouter Chat Model"
-    description: "LLM provider for response analysis"
+    name: "Chat Model"
+    description: "LLM configuration — set your provider & model here"
     position: { x: 2040, y: 290 }
     config:
-      provider: "openrouter"
-      model: "gpt-4o"
+      provider: "groq"
+      model: "llama-3.3-70b-versatile"
       temperature: 0.3
 
   - id: "node-10"
@@ -171,7 +171,6 @@ edges:
   - { id: "e-8", source: "node-7", target: "node-8" }
   - { id: "e-9", source: "node-8", target: "node-9" }
   - { id: "e-10", source: "node-9", target: "node-10" }
-  # Sub-node connections
   - { id: "s-1", source: "node-3-model", sourceHandle: "model-out", target: "node-3", targetHandle: "chatModel" }
   - { id: "s-2", source: "node-5-model", sourceHandle: "model-out", target: "node-5", targetHandle: "chatModel" }
   - { id: "s-3", source: "node-9-model", sourceHandle: "model-out", target: "node-9", targetHandle: "chatModel" }
