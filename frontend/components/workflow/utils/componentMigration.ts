@@ -42,84 +42,8 @@ const MIGRATION_RULES: MigrationRule[] = [
       newConfig.stopOnError = old.stopOnError || false;
       return newConfig;
     },
-    injectNodes: (node, ts) => {
-      // If the AI Agent has old-style provider/model config, create a ChatModel sub-node
-      const data = node.data as Record<string, unknown>;
-      const config = (data.config || {}) as Record<string, unknown>;
-
-      if (!config.provider && !config.model && !config.apiKey) {
-        // Already migrated or no old config — just inject a default chat model
-        const chatModelId = `chat-model-auto-${ts}-${node.id}`;
-        return {
-          nodes: [
-            {
-              id: chatModelId,
-              type: "chatModelNode",
-              position: {
-                x: (node.position?.x || 0) - 40,
-                y: (node.position?.y || 0) + 140,
-              },
-              data: {
-                nodeType: "chat-model",
-                componentId: "chat-model",
-                label: "Chat Model",
-                category: "ai",
-                config: { provider: "openrouter", model: "gpt-4o", temperature: 0.7 },
-              },
-            },
-          ],
-          edges: [
-            {
-              id: `sub-edge-${ts}-${node.id}`,
-              source: chatModelId,
-              sourceHandle: "model-out",
-              target: node.id,
-              targetHandle: "chatModel",
-              style: { stroke: "#555", strokeWidth: 1.5, strokeDasharray: "6 4" },
-            },
-          ],
-        };
-      }
-
-      // Extract provider/model from old config and create a ChatModel sub-node
-      const chatModelId = `chat-model-migrated-${ts}-${node.id}`;
-      return {
-        nodes: [
-          {
-            id: chatModelId,
-            type: "chatModelNode",
-            position: {
-              x: (node.position?.x || 0) - 40,
-              y: (node.position?.y || 0) + 140,
-            },
-            data: {
-              nodeType: "chat-model",
-              componentId: "chat-model",
-              label: "Chat Model",
-              category: "ai",
-              config: {
-                provider: config.provider || "openrouter",
-                model: config.customModel || config.model || "gpt-4o",
-                apiKey: config.apiKey || "",
-                baseUrl: config.baseURL || config.customUrl || "",
-                temperature: config.temperature || 0.7,
-                maxTokens: config.maxTokens || 4096,
-              },
-            },
-          },
-        ],
-        edges: [
-          {
-            id: `sub-edge-${ts}-${node.id}`,
-            source: chatModelId,
-            sourceHandle: "model-out",
-            target: node.id,
-            targetHandle: "chatModel",
-            style: { stroke: "#555", strokeWidth: 1.5, strokeDasharray: "6 4" },
-          },
-        ],
-      };
-    },
+    // No sub-nodes injected — AI Agent uses env vars (AI_API_KEY / AI_BASE_URL)
+    // by default. Users can optionally connect a ChatModel sub-node for overrides.
   },
 ];
 

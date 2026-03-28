@@ -96,62 +96,65 @@ export default function AIAgentNode({ data, isConnectable }: NodeProps) {
         </div>
       </div>
 
-      {/* ── Sub-connection handles ── */}
+      {/* ── Sub-connection handles (all optional) ── */}
       <div className="flex justify-center gap-10 -mt-[10px] w-full relative z-20">
-        {/* Chat Model */}
+        {/* Chat Model (optional — uses env AI_API_KEY / AI_BASE_URL by default) */}
         <div className="flex flex-col items-center gap-1.5 relative group cursor-pointer transition-transform duration-300 hover:scale-110">
           <Handle
             type="target"
             position={Position.Bottom}
             id="chatModel"
-            className="!relative !transform-none !w-4 !h-4 !rounded-full !border-[3px] !bg-[var(--bg-card)] transition-colors group-hover:border-[var(--accent)] group-hover:shadow-[0_0_8px_hsla(var(--accent),0.5)]"
+            className="!relative !transform-none !w-3.5 !h-3.5 !rounded-full !border-2 !bg-[var(--bg-card)] transition-colors group-hover:border-[var(--accent)] group-hover:shadow-[0_0_8px_hsla(var(--accent),0.5)]"
             style={{
               borderColor: "hsl(var(--accent))",
+              opacity: 0.7,
             }}
             isConnectable={isConnectable}
           />
           <span
-            className="text-[11px] whitespace-nowrap font-bold tracking-wide transition-colors"
+            className="text-[10px] whitespace-nowrap font-medium tracking-wide transition-colors opacity-70 group-hover:opacity-100"
             style={{ color: "hsl(var(--accent))" }}
           >
-            Chat Model<span className="text-red-400 ml-0.5">*</span>
+            Chat Model
           </span>
         </div>
 
-        {/* Memory */}
+        {/* Memory (optional) */}
         <div className="flex flex-col items-center gap-1.5 relative group cursor-pointer transition-transform duration-300 hover:scale-110">
           <Handle
             type="target"
             position={Position.Bottom}
             id="memory"
-            className="!relative !transform-none !w-4 !h-4 !rounded-full !border-[3px] !bg-[var(--bg-card)] transition-colors group-hover:border-[#3b82f6] group-hover:shadow-[0_0_8px_rgba(59,130,246,0.5)]"
+            className="!relative !transform-none !w-3.5 !h-3.5 !rounded-full !border-2 !bg-[var(--bg-card)] transition-colors group-hover:border-[#3b82f6] group-hover:shadow-[0_0_8px_rgba(59,130,246,0.5)]"
             style={{
               borderColor: "#3b82f6",
+              opacity: 0.7,
             }}
             isConnectable={isConnectable}
           />
           <span
-            className="text-[11px] whitespace-nowrap font-semibold tracking-wide transition-colors"
+            className="text-[10px] whitespace-nowrap font-medium tracking-wide transition-colors opacity-70 group-hover:opacity-100"
             style={{ color: "#3b82f6" }}
           >
             Memory
           </span>
         </div>
 
-        {/* Tool */}
+        {/* Tool (optional) */}
         <div className="flex flex-col items-center gap-1.5 relative group cursor-pointer transition-transform duration-300 hover:scale-110">
           <Handle
             type="target"
             position={Position.Bottom}
             id="tool"
-            className="!relative !transform-none !w-4 !h-4 !rounded-full !border-[3px] !bg-[var(--bg-card)] transition-colors group-hover:border-[#f59e0b] group-hover:shadow-[0_0_8px_rgba(245,158,11,0.5)]"
+            className="!relative !transform-none !w-3.5 !h-3.5 !rounded-full !border-2 !bg-[var(--bg-card)] transition-colors group-hover:border-[#f59e0b] group-hover:shadow-[0_0_8px_rgba(245,158,11,0.5)]"
             style={{
               borderColor: "#f59e0b",
+              opacity: 0.7,
             }}
             isConnectable={isConnectable}
           />
           <span
-            className="text-[11px] whitespace-nowrap font-semibold tracking-wide transition-colors"
+            className="text-[10px] whitespace-nowrap font-medium tracking-wide transition-colors opacity-70 group-hover:opacity-100"
             style={{ color: "#f59e0b" }}
           >
             Tool
