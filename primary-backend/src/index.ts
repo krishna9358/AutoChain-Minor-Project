@@ -20,6 +20,9 @@ import { secretsRouter } from "./router/secrets";
 import { apiKeysRouter } from "./router/apiKeys";
 import { artifactsRouter } from "./router/artifacts";
 import { googleOAuthRouter } from "./router/googleOAuth";
+import { githubIntegrationRouter } from "./router/githubIntegration";
+import { slackIntegrationRouter } from "./router/slackIntegration";
+import { databaseIntegrationRouter } from "./router/databaseIntegration";
 
 const app = express();
 const server = createServer(app);
@@ -101,6 +104,9 @@ app.use("/api/v1/secrets", secretsRouter);
 app.use("/api/v1/api-keys", apiKeysRouter);
 app.use("/api/v1/artifacts", artifactsRouter);
 app.use("/api/v1/integrations/google", googleOAuthRouter);
+app.use("/api/v1/integrations/github", githubIntegrationRouter);
+app.use("/api/v1/integrations/slack", slackIntegrationRouter);
+app.use("/api/v1/integrations/database", databaseIntegrationRouter);
 
 ensureDevUser().then(() => {
   server.listen(PORT, () => {
