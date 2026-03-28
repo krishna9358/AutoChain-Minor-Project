@@ -794,15 +794,17 @@ async function simulateExecution(runId: string, nodes: any[], edges: any[]) {
 
     if (visited.has(nodeId)) {
       const nextNodes = adjacency.get(nodeId) || [];
-      for (const next of nextNodes) {
-        if (!visited.has(next)) queue.push(next);
-      }
+      const toQueue = nextNodes.filter(n => !visited.has(n));
+      if (toQueue.length > 0) console.log(`[BFS] ${nodeId} visited → queuing: ${toQueue.join(", ")}`);
+      for (const next of toQueue) queue.push(next);
       continue;
     }
     visited.add(nodeId);
 
     const node = nodes.find((n) => n.id === nodeId);
-    if (!node) continue;
+    if (!node) { console.log(`[BFS] Node ${nodeId} not found in nodes array, skipping`); continue; }
+
+    console.log(`[BFS] Executing: ${nodeId} (${node.label || node.nodeType || "?"})`);
 
     // Skip sub-nodes (chat-model, memory, tool) — they are config, not executable
     if (isSubNode(node)) {
