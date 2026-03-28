@@ -1,246 +1,317 @@
 # Workflow Templates
 
-Pre-built workflow templates to get you started quickly. Each template can be used as-is or customized to fit your needs.
+Pre-built workflow templates to get started quickly. Each template can be used as-is or customized.
 
 ---
 
-## Enterprise Templates
+## Quick Start
 
-### 1. Procurement to Payment
-**Automates the entire purchasing process — from request to payment.**
-
-| | |
-|---|---|
-| **Difficulty** | Intermediate |
-| **Setup Time** | ~10 minutes |
-| **Nodes** | 9 |
-| **Category** | Enterprise |
-
-**Workflow Flow:**
-1. **Purchase Request Form** — Collects item name, quantity, cost, vendor, and justification
-2. **AI Validate & Categorize** — Reviews the request for completeness, categorizes it
-3. **Budget Check** — Routes purchases over $5,000 for manager approval
-4. **Manager Approval** — Manager reviews and approves/rejects
-5. **AI Generate Purchase Order** — Creates a formal PO with all details
-6. **Create PO Document** — Generates the official PDF
-7. **Assign to Procurement** — Round-robin assigns to the procurement team
-8. **Track Delivery** — SLA monitor watches the delivery deadline
-9. **Record Decision Trail** — Full audit log for compliance
-
-**Use Cases:** Purchase orders, vendor payments, budget approvals, expense management
-
----
-
-### 2. Employee Onboarding
-**Streamlines new hire onboarding from day one.**
-
-| | |
-|---|---|
-| **Difficulty** | Intermediate |
-| **Setup Time** | ~8 minutes |
-| **Nodes** | 9 |
-| **Category** | Enterprise |
-
-**Workflow Flow:**
-1. **New Hire Details** — HR fills in employee information
-2. **AI Onboarding Plan** — Generates a 30-day personalized plan
-3. **IT Setup Tasks** — Assigns account/equipment setup to IT (round-robin)
-4. **HR Paperwork** — Assigns compliance tasks to HR
-5. **Gather Team Info** — Looks up department team members and resources
-6. **Welcome Packet** — Generates a personalized welcome PDF
-7. **Welcome Email** — Sends onboarding details to the new hire
-8. **30-Day Check-in** — SLA monitor reminds the manager
-9. **Log Onboarding** — Records everything for HR
-
-**Use Cases:** New hire onboarding, IT provisioning, HR task coordination
-
----
-
-### 3. Contract Lifecycle
-**Manages contracts from creation to signature.**
-
-| | |
-|---|---|
-| **Difficulty** | Advanced |
-| **Setup Time** | ~10 minutes |
-| **Nodes** | 10 |
-| **Category** | Enterprise |
-
-**Workflow Flow:**
-1. **Contract Request** — Triggered via webhook
-2. **Contract Details** — Collects type, parties, value, terms via form
-3. **AI Draft Contract** — Generates a professional contract
-4. **Create Contract PDF** — Produces the formal document
-5. **Legal Review** — Legal team approves or rejects
-6. **Approval Check** — Routes based on decision
-7. **Send for Signature** — Emails the contract to the other party
-8. **Signature Deadline** — SLA tracks the 7-day signing window
-9. **Overdue Alert** — Escalates to legal head if overdue
-10. **Record All Decisions** — Compliance audit trail
-
-**Use Cases:** Vendor agreements, NDAs, employment contracts, SLAs
-
----
-
-### 4. Meeting Intelligence
-**Turns meeting recordings into action items.**
-
-| | |
-|---|---|
-| **Difficulty** | Beginner |
-| **Setup Time** | ~5 minutes |
-| **Nodes** | 8 |
-| **Category** | AI-Powered |
-
-**Workflow Flow:**
-1. **Meeting Transcript** — Receives transcript via webhook
-2. **Extract Key Decisions** — AI identifies all decisions made
-3. **Identify Action Items** — AI finds tasks and suggests owners
-4. **Assign Action Items** — Creates and assigns tasks to people
-5. **Share Summary** — Posts meeting summary to Slack
-6. **Track Completion** — SLA monitors task deadlines
-7. **Follow Up on Stalls** — Escalates overdue tasks
-8. **Log Meeting Record** — Saves for future reference
-
-**Use Cases:** Team meetings, standup follow-ups, decision tracking
-
----
-
-### 5. Multi-Agent Collaboration
-**Multiple AI agents work together on complex tasks.**
-
-| | |
-|---|---|
-| **Difficulty** | Advanced |
-| **Setup Time** | ~8 minutes |
-| **Nodes** | 10 |
-| **Category** | AI-Powered |
-
-**Workflow Flow:**
-1. **Task Input** — Receives the complex task
-2. **Task Planner** — AI breaks it into sub-tasks
-3. **Route by Complexity** — Sends to specialist agents
-4. **Data Retrieval Agent** — Gathers data from multiple sources
-5. **Analysis Agent** — Identifies patterns and insights
-6. **Decision Agent** — Makes recommendations with confidence levels
-7. **Human Verification** — Person reviews AI recommendations
-8. **Execution Agent** — Compiles final deliverable
-9. **Final Report** — Generates polished PDF report
-10. **Decision Trail** — Records every agent decision
-
-**Use Cases:** Research projects, competitive analysis, multi-step data analysis
-
----
-
-### 6. Workflow Health Monitor
-**Proactively monitors your workflows for problems.**
-
-| | |
-|---|---|
-| **Difficulty** | Intermediate |
-| **Setup Time** | ~7 minutes |
-| **Nodes** | 10 |
-| **Category** | Operations |
-
-**Workflow Flow:**
-1. **Scheduled Check** — Runs every 2 hours automatically
-2. **Fetch Metrics** — Pulls workflow execution data
-3. **Analyze Health** — AI spots anomalies and trends
-4. **Issues Found?** — Routes based on health status
-5. **Gather Context** — Gets details on flagged workflows
-6. **Predict Bottlenecks** — AI forecasts future problems
-7. **Check SLA Compliance** — Verifies all SLAs are on track
-8. **Critical Alert** — Escalates urgent issues
-9. **Health Report** — Posts summary to Slack
-10. **Log Results** — Records for trending analysis
-
-**Use Cases:** Workflow monitoring, SLA tracking, bottleneck detection
-
----
-
-## Automation Templates
-
-### 7. Customer Support
-**AI-powered ticket handling with SLA tracking.**
-
-| | |
-|---|---|
-| **Difficulty** | Beginner |
-| **Setup Time** | ~6 minutes |
-| **Nodes** | 9 |
-
-**Flow:** New ticket → AI classifies → Route by category → Fetch customer history → AI drafts response → Agent reviews → Send reply → Track resolution SLA → Log activity
-
----
-
-### 8. Incident Management
-**End-to-end incident response automation.**
-
-| | |
-|---|---|
-| **Difficulty** | Intermediate |
-| **Setup Time** | ~8 minutes |
-| **Nodes** | 10 |
-
-**Flow:** Alert received → AI analyzes severity → Route by severity → Escalate critical → Assign responder → Notify Slack → Track resolution SLA → AI generates postmortem → Create report PDF → Log incident
-
----
-
-### 9. Sales Outreach
-**Automated lead qualification and personalized outreach.**
-
-| | |
-|---|---|
-| **Difficulty** | Beginner |
-| **Setup Time** | ~6 minutes |
-| **Nodes** | 10 |
-
-**Flow:** New lead → Enrich company data → AI scores quality → Check qualification → AI personalizes email → Rep reviews → Send email → Wait for response → AI analyzes reply → Log activity
-
----
-
-## Working with Templates
-
-### Using a Template
 1. Go to the **Templates** tab in the dashboard
 2. Browse or search for a template
 3. Click **Use Template** to preview details
 4. Click **Use This Template** to create a new workflow
-5. Customize the node configs for your specific needs
+5. Customize the node configs for your needs
+6. Click **Run** to execute
 
-### Importing a Template
-1. Click the **Import YAML** button in the template library
-2. Select a `.yaml` file from your computer
-3. The template appears in your library immediately
+---
 
-### Exporting a Template
-1. Find the template you want to share
-2. Click the **download icon** on the template card
-3. A `.yaml` file downloads to your computer
+## Template Overview
 
-### Template YAML Format
-Templates are stored as YAML files with this structure:
+| # | Template | Category | Nodes | Difficulty | Best For |
+|---|----------|----------|-------|------------|----------|
+| 1 | [Customer Support](#1-customer-support-ticket-automation) | Customer Service | 6 | Beginner | Quickest demo, shows AI + approval |
+| 2 | [Meeting Intelligence](#2-meeting-intelligence-automation) | Productivity | 7 | Beginner | AI extraction + multi-output |
+| 3 | [Sales Lead Qualification](#3-sales-lead-qualification--outreach) | Sales | 6 | Beginner | Lead scoring + routing |
+| 4 | [Invoice Processing](#4-invoice-processing--approval) | Finance | 6 | Intermediate | Data extraction + approval |
+| 5 | [Employee Onboarding](#5-enterprise-employee-onboarding) | Enterprise | 10 | Advanced | Self-healing + multi-agent |
+
+---
+
+## Seeded Templates (in Database)
+
+### 1. Customer Support Ticket Automation
+
+**The easiest template to demo end-to-end.**
+
+| | |
+|---|---|
+| **Category** | Customer Service |
+| **Difficulty** | Beginner |
+| **Nodes** | 6 |
+| **Setup Time** | ~3 minutes |
+
+**Flow:**
+```
+New Ticket          Ticket Classifier      Response Generator
+(Webhook) -------> (AI Classification) --> (AI Drafting)
+                                                |
+                                                v
+                                         Escalation Check
+                                         (AI Decision)
+                                           /        \
+                                          v          v
+                                   Manager        Notify Team
+                                   Approval       (Slack)
+                                   (Human Gate)
+```
+
+**What each node does:**
+
+1. **New Ticket (Webhook Trigger)** -- Receives ticket data via HTTP POST
+2. **Ticket Classifier (AI Agent)** -- Categorizes the ticket (billing, technical, feature request, complaint) and assesses sentiment/urgency
+3. **Response Generator (AI Agent)** -- Drafts a professional response based on the classification
+4. **Escalation Check (AI Decision Agent)** -- Decides whether to auto-respond or escalate to a human
+5. **Manager Approval (Human Gate)** -- Manager reviews AI classification + drafted response, approves/rejects/modifies
+6. **Notify Team (Slack)** -- Sends resolution summary to the team channel
+
+**Sample input for testing:**
+```json
+{
+  "customer_name": "Sarah Johnson",
+  "customer_email": "sarah@acme.com",
+  "subject": "Cannot access billing dashboard",
+  "description": "I keep getting a 403 error trying to access billing. I need to download invoices for our quarterly review tomorrow.",
+  "priority": "high"
+}
+```
+
+**What to expect:** The AI classifies it as "Technical Issue / Urgent / Frustrated", drafts a helpful response, and escalates to manager approval because of the high urgency and frustrated sentiment.
+
+---
+
+### 2. Meeting Intelligence Automation
+
+| | |
+|---|---|
+| **Category** | Productivity |
+| **Difficulty** | Beginner |
+| **Nodes** | 7 |
+| **Setup Time** | ~5 minutes |
+
+**Flow:**
+```
+Meeting Recording --> Transcription Agent --> Meeting Summarizer
+                                                    |
+                                                    v
+                                             Task Extractor --> Priority Classifier
+                                                                   /          \
+                                                                  v            v
+                                                           Send to Slack    Email
+                                                                          Participants
+```
+
+**What each node does:**
+
+1. **Meeting Recording (Webhook)** -- Receives meeting transcript/recording data
+2. **Transcription Agent (AI)** -- Extracts text from the recording
+3. **Meeting Summarizer (AI)** -- Creates a concise summary of key points
+4. **Task Extractor (AI)** -- Identifies action items with owners and deadlines
+5. **Priority Classifier (AI)** -- Ranks tasks by urgency and importance
+6. **Send to Slack** -- Posts summary + action items to team channel
+7. **Email Participants** -- Sends follow-up email with meeting notes
+
+**Sample input:**
+```json
+{
+  "meeting_title": "Q1 Planning Review",
+  "transcript": "John: We need to finalize the budget by Friday. Sarah: I'll prepare the marketing spend breakdown. Mike: The engineering roadmap draft is ready for review. John: Let's schedule a follow-up for Wednesday to review everything.",
+  "participants": ["john@company.com", "sarah@company.com", "mike@company.com"],
+  "date": "2026-03-28"
+}
+```
+
+---
+
+### 3. Sales Lead Qualification & Outreach
+
+| | |
+|---|---|
+| **Category** | Sales |
+| **Difficulty** | Beginner |
+| **Nodes** | 6 |
+| **Setup Time** | ~5 minutes |
+
+**Flow:**
+```
+New Lead --> Data Enrichment --> Lead Scoring --> Routing
+                                                  /     \
+                                                 v       v
+                                          Outreach    Notify Rep
+                                          Email       (Slack)
+```
+
+**What each node does:**
+
+1. **New Lead (Webhook)** -- Receives lead data from a form or CRM
+2. **Data Enrichment (AI)** -- Enriches lead with company info, social profiles
+3. **Lead Scoring (AI)** -- Scores lead quality (0-100) based on fit and intent
+4. **Routing (AI Decision)** -- Routes high-scoring leads to outreach, others to nurture
+5. **Outreach Email** -- Sends personalized email to qualified leads
+6. **Notify Rep (Slack)** -- Alerts the assigned sales rep
+
+**Sample input:**
+```json
+{
+  "name": "Alex Chen",
+  "email": "alex@techstartup.io",
+  "company": "TechStartup Inc",
+  "title": "VP of Engineering",
+  "source": "website_demo_request",
+  "message": "Interested in automating our CI/CD pipeline notifications"
+}
+```
+
+---
+
+### 4. Invoice Processing & Approval
+
+| | |
+|---|---|
+| **Category** | Finance |
+| **Difficulty** | Intermediate |
+| **Nodes** | 6 |
+| **Setup Time** | ~5 minutes |
+
+**Flow:**
+```
+File Upload --> Data Extraction --> Validation --> Approval Routing
+                                                      |
+                                                      v
+                                                Manager Approval --> Payment Record
+```
+
+**What each node does:**
+
+1. **File Upload (Webhook)** -- Receives invoice document data
+2. **Data Extraction (AI)** -- Extracts vendor, amount, line items, dates
+3. **Validation (AI)** -- Checks for anomalies, duplicate invoices, policy compliance
+4. **Approval Routing (AI Decision)** -- Routes based on amount thresholds
+5. **Manager Approval (Human Gate)** -- Manager reviews and approves
+6. **Payment Record** -- Logs the approved payment
+
+**Sample input:**
+```json
+{
+  "vendor": "Cloud Services Inc",
+  "invoice_number": "INV-2026-0342",
+  "amount": 12500.00,
+  "currency": "USD",
+  "line_items": [
+    { "description": "AWS hosting - March 2026", "amount": 8500.00 },
+    { "description": "CDN bandwidth overage", "amount": 4000.00 }
+  ],
+  "due_date": "2026-04-15"
+}
+```
+
+---
+
+### 5. Enterprise Employee Onboarding
+
+**The most comprehensive template -- showcases multi-agent collaboration and self-healing.**
+
+| | |
+|---|---|
+| **Category** | Enterprise |
+| **Difficulty** | Advanced |
+| **Nodes** | 10 |
+| **Setup Time** | ~8 minutes |
+
+**Flow:**
+```
+New Hire Entry --> Data Validation Agent --> Background Verification
+                                                  |
+                                    +-------------+-------------+
+                                    |                           |
+                                    v                           v (on failure)
+                          IT Provisioning Agent          Manual Review
+                                    |                    (Fallback)
+                                    |
+                          +---------+---------+
+                          |                   |
+                          v                   v (on failure)
+                  HR Compliance Agent    IT Helpdesk Escalation
+                          |              (Fallback)
+                          v
+                  Manager Approval (Human Gate)
+                          |
+                          v
+                  Notification Agent --> Onboarding Audit Agent
+```
+
+**What each node does:**
+
+1. **New Hire Entry (Webhook)** -- Receives hire data (name, email, department, role, start date)
+2. **Data Validation Agent (AI)** -- Validates completeness, checks duplicates, enriches missing fields, generates employee ID
+3. **Background Verification Agent (AI)** -- Runs identity, employment history, education, and criminal record checks
+4. **IT Provisioning Agent (AI)** -- Creates accounts based on department/role (email, Slack, GitHub, Jira, VPN)
+5. **HR Compliance Agent (AI)** -- Verifies tax forms (W-4/W-9), NDAs, benefits enrollment, I-9 compliance
+6. **Manager Approval (Human Gate)** -- Manager reviews all verification results and approves
+7. **Notification Agent (AI)** -- Generates and sends welcome email, Slack intro, calendar invites
+8. **Onboarding Audit Agent (AI)** -- Produces comprehensive timestamped audit trail
+9. **Manual Review (Fallback)** -- Triggered if background check fails; HR security team reviews manually
+10. **IT Helpdesk Escalation (Fallback)** -- Triggered if IT provisioning fails; escalation email to IT helpdesk
+
+**Self-healing paths:**
+- Background check failure --> Routes to Manual Review (approval node)
+- IT provisioning failure --> Routes to IT Helpdesk Escalation (email)
+
+**Sample input:**
+```json
+{
+  "name": "Jordan Rivera",
+  "email": "jordan.rivera@autochain.ai",
+  "department": "Engineering",
+  "role": "Senior Software Engineer",
+  "startDate": "2026-04-15",
+  "manager": "alex.chen@autochain.ai",
+  "location": "San Francisco"
+}
+```
+
+---
+
+## YAML Template System
+
+### Additional Templates (YAML-based)
+
+Beyond the database-seeded templates above, AutoChain AI supports YAML-based templates stored in `/frontend/templates/`. These include:
+
+- **Procurement to Payment** -- Purchase request to payment processing (9 nodes)
+- **Contract Lifecycle** -- Contract creation to signature tracking (10 nodes)
+- **Multi-Agent Collaboration** -- Complex task decomposition across specialist agents (10 nodes)
+- **Workflow Health Monitor** -- Scheduled health checks and anomaly detection (10 nodes)
+- **Incident Management** -- Alert to postmortem automation (10 nodes)
+- **Sales Outreach** -- Lead qualification to personalized outreach (10 nodes)
+
+### Importing & Exporting
+
+**Import:** Click "Import YAML" in the template library, select a `.yaml` file.
+
+**Export:** Click the download icon on any template card to get a `.yaml` file.
+
+### YAML Format
 
 ```yaml
 id: my-template
 name: "My Template"
 description: "What this template does"
-category: "enterprise"     # enterprise, automation, ai, operations
-icon: "Brain"              # Any Lucide icon name
+category: "enterprise"          # enterprise, automation, ai, operations
+icon: "Brain"                   # Any Lucide icon name
 version: "1.0.0"
 tags: [tag1, tag2]
 
 preview:
   color: "#8b5cf6"
   estimatedTime: "5 min setup"
-  difficulty: "beginner"   # beginner, intermediate, advanced
+  difficulty: "beginner"        # beginner, intermediate, advanced
   useCases:
     - "Use case 1"
     - "Use case 2"
 
 nodes:
   - id: "node-1"
-    type: "entry-point"    # Any node type ID
+    type: "entry-point"         # Any node type ID from Component Catalog
     name: "Step Name"
     description: "What this step does"
     position: { x: 100, y: 200 }
@@ -254,5 +325,23 @@ edges:
     label: "Optional label"
 ```
 
-### Template Directory
-All templates are stored in `/frontend/templates/` as individual YAML files. To add a new template, create a `.yaml` file in that directory following the format above.
+### Creating Your Own Template
+
+1. Build a workflow in the visual editor
+2. Test it with sample data
+3. Export as YAML from the template library
+4. Edit the YAML to add metadata (description, tags, difficulty)
+5. Save to `/frontend/templates/` for sharing
+
+---
+
+## Which Template Should I Use?
+
+| I want to... | Use this template |
+|-------------|-------------------|
+| Show a quick demo | Customer Support (6 nodes, simplest) |
+| Demo AI extraction | Meeting Intelligence |
+| Show lead routing | Sales Lead Qualification |
+| Demo financial approval | Invoice Processing |
+| Show self-healing + multi-agent | Employee Onboarding (most impressive) |
+| Impress judges with complexity | Employee Onboarding + Customer Support together |
