@@ -67,7 +67,6 @@ export const BentoGrid = () => {
                             </p>
                         </div>
 
-                        {/* Dummy Chat Bubble */}
                         <div className="relative z-10 w-full bg-[var(--card)] border border-white/10 rounded-xl p-4">
                             <div className="flex gap-3">
                                 <GitPullRequest className="w-5 h-5 text-accent-400 mt-0.5" />
