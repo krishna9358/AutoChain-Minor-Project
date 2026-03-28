@@ -25,3 +25,6 @@ npm-debug.log*
 
 # Personal notes
 todo
+.claude
+.omc
+.vscode
