@@ -104,19 +104,19 @@ nodes:
     position: { x: 1350, y: 250 }
     config:
       approvers: "support-team@company.com"
-      message: "Review AI-drafted response for ticket from {{payload.customer_email}} ({{payload.category}}, {{payload.urgency}} urgency)"
+      message: "Please review the AI-drafted response before sending to the customer."
       timeoutMinutes: 120
 
   - id: "node-7"
     type: "email-send"
     name: "Send Response"
-    description: "Sends the approved response to the customer"
+    description: "Sends the approved response to the customer via Resend"
     position: { x: 1600, y: 250 }
     config:
-      provider: "smtp"
-      from: "support@company.com"
+      provider: "resend"
+      from: "AutoChain <onboarding@resend.dev>"
       to: "{{payload.customer_email}}"
-      subject: "Re: {{payload.ticket_subject}} [#{{payload.ticket_id}}]"
+      subject: "Re: {{payload.subject}}"
       body: "{{payload.approved_response}}"
 
   - id: "node-8"
