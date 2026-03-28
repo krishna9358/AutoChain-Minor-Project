@@ -69,43 +69,45 @@ export default function IntegrationsPage() {
     <div className="min-h-screen p-6 md:p-10 max-w-6xl mx-auto">
       {/* Header section */}
       <div
-        className="rounded-2xl border p-8 mb-10"
+        className="relative overflow-hidden rounded-3xl border p-10 mb-10 bg-gradient-to-br"
         style={{
-          background:
-            "color-mix(in srgb, var(--primary) 6%, transparent)",
+          background: "linear-gradient(to bottom right, color-mix(in srgb, var(--primary) 8%, transparent), color-mix(in srgb, var(--primary) 2%, transparent))",
           borderColor: "var(--border-subtle)",
         }}
       >
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-4">
+        <div className="absolute top-0 right-0 p-8 opacity-20 transform translate-x-1/4 -translate-y-1/4">
+           <Plug className="w-64 h-64 text-primary" />
+        </div>
+        <div className="relative z-10 flex items-start justify-between">
+          <div className="flex items-center gap-5">
             <div
-              className="flex h-12 w-12 items-center justify-center rounded-xl"
-              style={{ backgroundColor: "hsl(var(--accent))" }}
+              className="flex h-14 w-14 items-center justify-center rounded-2xl shadow-sm"
+              style={{ backgroundColor: "var(--bg-card)", border: "1px solid var(--border-subtle)" }}
             >
               <Plug
-                className="h-6 w-6"
-                style={{ color: "var(--text-primary)" }}
+                className="h-7 w-7"
+                style={{ color: "hsl(var(--primary))" }}
               />
             </div>
             <div>
               <h1
-                className="text-3xl font-bold tracking-tight"
-                style={{ color: "var(--text-primary)" }}
+                className="text-3xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-indigo-500"
               >
                 Integrations
               </h1>
               <p
-                className="mt-1 text-sm"
+                className="mt-1.5 text-sm font-medium"
                 style={{ color: "var(--text-muted)" }}
               >
-                Connect services to power your workflows
+                Connect external services to power your workflows
               </p>
             </div>
           </div>
           <span
-            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
+            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold border shadow-sm"
             style={{
-              backgroundColor: "hsl(var(--accent))",
+              backgroundColor: "var(--bg-card)",
+              borderColor: "var(--border-subtle)",
               color: "var(--text-secondary)",
             }}
           >
@@ -143,7 +145,7 @@ export default function IntegrationsPage() {
                 onClick={() => {
                   if (integration.href) router.push(integration.href);
                 }}
-                className="group relative flex items-center gap-5 rounded-xl border p-6 text-left transition-all duration-200"
+                className="group relative flex items-center gap-5 rounded-2xl border p-6 text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
                 style={{
                   backgroundColor: "var(--bg-card)",
                   borderColor: "var(--border-subtle)",
@@ -165,7 +167,7 @@ export default function IntegrationsPage() {
               >
                 {/* Icon pill */}
                 <div
-                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-transform duration-200 group-hover:scale-105"
+                  className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-white/5 to-transparent transition-transform duration-300 group-hover:scale-110 shadow-sm"
                   style={{
                     border: "1px solid var(--border-subtle)",
                   }}

@@ -296,7 +296,7 @@ export default function SecretsPage() {
               resetForm();
               setShowCreateModal(true);
             }}
-            className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-primary hover:bg-primary/90 text-white text-sm font-medium transition-colors"
+            className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-md hover:shadow-lg text-white text-sm font-semibold transition-all duration-300 transform hover:scale-105 active:scale-95"
           >
             <Plus className="w-4 h-4" />
             <span>New Secret</span>
@@ -304,30 +304,28 @@ export default function SecretsPage() {
         </div>
 
         {/* Filters */}
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-3 mb-6 p-1 rounded-2xl border" style={{ background: "color-mix(in srgb, var(--primary) 2%, transparent)", borderColor: "var(--border-subtle)"}}>
           <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "var(--text-muted)" }} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ml-2" style={{ color: "var(--text-muted)" }} />
             <input
               type="text"
               placeholder="Search secrets..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
+              className="w-full pl-12 pr-4 py-2.5 rounded-xl text-sm transition-all focus:outline-none focus:ring-2 focus:ring-primary/40 bg-transparent"
               style={{
-                background: "var(--bg-card)",
-                border: "1px solid var(--border-subtle)",
                 color: "var(--text-primary)",
               }}
             />
           </div>
 
+          <div className="w-px h-6" style={{ background: "var(--border-subtle)" }}></div>
+
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
-            className="px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
+            className="px-3 py-2.5 rounded-xl text-sm cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-primary/40 bg-transparent hover:bg-white/5"
             style={{
-              background: "var(--bg-card)",
-              border: "1px solid var(--border-subtle)",
               color: "var(--text-primary)",
             }}
           >
@@ -339,9 +337,11 @@ export default function SecretsPage() {
             ))}
           </select>
 
+          <div className="w-px h-6" style={{ background: "var(--border-subtle)" }}></div>
+
           <button
             onClick={loadSecrets}
-            className="p-2 rounded-lg hover:bg-white/5 transition-colors"
+            className="p-2.5 mr-1 rounded-xl hover:bg-white/10 transition-colors"
             style={{ color: "var(--text-muted)" }}
             title="Refresh"
           >
@@ -381,10 +381,11 @@ export default function SecretsPage() {
             return (
               <div
                 key={secret.id}
-                className="p-4 rounded-lg border transition-colors hover:border-primary/30"
+                className="p-5 rounded-2xl border transition-all duration-300 hover:shadow-xl hover:-translate-y-0.5"
                 style={{
-                  background: "var(--bg-card)",
+                  background: isExpiredValue ? "color-mix(in srgb, var(--bg-card) 95%, rgba(239,68,68,0.1))" : "var(--bg-card)",
                   borderColor: isExpiredValue ? "rgba(239,68,68,0.2)" : "var(--border-subtle)",
+                  boxShadow: "0 4px 20px -5px rgba(0,0,0,0.05)",
                 }}
               >
                 <div className="flex items-start justify-between">
@@ -433,16 +434,16 @@ export default function SecretsPage() {
                             return next;
                           }) : handleReveal(secret.id))}
                           disabled={isRevealing}
-                          className="p-1.5 rounded hover:bg-white/5 transition-colors disabled:opacity-50"
+                          className="p-1.5 rounded-lg hover:bg-white/10 hover:shadow-sm transition-all duration-200 disabled:opacity-50"
                           style={{ color: "var(--text-muted)" }}
                           title={isRevealed ? "Hide" : "Reveal"}
                         >
                           {isRevealing ? (
-                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                            <RefreshCw className="w-4 h-4 animate-spin" />
                           ) : isRevealed ? (
-                            <EyeOff className="w-3.5 h-3.5" />
+                            <EyeOff className="w-4 h-4 text-emerald-500" />
                           ) : (
-                            <Eye className="w-3.5 h-3.5" />
+                            <Eye className="w-4 h-4" />
                           )}
                         </button>
                         {isRevealed && (

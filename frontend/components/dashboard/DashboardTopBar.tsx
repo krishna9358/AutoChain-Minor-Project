@@ -57,17 +57,17 @@ export function DashboardTopBar() {
     >
       <Link
         href="/dashboard"
-        className="flex items-center gap-2 shrink-0 rounded-lg pr-2 py-1 hover:bg-[var(--bg-hover)] transition-colors"
+        className="flex items-center gap-2.5 shrink-0 rounded-xl px-2 py-1.5 hover:bg-white/5 transition-all duration-300"
         style={{ color: "var(--text-primary)" }}
       >
-        <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: "hsl(var(--primary))" }}>
-          <Zap className="w-3.5 h-3.5 text-primary-foreground" />
+        <div className="w-7 h-7 rounded-xl flex items-center justify-center shadow-sm bg-gradient-to-br from-blue-600 to-indigo-600">
+          <Zap className="w-4 h-4 text-white" />
         </div>
-        <span className="text-sm font-semibold hidden sm:inline">AutoChain</span>
+        <span className="text-sm font-bold tracking-tight hidden sm:inline bg-clip-text text-transparent bg-gradient-to-r from-primary to-indigo-500">AutoChain</span>
       </Link>
 
       <div
-        className="w-px h-5 shrink-0"
+        className="w-[1px] h-6 shrink-0"
         style={{ background: "var(--border-subtle)" }}
       />
 
@@ -75,17 +75,17 @@ export function DashboardTopBar() {
         <button
           type="button"
           onClick={() => setWsSwitcherOpen(!wsSwitcherOpen)}
-          className="flex items-center gap-1.5 pl-1 pr-2 py-1 rounded-lg text-sm font-medium transition-colors hover:bg-[var(--bg-hover)] max-w-[200px]"
+          className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl text-sm font-medium transition-all duration-300 hover:bg-white/5 max-w-[220px]"
           style={{
             background: wsSwitcherOpen
-              ? "var(--primary-alpha-08)"
+              ? "color-mix(in srgb, var(--primary) 10%, transparent)"
               : "transparent",
             color: "var(--text-primary)",
           }}
         >
           <div
-            className="w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold text-white shrink-0"
-            style={{ background: "var(--primary-alpha-80)" }}
+            className="w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold text-white shrink-0 shadow-sm"
+            style={{ background: "hsl(var(--primary))" }}
           >
             {activeWorkspace
               ? activeWorkspace.name.charAt(0).toUpperCase()
@@ -94,7 +94,7 @@ export function DashboardTopBar() {
           <span className="truncate">
             {activeWorkspace?.name || "No workspace"}
           </span>
-          <ChevronsUpDown className="w-3 h-3 opacity-50 shrink-0" />
+          <ChevronsUpDown className="w-3.5 h-3.5 opacity-40 shrink-0" />
         </button>
 
         <AnimatePresence>
@@ -189,12 +189,15 @@ export function DashboardTopBar() {
 
       {/* Breadcrumb hint on sub-routes */}
       {pathname !== "/dashboard" && !pathname.match(/^\/dashboard\/?$/) && (
-        <span
-          className="hidden md:inline text-xs truncate ml-2"
-          style={{ color: "var(--text-muted)" }}
-        >
-          {pathname.replace("/dashboard/", "").replace(/-/g, " ")}
-        </span>
+        <>
+          <div className="w-[1px] h-4 shrink-0 mx-1 opacity-50" style={{ background: "var(--border-subtle)" }} />
+          <span
+            className="hidden md:inline text-[13px] font-medium truncate tracking-wide"
+            style={{ color: "var(--text-secondary)" }}
+          >
+            {pathname.replace("/dashboard/", "").replace(/-/g, " ")}
+          </span>
+        </>
       )}
 
       <div className="flex-1 min-w-2" />
@@ -214,8 +217,8 @@ export function DashboardTopBar() {
           )}
         </button>
         <div
-          className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold text-white ml-1 ring-2 ring-[var(--border-medium)]"
-          style={{ background: "hsl(var(--primary))" }}
+          className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white mx-1 ring-2 ring-transparent transition-all duration-300 hover:ring-primary/50 shadow-sm cursor-pointer"
+          style={{ background: "linear-gradient(to bottom right, hsl(var(--primary)), hsl(var(--accent)))" }}
           title={userName}
         >
           {userName.charAt(0).toUpperCase()}

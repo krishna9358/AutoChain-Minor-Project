@@ -335,8 +335,7 @@ export default function GoogleIntegrationsPage() {
                   type="button"
                   disabled={savingApp}
                   onClick={saveAppSettings}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 text-white"
-                  style={{ background: "hsl(var(--primary))" }}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50 text-white shadow-md hover:shadow-lg transition-all duration-300 hover:scale-105 active:scale-95 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500"
                 >
                   {savingApp ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                   Save OAuth settings
@@ -376,13 +375,12 @@ export default function GoogleIntegrationsPage() {
             </p>
           )}
 
-          <div className="flex flex-wrap gap-3 items-center">
+          <div className="flex flex-wrap gap-4 items-center">
             <button
               type="button"
               disabled={connecting || !wsId}
               onClick={startConnect}
-              className="px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-40 disabled:pointer-events-none text-white"
-              style={{ background: "hsl(var(--primary))" }}
+              className="px-5 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-40 disabled:pointer-events-none text-white shadow-md hover:shadow-lg transition-all duration-300 hover:scale-105 active:scale-95 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-400 hover:to-cyan-400"
             >
               {connecting ? (
                 <span className="inline-flex items-center gap-2">
@@ -395,8 +393,8 @@ export default function GoogleIntegrationsPage() {
             <button
               type="button"
               onClick={() => refresh()}
-              className="px-3 py-2 rounded-lg text-sm border"
-              style={{ borderColor: "var(--border-medium)", color: "var(--text-secondary)" }}
+              className="px-4 py-2.5 rounded-xl text-sm font-medium border transition-all duration-300 hover:bg-white/5 active:scale-95"
+              style={{ borderColor: "var(--border-subtle)", color: "var(--text-primary)" }}
             >
               Refresh list
             </button>
