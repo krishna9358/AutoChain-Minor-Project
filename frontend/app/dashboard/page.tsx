@@ -362,10 +362,9 @@ function DashboardPageContent() {
             componentId: "chat-model",
             label: "Chat Model",
             category: "AI",
-            config: { provider: "openrouter", model: "gpt-4o" },
+            config: { provider: "groq", model: "llama-3.3-70b-versatile", temperature: 0.7 },
           },
         });
-        // Connect chat model to agent's chatModel handle
         allEdges.push({
           id: `sub-${ts}-${i}`,
           source: chatModelId,
@@ -973,12 +972,18 @@ function DashboardPageContent() {
                     const ts = Date.now();
                     // Build a map from YAML node IDs to new IDs
                     const idMap: Record<string, string> = {};
+                    const tplNodeTypeMap: Record<string, string> = {
+                      "ai-agent": "aiAgentNode",
+                      "chat-model": "chatModelNode",
+                      "agent-memory": "memoryNode",
+                      "agent-tool": "toolNode",
+                    };
                     const nodes = tpl.nodes.map((n, i) => {
                       const newId = `${n.type}-${ts}-${i}`;
                       idMap[n.id] = newId;
                       return {
                         id: newId,
-                        type: "workflowNode",
+                        type: tplNodeTypeMap[n.type] || "workflowNode",
                         position: n.position || { x: 250 + i * 280, y: 200 },
                         data: {
                           nodeType: n.type,
@@ -990,15 +995,24 @@ function DashboardPageContent() {
                         },
                       };
                     });
-                    const edges = tpl.edges.map((e, i) => ({
-                      id: `e-${ts}-${i}`,
-                      source: idMap[e.source] || e.source,
-                      target: idMap[e.target] || e.target,
-                      animated: true,
-                      style: { stroke: "hsl(var(--primary))", strokeWidth: 2 },
-                      markerEnd: { type: "arrowclosed", color: "hsl(var(--primary))" },
-                      label: e.label || "",
-                    }));
+                    const edges = tpl.edges.map((e, i) => {
+                      const isSub = (e as any).sourceHandle || (e as any).targetHandle;
+                      return {
+                        id: `e-${ts}-${i}`,
+                        source: idMap[e.source] || e.source,
+                        target: idMap[e.target] || e.target,
+                        sourceHandle: (e as any).sourceHandle || undefined,
+                        targetHandle: (e as any).targetHandle || undefined,
+                        animated: !isSub,
+                        style: isSub
+                          ? { stroke: "#555", strokeWidth: 1.5, strokeDasharray: "6 4" }
+                          : { stroke: "hsl(var(--primary))", strokeWidth: 2 },
+                        markerEnd: isSub
+                          ? undefined
+                          : { type: "arrowclosed", color: "hsl(var(--primary))" },
+                        label: e.label || "",
+                      };
+                    });
                     sessionStorage.setItem("template-import", JSON.stringify({
                       name: tpl.name,
                       description: tpl.description,

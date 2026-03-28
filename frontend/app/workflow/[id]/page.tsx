@@ -382,6 +382,8 @@ function WorkflowInner() {
   const [isResizingRight, setIsResizingRight] = useState(false);
   const [saving, setSaving] = useState(false);
   const [executing, setExecuting] = useState(false);
+  const [showRunModal, setShowRunModal] = useState(false);
+  const [runInputText, setRunInputText] = useState("");
   const [loading, setLoading] = useState(!isNew);
   const [descExpanded, setDescExpanded] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -595,9 +597,15 @@ function WorkflowInner() {
           id: e.id,
           source: e.sourceNodeId,
           target: e.targetNodeId,
+          sourceHandle: e.sourceHandle || undefined,
+          targetHandle: e.targetHandle || undefined,
           animated: true,
-          style: { stroke: "hsl(var(--primary))", strokeWidth: 2 },
-          markerEnd: { type: MarkerType.ArrowClosed, color: "hsl(var(--primary))" },
+          style: e.sourceHandle || e.targetHandle
+            ? { stroke: "#555", strokeWidth: 1.5, strokeDasharray: "6 4" }
+            : { stroke: "hsl(var(--primary))", strokeWidth: 2 },
+          markerEnd: e.sourceHandle || e.targetHandle
+            ? undefined
+            : { type: MarkerType.ArrowClosed, color: "hsl(var(--primary))" },
         }));
         // Run component migration on loaded workflow
         const migrated = migrateWorkflow(mappedNodes, mappedEdges);
@@ -774,7 +782,12 @@ function WorkflowInner() {
             metadata: { componentId },
           };
         }),
-        edges: curEdges.map((e) => ({ source: e.source, target: e.target })),
+        edges: curEdges.map((e) => ({
+          source: e.source,
+          target: e.target,
+          sourceHandle: (e as any).sourceHandle || undefined,
+          targetHandle: (e as any).targetHandle || undefined,
+        })),
       };
 
       if (isNew) {
@@ -869,7 +882,7 @@ function WorkflowInner() {
     }
   };
 
-  const exec = async () => {
+  const exec = () => {
     if (isNew || !hasWorkspace) {
       toast({
         title: "Save required",
@@ -887,10 +900,15 @@ function WorkflowInner() {
       });
       return;
     }
+    // Pre-fill with the entry point's testRunPlainText config
     const curNodes = useWorkflowStore.getState().nodes;
-    const triggerData: Record<string, unknown> = {
-      text: getEntryPointTestRunPlainText(curNodes),
-    };
+    setRunInputText(getEntryPointTestRunPlainText(curNodes));
+    setShowRunModal(true);
+  };
+
+  const execWithInput = async (inputText: string) => {
+    setShowRunModal(false);
+    const triggerData: Record<string, unknown> = { text: inputText };
     setExecuting(true);
     try {
       const r = await api.post(`/api/v1/execution/run/${wfId}`, {
@@ -913,6 +931,8 @@ function WorkflowInner() {
     }
   };
 
+  const approvalToastShownRef = useRef<Set<string>>(new Set());
+
   const pollRunUntilDone = async (runId: string) => {
     const poll = async () => {
       const data = await fetchRunDetails(runId, { background: true });
@@ -920,6 +940,18 @@ function WorkflowInner() {
         data &&
         ["RUNNING", "PENDING", "WAITING_APPROVAL"].includes(data.status)
       ) {
+        // Show toast when approval is needed (only once per run)
+        if (data.status === "WAITING_APPROVAL" && !approvalToastShownRef.current.has(runId)) {
+          approvalToastShownRef.current.add(runId);
+          toast({
+            title: "Approval Required",
+            description: "A workflow step needs your approval to continue. Check the run details below.",
+            variant: "default",
+            duration: 10000,
+          });
+          // Force foreground refresh so approval buttons render
+          await fetchRunDetails(runId);
+        }
         setTimeout(poll, 1500);
       } else if (data) {
         try {
@@ -1805,6 +1837,62 @@ function WorkflowInner() {
                     </div>
                   ) : (
                     <div className="space-y-3">
+                      {/* Floating Approval Banner */}
+                      {(activeRun as any)?.status === "WAITING_APPROVAL" && (() => {
+                        const approvals = (activeRun as any)?.approvals || [];
+                        const pending = approvals.find((a: any) => a.status === "PENDING");
+                        if (!pending) return null;
+                        return (
+                          <div className="p-4 rounded-xl border-2 border-amber-500/40" style={{ background: "rgba(245,158,11,0.08)" }}>
+                            <div className="flex items-center gap-3 mb-3">
+                              <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center">
+                                <Pause className="w-4 h-4 text-amber-500" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                                  Approval Required
+                                </p>
+                                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                                  The workflow is paused and waiting for your decision.
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    await api.post(`/api/v1/approvals/${pending.id}`, { status: "APPROVED", comment: "" });
+                                    toast({ title: "Approved", description: "Workflow resumed.", variant: "success" });
+                                    if (activeRun) pollRunUntilDone(activeRun.id);
+                                  } catch (e: any) {
+                                    toast({ title: "Failed", description: e.message, variant: "destructive" });
+                                  }
+                                }}
+                                className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 hover:shadow-lg"
+                                style={{ background: "#10b981" }}
+                              >
+                                Approve & Continue
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    await api.post(`/api/v1/approvals/${pending.id}`, { status: "REJECTED", comment: "Rejected by user" });
+                                    toast({ title: "Rejected", description: "Workflow stopped.", variant: "default" });
+                                    if (activeRun) fetchRunDetails(activeRun.id);
+                                  } catch (e: any) {
+                                    toast({ title: "Failed", description: e.message, variant: "destructive" });
+                                  }
+                                }}
+                                className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
+                                style={{ background: "#ef4444" }}
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
                       {runSteps.map((s: any, i: number) => (
                         <div
                           key={s.id}
@@ -1834,9 +1922,10 @@ function WorkflowInner() {
                                 s.status === "COMPLETED" ? "bg-emerald-500/10 text-emerald-500" :
                                 s.status === "FAILED" ? "bg-red-500/10 text-red-500" :
                                 s.status === "RUNNING" ? "bg-blue-500/10 text-blue-500" :
+                                s.status === "WAITING_APPROVAL" ? "bg-amber-500/10 text-amber-500" :
                                 "bg-zinc-500/10 text-zinc-400"
                               }`}>
-                                {s.status}
+                                {s.status === "WAITING_APPROVAL" ? "Waiting Approval" : s.status}
                               </span>
                             </div>
                             <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>
@@ -1875,6 +1964,60 @@ function WorkflowInner() {
                               </div>
                             </div>
                           )}
+
+                          {s.status === "WAITING_APPROVAL" && (() => {
+                            const approvals = (activeRun as any)?.approvals || [];
+                            // Match by nodeId, or fall back to any PENDING approval for this run
+                            const approval = approvals.find(
+                              (a: any) => a.nodeId === s.nodeId && a.status === "PENDING",
+                            ) || approvals.find(
+                              (a: any) => a.status === "PENDING",
+                            );
+                            if (!approval) return null;
+                            return (
+                              <div className="px-4 pb-4">
+                                <div className="p-3 rounded-xl border" style={{ borderColor: "rgba(245,158,11,0.3)", background: "rgba(245,158,11,0.05)" }}>
+                                  <p className="text-xs font-medium mb-3" style={{ color: "var(--text-primary)" }}>
+                                    This step requires your approval to continue.
+                                  </p>
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={async () => {
+                                        try {
+                                          await api.post(`/api/v1/approvals/${approval.id}`, { status: "APPROVED", comment: "" });
+                                          if (activeRun) {
+                                            pollRunUntilDone(activeRun.id);
+                                          }
+                                        } catch (e: any) {
+                                          toast({ title: "Approval failed", description: e.message, variant: "destructive" });
+                                        }
+                                      }}
+                                      className="flex-1 px-3 py-2 rounded-lg text-xs font-semibold text-white transition-colors hover:opacity-90"
+                                      style={{ background: "#10b981" }}
+                                    >
+                                      Approve
+                                    </button>
+                                    <button
+                                      onClick={async () => {
+                                        try {
+                                          await api.post(`/api/v1/approvals/${approval.id}`, { status: "REJECTED", comment: "Rejected by user" });
+                                          if (activeRun) {
+                                            fetchRunDetails(activeRun.id);
+                                          }
+                                        } catch (e: any) {
+                                          toast({ title: "Rejection failed", description: e.message, variant: "destructive" });
+                                        }
+                                      }}
+                                      className="flex-1 px-3 py-2 rounded-lg text-xs font-semibold text-white transition-colors hover:opacity-90"
+                                      style={{ background: "#ef4444" }}
+                                    >
+                                      Reject
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </div>
                       ))}
                     </div>
@@ -2399,6 +2542,80 @@ function WorkflowInner() {
                 style={{ color: "var(--text-primary)" }}
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Run Input Modal ── */}
+      {showRunModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div
+            className="rounded-2xl border shadow-2xl w-full max-w-lg mx-4"
+            style={{
+              background: "var(--bg-card, #1e1e2e)",
+              borderColor: "var(--border-medium)",
+            }}
+          >
+            <div className="p-5 border-b" style={{ borderColor: "var(--border-subtle)" }}>
+              <h3 className="text-base font-bold" style={{ color: "var(--text-primary)" }}>
+                Run Workflow
+              </h3>
+              <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--text-tertiary)" }}>
+                Describe the task or paste the data you want the workflow to process.
+                The AI agents in this workflow will read your input and act on it.
+              </p>
+            </div>
+            <div className="p-5">
+              <label className="block text-xs font-medium mb-2" style={{ color: "var(--text-secondary)" }}>
+                Input
+              </label>
+              <textarea
+                autoFocus
+                rows={8}
+                value={runInputText}
+                onChange={(e) => setRunInputText(e.target.value)}
+                placeholder={"e.g. Customer Sarah Johnson (sarah@acme.com) cannot access the billing dashboard. She\u2019s getting a 403 error for the past 2 hours. High priority \u2014 needs invoices for tomorrow\u2019s quarterly review."}
+                className="w-full rounded-xl border px-4 py-3 text-sm font-mono resize-y focus:outline-none focus:ring-2 focus:ring-primary/50"
+                style={{
+                  background: "var(--bg-secondary, #161622)",
+                  borderColor: "var(--border-subtle)",
+                  color: "var(--text-primary)",
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                    execWithInput(runInputText);
+                  }
+                }}
+              />
+              <p className="text-[10px] mt-2" style={{ color: "var(--text-tertiary)" }}>
+                Press Cmd+Enter / Ctrl+Enter to run
+              </p>
+            </div>
+            <div
+              className="p-4 border-t flex justify-end gap-2"
+              style={{ borderColor: "var(--border-subtle)" }}
+            >
+              <button
+                onClick={() => setShowRunModal(false)}
+                className="px-4 py-2 rounded-xl text-sm font-medium border hover:bg-white/5 transition-colors"
+                style={{
+                  borderColor: "var(--border-subtle)",
+                  color: "var(--text-secondary)",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => execWithInput(runInputText)}
+                className="px-4 py-2 rounded-xl text-sm font-semibold text-white transition-colors hover:opacity-90"
+                style={{ background: "hsl(var(--primary))" }}
+              >
+                <span className="flex items-center gap-1.5">
+                  <Play className="w-3.5 h-3.5" />
+                  Run
+                </span>
               </button>
             </div>
           </div>

@@ -534,10 +534,10 @@ export default function SecretsPage() {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-lg rounded-xl shadow-2xl"
+              className="w-full max-w-lg rounded-xl shadow-2xl max-h-[90vh] flex flex-col"
               style={{ background: "var(--bg-card)", borderColor: "var(--border-subtle)" }}
             >
-              <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: "var(--border-subtle)" }}>
+              <div className="flex items-center justify-between p-4 border-b shrink-0" style={{ borderColor: "var(--border-subtle)" }}>
                 <h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
                   {showCreateModal ? "Create Secret" : "Edit Secret"}
                 </h2>
@@ -554,7 +554,7 @@ export default function SecretsPage() {
                 </button>
               </div>
 
-              <div className="p-4 space-y-4">
+              <div className="p-4 space-y-4 overflow-y-auto">
                 <div>
                   <label className="block text-xs font-medium mb-1" style={{ color: "var(--text-secondary)" }}>
                     Name <span className="text-red-500">*</span>
@@ -562,7 +562,14 @@ export default function SecretsPage() {
                   <input
                     type="text"
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(e) => {
+                      const name = e.target.value;
+                      const autoKey = name
+                        .toUpperCase()
+                        .replace(/[^A-Z0-9]+/g, "_")
+                        .replace(/^_|_$/g, "");
+                      setFormData({ ...formData, name, key: autoKey });
+                    }}
                     placeholder="e.g., Production API Key"
                     className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
                     style={{
@@ -575,13 +582,13 @@ export default function SecretsPage() {
 
                 <div>
                   <label className="block text-xs font-medium mb-1" style={{ color: "var(--text-secondary)" }}>
-                    Key <span className="text-red-500">*</span>
+                    Key
                   </label>
                   <input
                     type="text"
                     value={formData.key}
                     onChange={(e) => setFormData({ ...formData, key: e.target.value })}
-                    placeholder="e.g., API_KEY_PRODUCTION"
+                    placeholder="Auto-generated from name"
                     className="w-full px-3 py-2 rounded-lg text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary/50"
                     style={{
                       background: "var(--bg-elevated)",
@@ -590,10 +597,9 @@ export default function SecretsPage() {
                     }}
                   />
                   <p className="text-[10px] mt-1 leading-relaxed" style={{ color: "var(--text-muted)" }}>
-                    Reference name for <code className="text-primary">{"{{secrets.KEY}}"}</code> — use
-                    letters, numbers, and underscores (e.g.{" "}
-                    <code className="text-primary/90">STRIPE_API_KEY</code>). This is not your encryption
-                    passphrase.
+                    Auto-generated from name. Use{" "}
+                    <code className="text-primary">{"{{secrets.KEY}}"}</code> in node configs to reference
+                    this secret.
                   </p>
                 </div>
 
@@ -679,7 +685,7 @@ export default function SecretsPage() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-end space-x-3 p-4 border-t" style={{ borderColor: "var(--border-subtle)" }}>
+              <div className="flex items-center justify-end space-x-3 p-4 border-t shrink-0" style={{ borderColor: "var(--border-subtle)" }}>
                 <button
                   onClick={() => {
                     setShowCreateModal(false);
