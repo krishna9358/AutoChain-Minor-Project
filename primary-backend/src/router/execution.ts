@@ -768,6 +768,10 @@ async function simulateExecution(runId: string, nodes: any[], edges: any[]) {
   }
 
   // BFS execution
+  console.log(`[BFS] Starting. Adjacency (${adjacency.size} parents):`);
+  adjacency.forEach((ch, p) => console.log(`  ${p} → ${ch.join(", ")}`));
+  console.log(`[BFS] Pre-visited (${visited.size}): ${[...visited].join(", ") || "none"}`);
+
   const WORKFLOW_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
   const workflowStartTime = Date.now();
 
@@ -789,9 +793,7 @@ async function simulateExecution(runId: string, nodes: any[], edges: any[]) {
     }
 
     if (visited.has(nodeId)) {
-      // Queue children of already-completed nodes (needed for resume after approval)
       const nextNodes = adjacency.get(nodeId) || [];
-      console.log(`[BFS] Node ${nodeId} already visited, queuing ${nextNodes.length} children: ${nextNodes.join(", ")}`);
       for (const next of nextNodes) {
         if (!visited.has(next)) queue.push(next);
       }
@@ -814,7 +816,7 @@ async function simulateExecution(runId: string, nodes: any[], edges: any[]) {
 
     // Check for approval nodes
     if (node.nodeType === "APPROVAL" || node.nodeType === "approval" || node.metadata?.componentId === "approval") {
-      // Gather context from parent nodes
+      // Gather context from parent nodes and resolve template variables
       const parentIds = parents.get(nodeId) || [];
       const approvalContext: Record<string, any> = {};
       for (const pid of parentIds) {
@@ -824,7 +826,16 @@ async function simulateExecution(runId: string, nodes: any[], edges: any[]) {
 
       const cfg = (node.config || {}) as Record<string, any>;
       const approverEmail = cfg.approvers || cfg.assigned_to || "";
-      const approvalMessage = cfg.message || "Workflow step requires your approval";
+      let approvalMessage = cfg.message || "Workflow step requires your approval";
+      // Resolve {{payload.field}} in the message using parent outputs
+      for (const pid of parentIds) {
+        const prevOut = outputMap.get(pid) as Record<string, any> | undefined;
+        if (prevOut) {
+          approvalMessage = approvalMessage.replace(/\{\{payload\.(\w+)\}\}/g, (_: string, key: string) => {
+            return prevOut[key] || prevOut.result?.[key] || `[${key}]`;
+          });
+        }
+      }
 
       await prisma.runStep.updateMany({
         where: { runId, nodeId },
