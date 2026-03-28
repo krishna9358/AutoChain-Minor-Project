@@ -1224,6 +1224,15 @@ async function simulateExecution(runId: string, nodes: any[], edges: any[]) {
         timestamp: new Date().toISOString(),
       });
 
+      // Store error output so downstream nodes can still access partial data
+      outputMap.set(nodeId, { error: nodeErr.message, failed: true });
+
+      // Queue children so the rest of the workflow continues (nodes after a failure still run)
+      const nextAfterFail = adjacency.get(nodeId) || [];
+      for (const next of nextAfterFail) {
+        queue.push(next);
+      }
+
       // Self-healing: check for fallback edges and route to alternate node
       const fallbackEdge = findFallbackEdge(edges, nodeId);
       if (fallbackEdge && nodeIds.has(fallbackEdge.targetNodeId)) {
