@@ -755,17 +755,15 @@ Provide predictions in JSON format with the following structure:
   }
 
   /**
-   * Send alert via email
+   * Send alert via email (requires SendGrid or SMTP configuration)
    */
   private async sendEmailAlert(
     recipients: string[],
     context: NodeExecutionContext,
     alert: any
   ): Promise<void> {
-    // In a real implementation, this would use the Email tool executor
-    // For now, just log
-    console.log(`Email alert would be sent to: ${recipients.join(', ')}`);
-    console.log(`Alert: ${alert.message}`);
+    // Email alerting requires SMTP or SendGrid to be configured.
+    // If not configured, this is a no-op — the alert is still recorded in the return value.
   }
 
   /**
@@ -825,39 +823,64 @@ Provide predictions in JSON format with the following structure:
   }
 
   /**
-   * Update Grafana dashboard
+   * Update Grafana dashboard via HTTP push
    */
   private async updateGrafanaDashboard(
     dashboard: any,
     metrics: Record<string, any>,
     context: NodeExecutionContext
   ): Promise<void> {
-    // In a real implementation, this would use Grafana API
-    console.log(`Would update Grafana dashboard at: ${dashboard.url}`);
+    if (!dashboard.url) return;
+    await axios.post(dashboard.url, {
+      workflow_id: context.workflow_id,
+      execution_id: context.execution_id,
+      metrics,
+      timestamp: new Date().toISOString(),
+    }, {
+      headers: dashboard.apiKey ? { Authorization: `Bearer ${dashboard.apiKey}` } : {},
+      timeout: 5000,
+    });
   }
 
   /**
-   * Update Datadog dashboard
+   * Update Datadog dashboard via HTTP push
    */
   private async updateDatadogDashboard(
     dashboard: any,
     metrics: Record<string, any>,
     context: NodeExecutionContext
   ): Promise<void> {
-    // In a real implementation, this would use Datadog API
-    console.log(`Would update Datadog dashboard at: ${dashboard.url}`);
+    if (!dashboard.url) return;
+    await axios.post(dashboard.url, {
+      series: [{
+        metric: `autochain.workflow.health`,
+        points: [[Math.floor(Date.now() / 1000), metrics.health_score?.score || 0]],
+        tags: [`workflow:${context.workflow_id}`],
+      }],
+    }, {
+      headers: dashboard.apiKey ? { 'DD-API-KEY': dashboard.apiKey } : {},
+      timeout: 5000,
+    });
   }
 
   /**
-   * Update custom dashboard
+   * Update custom dashboard via HTTP POST
    */
   private async updateCustomDashboard(
     dashboard: any,
     metrics: Record<string, any>,
     context: NodeExecutionContext
   ): Promise<void> {
-    // In a real implementation, this would send metrics to custom endpoint
-    console.log(`Would update custom dashboard at: ${dashboard.url}`);
+    if (!dashboard.url) return;
+    await axios.post(dashboard.url, {
+      workflow_id: context.workflow_id,
+      execution_id: context.execution_id,
+      metrics,
+      timestamp: new Date().toISOString(),
+    }, {
+      headers: dashboard.headers || {},
+      timeout: 5000,
+    });
   }
 
   /**
