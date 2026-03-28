@@ -822,21 +822,32 @@ async function simulateExecution(runId: string, nodes: any[], edges: any[]) {
 
       const cfg = (node.config || {}) as Record<string, any>;
       const approverEmail = cfg.approvers || cfg.assigned_to || "";
-      let approvalMessage = cfg.message || "Workflow step requires your approval";
-      // Resolve {{payload.field}} using: trigger data, all upstream outputs, parent outputs
-      approvalMessage = approvalMessage.replace(/\{\{payload\.(\w+)\}\}/g, (_: string, key: string) => {
-        // Check trigger payload first (customer_name, customer_email, etc.)
-        if (triggerPayload[key] !== undefined) return String(triggerPayload[key]);
-        // Check all upstream node outputs
+
+      // Parse trigger text if it's a JSON string (frontend wraps input as { text: "..." })
+      let parsedTriggerData: Record<string, any> = {};
+      if (typeof triggerPayload.text === "string") {
+        try { parsedTriggerData = JSON.parse(triggerPayload.text as string); } catch {}
+      }
+
+      // Build a readable approval message from trigger data and AI outputs
+      const triggerText = parsedTriggerData.subject || parsedTriggerData.description || triggerPayload.description || triggerPayload.text || "";
+      const aiDraft = (() => {
         for (const [, out] of outputMap) {
           const o = out as Record<string, any>;
-          if (o?.[key] !== undefined) return String(o[key]);
-          if (o?.result?.[key] !== undefined) return String(o.result[key]);
-          if (o?.payload?.[key] !== undefined) return String(o.payload[key]);
-          if (o?.triggerInput?.[key] !== undefined) return String(o.triggerInput[key]);
+          if (o?.result && typeof o.result === "string" && o.result.length > 50) {
+            return o.result.substring(0, 200) + "...";
+          }
         }
-        return `[${key}]`;
-      });
+        return "";
+      })();
+      // Build a readable summary from parsed trigger fields
+      const customerInfo = parsedTriggerData.customer_name
+        ? `**Customer:** ${parsedTriggerData.customer_name} (${parsedTriggerData.customer_email || "N/A"})\n**Subject:** ${parsedTriggerData.subject || "N/A"}\n**Priority:** ${parsedTriggerData.priority || "N/A"}`
+        : String(triggerText).substring(0, 150);
+
+      const approvalMessage = aiDraft
+        ? `${customerInfo}\n\n---\n\n### AI Draft Preview\n\n${aiDraft}`
+        : cfg.message || "Workflow step requires your approval";
 
       await prisma.runStep.updateMany({
         where: { runId, nodeId },
@@ -878,15 +889,21 @@ async function simulateExecution(runId: string, nodes: any[], edges: any[]) {
               from: "AutoChain <onboarding@resend.dev>",
               to: Array.isArray(approverEmail) ? approverEmail : [approverEmail],
               subject: `Approval Required: ${wfName}`,
-              html: `
-                <h2>Approval Required</h2>
-                <p><strong>${wfName}</strong> needs your approval to continue.</p>
-                <p>${approvalMessage}</p>
-                <br/>
-                <a href="${approvalUrl}" style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;">Review & Approve</a>
-                <br/><br/>
-                <p style="color:#888;font-size:12px;">Run ID: ${runId}</p>
-              `,
+              html: await (async () => {
+                const { marked } = await import("marked");
+                const msgHtml = await marked(approvalMessage);
+
+                return `
+                <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+                  <h2 style="color:#111;">Approval Required</h2>
+                  <p><strong>${wfName}</strong> needs your approval to continue.</p>
+                  <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin:16px 0;">
+                    ${msgHtml}
+                  </div>
+                  <a href="${approvalUrl}" style="display:inline-block;background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;margin:16px 0;">Review &amp; Approve</a>
+                  <p style="color:#888;font-size:12px;">Run ID: ${runId}</p>
+                </div>`;
+              })(),
             });
             console.log(`[approval] Email sent to ${approverEmail}`);
           } catch (emailErr: any) {
@@ -2212,23 +2229,254 @@ export async function resumeAfterApproval(runId: string, approvedNodeId: string)
     return;
   }
 
-  // Resume execution — re-run BFS, pre-marking completed nodes as visited.
-  // Also mark the just-approved node as COMPLETED so BFS skips it and processes its children.
-  console.log(`[resumeAfterApproval] Resuming run ${runId} after node ${approvedNodeId}, children: ${childNodeIds.join(", ")}`);
-  try {
-    await simulateExecution(runId, nodesWithSecrets, workflow.edges);
-    console.log(`[resumeAfterApproval] Run ${runId} resumed successfully`);
-  } catch (err: any) {
-    console.error(`[resumeAfterApproval] Resumed run ${runId} failed:`, err);
-    await prisma.workflowRun.update({
-      where: { id: runId },
-      data: {
-        status: "FAILED",
-        error: err.message || "Resumed execution failed",
-        completedAt: new Date(),
-      },
-    }).catch(() => {});
+  // Resume: directly execute remaining nodes starting from children of approved node
+  const nodeIds = new Set(nodesWithSecrets.map((n: any) => n.id));
+  const adjacency = new Map<string, string[]>();
+  for (const edge of workflow.edges) {
+    if (!nodeIds.has(edge.sourceNodeId) || !nodeIds.has(edge.targetNodeId)) continue;
+    if (isSubNodeEdge(edge, nodesWithSecrets)) continue;
+    const arr = adjacency.get(edge.sourceNodeId) || [];
+    arr.push(edge.targetNodeId);
+    adjacency.set(edge.sourceNodeId, arr);
   }
+
+  // Get completed steps to build output map
+  const completedSteps = await prisma.runStep.findMany({
+    where: { runId, status: "COMPLETED" },
+    select: { nodeId: true, outputPayload: true },
+  });
+  const outputMap = new Map<string, unknown>();
+  for (const s of completedSteps) {
+    if (s.nodeId && s.outputPayload) outputMap.set(s.nodeId, s.outputPayload);
+  }
+
+  const triggerPayload = normalizeTriggerPayload(run.triggerData);
+  const parents = buildParentMap(workflow.edges, nodeIds, nodesWithSecrets);
+  const visited = new Set(completedSteps.filter(s => s.nodeId).map(s => s.nodeId!));
+  const queue = [...childNodeIds];
+
+  console.log(`[resumeAfterApproval] Resuming run ${runId}, starting from: ${childNodeIds.join(", ")}, visited: ${visited.size} nodes`);
+
+  while (queue.length > 0) {
+    const nid = queue.shift()!;
+    if (visited.has(nid)) continue;
+    visited.add(nid);
+
+    const node = nodesWithSecrets.find((n: any) => n.id === nid);
+    if (!node) continue;
+    if (isSubNode(node)) continue;
+
+    const parentIds = parents.get(nid) || [];
+    const stepInput = computeStepInput(node, triggerPayload, parentIds, outputMap);
+    const startTime = Date.now();
+
+    await prisma.runStep.updateMany({
+      where: { runId, nodeId: nid },
+      data: { status: "RUNNING", startedAt: new Date() },
+    });
+
+    broadcastRunUpdate({
+      type: "step_started",
+      runId,
+      nodeId: nid,
+      nodeLabel: (node as any).label || (node as any).nodeType || nid,
+      timestamp: new Date().toISOString(),
+    });
+
+    try {
+      let output: any;
+      const cfg = ((node as any).config || {}) as Record<string, any>;
+      const nType = ((node as any).nodeType || "").toLowerCase().replace(/_/g, "-");
+      const compId = (((node as any).metadata as any)?.componentId || "").toLowerCase();
+
+      // Real email sending via Resend for email-send nodes
+      if (nType === "email-send" || compId === "email-send") {
+        const resendKey = await (async () => {
+          const wId = workflow.workspaceId;
+          const sMap = await getWorkspaceSecretsMap(wId);
+          return sMap.RESEND_API_KEY || sMap.RESEND_MAIL_SERVICE || null;
+        })();
+
+        if (resendKey && cfg.to) {
+          const { Resend } = await import("resend");
+          const resend = new Resend(resendKey);
+
+          // Parse trigger text if it's a JSON string (frontend wraps input as { text: "..." })
+          let parsedTrigger: Record<string, any> = {};
+          if (typeof triggerPayload.text === "string") {
+            try { parsedTrigger = JSON.parse(triggerPayload.text as string); } catch {}
+          }
+
+          // Resolve ALL template vars (to, from, subject, body) from trigger + upstream
+          const resolveVars = (str: string) => str.replace(/\{\{payload\.(\w+)\}\}/g, (_: string, k: string) => {
+            if (triggerPayload[k] !== undefined) return String(triggerPayload[k]);
+            if (parsedTrigger[k] !== undefined) return String(parsedTrigger[k]);
+            for (const [, o] of outputMap) {
+              const obj = o as Record<string, any>;
+              if (obj?.[k] !== undefined) return String(obj[k]);
+              if (obj?.result && typeof obj.result === "string" && k === "approved_response") return obj.result;
+            }
+            return "";
+          });
+
+          const emailTo = resolveVars(cfg.to || "");
+          const emailFrom = resolveVars(cfg.from || "AutoChain <onboarding@resend.dev>");
+          let emailSubject = resolveVars(cfg.subject || "Workflow notification");
+          let emailBody = resolveVars(cfg.body || "");
+
+          // If body is empty or unresolved, use the AI's drafted response
+          if (!emailBody || emailBody.includes("{{")) {
+            for (const [, o] of outputMap) {
+              const obj = o as Record<string, any>;
+              if (obj?.result && typeof obj.result === "string" && obj.result.length > 50) {
+                emailBody = obj.result;
+                break;
+              }
+            }
+          }
+
+          const toAddresses = emailTo.split(",").map(e => e.trim()).filter(Boolean);
+          if (toAddresses.length === 0) throw new Error("No valid recipient email address");
+
+          const { data: emailData, error: emailError } = await resend.emails.send({
+            from: emailFrom,
+            to: toAddresses,
+            subject: emailSubject,
+            html: await (async () => {
+              const { marked } = await import("marked");
+              return await marked(emailBody);
+            })(),
+          });
+
+          if (emailError) throw new Error(`Email failed: ${emailError.message}`);
+          output = {
+            email_sent: true,
+            messageId: emailData?.id,
+            to: cfg.to,
+            subject: emailSubject,
+            bodyPreview: emailBody.substring(0, 100) + "...",
+          };
+          console.log(`[resume] Email sent to ${cfg.to}`);
+        } else {
+          output = generateNodeOutput(node);
+        }
+      } else if (nType === "sla-monitor" || compId === "sla-monitor") {
+        // Real SLA tracking — calculate actual duration
+        const runStarted = run.startedAt ? new Date(run.startedAt).getTime() : Date.now();
+        const durationMs = Date.now() - runStarted;
+        const durationMinutes = Math.round(durationMs / 60000);
+        const slaDeadlineMinutes = cfg.durationMinutes || 480;
+        const percentUsed = Math.round((durationMinutes / slaDeadlineMinutes) * 100);
+        const slaStatus = percentUsed >= 100 ? "breached" : percentUsed >= (cfg.warningThreshold || 75) ? "at_risk" : "on_track";
+        output = {
+          sla_name: cfg.slaName || "Resolution SLA",
+          status: slaStatus,
+          duration_minutes: durationMinutes,
+          deadline_minutes: slaDeadlineMinutes,
+          percent_used: percentUsed,
+          started_at: run.startedAt,
+          checked_at: new Date().toISOString(),
+        };
+      } else if (nType === "audit-log" || compId === "audit-log") {
+        // Real audit log — write to AuditLog table
+        const logMessage = (cfg.message || "Workflow step completed").replace(/\{\{payload\.(\w+)\}\}/g, (_: string, k: string) => {
+          if (triggerPayload[k] !== undefined) return String(triggerPayload[k]);
+          for (const [, o] of outputMap) {
+            const obj = o as Record<string, any>;
+            if (obj?.[k] !== undefined) return String(obj[k]);
+          }
+          return "";
+        });
+        await prisma.auditLog.create({
+          data: {
+            workflowId: workflow.id,
+            userId: workflow.userId || "system",
+            action: `workflow.${cfg.logCategory || "operational"}`,
+            details: {
+              runId,
+              nodeId: nid,
+              message: logMessage,
+              level: cfg.logLevel || "standard",
+              triggerData: triggerPayload as any,
+            },
+          },
+        });
+        output = {
+          logged: true,
+          message: logMessage,
+          level: cfg.logLevel || "standard",
+          category: cfg.logCategory || "operational",
+          timestamp: new Date().toISOString(),
+        };
+      } else {
+        // Fallback for unhandled node types
+        output = generateNodeOutput(node);
+      }
+
+      const executionTimeMs = Date.now() - startTime;
+      outputMap.set(nid, output);
+
+      await prisma.runStep.updateMany({
+        where: { runId, nodeId: nid },
+        data: {
+          status: "COMPLETED",
+          completedAt: new Date(),
+          executionTimeMs,
+          inputPayload: stepInput as any,
+          outputPayload: output as any,
+        },
+      });
+
+      broadcastRunUpdate({
+        type: "step_completed",
+        runId,
+        nodeId: nid,
+        nodeLabel: (node as any).label || (node as any).nodeType || nid,
+        status: "COMPLETED",
+        executionTimeMs,
+        timestamp: new Date().toISOString(),
+      });
+
+      const nextNodes = adjacency.get(nid) || [];
+      for (const next of nextNodes) queue.push(next);
+    } catch (err: any) {
+      const executionTimeMs = Date.now() - startTime;
+      console.error(`[resume] Node ${(node as any).label || nid} failed:`, err.message);
+      await prisma.runStep.updateMany({
+        where: { runId, nodeId: nid },
+        data: {
+          status: "FAILED",
+          completedAt: new Date(),
+          executionTimeMs,
+          error: err.message,
+          outputPayload: { error: err.message },
+        },
+      });
+      outputMap.set(nid, { error: err.message, failed: true });
+      // Still queue children
+      const nextNodes = adjacency.get(nid) || [];
+      for (const next of nextNodes) queue.push(next);
+    }
+  }
+
+  // Mark run as completed
+  const failedCount = await prisma.runStep.count({ where: { runId, status: "FAILED" } });
+  await prisma.workflowRun.update({
+    where: { id: runId },
+    data: {
+      status: failedCount > 0 ? "FAILED" : "COMPLETED",
+      completedAt: new Date(),
+      ...(failedCount > 0 && { error: `${failedCount} node(s) failed` }),
+    },
+  });
+
+  broadcastRunUpdate({
+    type: failedCount > 0 ? "run_failed" : "run_completed",
+    runId,
+    timestamp: new Date().toISOString(),
+  });
+
+  console.log(`[resumeAfterApproval] Run ${runId} completed (${failedCount} failures)`);
 }
 
 export const executionRouter = router;
