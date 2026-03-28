@@ -11,6 +11,7 @@ import { getConnectionManager } from "../../connections/manager";
 import axios, { AxiosInstance } from "axios";
 import { chromium, Browser, Page, BrowserContext } from "playwright";
 import * as sgMail from "@sendgrid/mail";
+import { Resend } from "resend";
 
 /**
  * HTTP Tool Executor
@@ -555,6 +556,8 @@ export class EmailToolExecutor extends BaseNodeExecutor {
 
     try {
       switch (provider) {
+        case "resend":
+          return await this.sendViaResend(connection, config, bodyType);
         case "sendgrid":
           return await this.sendViaSendGrid(connection, config, bodyType);
         case "ses":
@@ -608,6 +611,47 @@ export class EmailToolExecutor extends BaseNodeExecutor {
       rejected: [],
       status: "sent",
       duration_ms: 0,
+    };
+  }
+
+  /**
+   * Send via Resend
+   */
+  private async sendViaResend(
+    connection: any,
+    config: any,
+    bodyType: string,
+  ): Promise<any> {
+    const resend = new Resend(connection.credentials.api_key);
+
+    const emailData: any = {
+      from: config.from,
+      to: Array.isArray(config.to) ? config.to : [config.to],
+      subject: config.subject,
+    };
+
+    if (bodyType === "html") {
+      emailData.html = config.body;
+    } else {
+      emailData.text = config.body;
+    }
+
+    if (config.cc) emailData.cc = Array.isArray(config.cc) ? config.cc : [config.cc];
+    if (config.bcc) emailData.bcc = Array.isArray(config.bcc) ? config.bcc : [config.bcc];
+
+    const startTime = Date.now();
+    const { data, error } = await resend.emails.send(emailData);
+
+    if (error) {
+      throw new Error(`Resend error: ${error.message}`);
+    }
+
+    return {
+      message_id: data?.id || "unknown",
+      accepted: emailData.to,
+      rejected: [],
+      status: "sent",
+      duration_ms: Date.now() - startTime,
     };
   }
 

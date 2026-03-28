@@ -363,6 +363,8 @@ export async function executeGoogleCloudNode(
         return await runGoogleDocs(config, ctx);
       case "google-sheets":
         return await runGoogleSheets(config, ctx);
+      case "gmail":
+        return await runGmail(config, ctx);
       default:
         return { ok: false, error: `Unknown Google node: ${canonicalId}` };
     }
@@ -733,4 +735,111 @@ async function runGoogleSheets(
   }
 
   return { ok: false, error: `Unknown sheets operation: ${op}`, ...mockSheets(config) };
+}
+
+// ─── Gmail ──────────────────────────────────────────────────────────────────
+
+async function runGmail(
+  config: Record<string, unknown>,
+  ctx?: GoogleExecutionContext,
+): Promise<Record<string, unknown>> {
+  const scopes = ["https://www.googleapis.com/auth/gmail.send", "https://www.googleapis.com/auth/gmail.readonly"];
+  const tokenResult = await getAccessTokenResult(config, scopes, ctx);
+  if (!tokenResult.ok) return { ok: false, error: tokenResult.error, hint: (tokenResult as any).hint };
+  const token = tokenResult.token;
+
+  const op = String(config.operation || "send_email");
+
+  if (op === "send_email") {
+    const to = String(config.to || "");
+    const subject = String(config.subject || "");
+    const body = String(config.body || "");
+    const isHtml = Boolean(config.isHtml);
+
+    if (!to) return { ok: false, error: "Missing 'to' address" };
+    if (!subject) return { ok: false, error: "Missing 'subject'" };
+
+    // Build RFC 2822 message
+    const contentType = isHtml ? "text/html" : "text/plain";
+    const from = String(config.from || "me");
+    const rawLines = [
+      `From: ${from}`,
+      `To: ${to}`,
+      ...(config.cc ? [`Cc: ${String(config.cc)}`] : []),
+      `Subject: ${subject}`,
+      `Content-Type: ${contentType}; charset=UTF-8`,
+      "",
+      body,
+    ];
+    const rawMessage = rawLines.join("\r\n");
+    // Gmail API requires URL-safe base64
+    const encoded = Buffer.from(rawMessage)
+      .toString("base64")
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
+
+    const url = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send";
+    const r = await gapi<{ id?: string; threadId?: string; labelIds?: string[] }>(token, url, {
+      method: "POST",
+      body: JSON.stringify({ raw: encoded }),
+    });
+
+    if (!r.ok) return { ok: false, status: r.status, error: r.data };
+    return {
+      ok: true,
+      live: true,
+      operation: "send_email",
+      messageId: r.data.id,
+      threadId: r.data.threadId,
+      to,
+      subject,
+    };
+  }
+
+  if (op === "list_messages") {
+    const maxResults = Number(config.maxResults) || 10;
+    const query = String(config.query || "");
+    const params = new URLSearchParams({ maxResults: String(maxResults) });
+    if (query) params.set("q", query);
+
+    const url = `https://gmail.googleapis.com/gmail/v1/users/me/messages?${params}`;
+    const r = await gapi<{ messages?: { id: string; threadId: string }[]; resultSizeEstimate?: number }>(token, url);
+    if (!r.ok) return { ok: false, status: r.status, error: r.data };
+    return {
+      ok: true,
+      live: true,
+      operation: "list_messages",
+      messages: r.data.messages || [],
+      resultCount: r.data.resultSizeEstimate || 0,
+    };
+  }
+
+  if (op === "read_message") {
+    const messageId = String(config.messageId || "");
+    if (!messageId) return { ok: false, error: "Missing 'messageId'" };
+
+    const url = `https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(messageId)}?format=full`;
+    const r = await gapi<any>(token, url);
+    if (!r.ok) return { ok: false, status: r.status, error: r.data };
+
+    const headers = (r.data.payload?.headers || []) as { name: string; value: string }[];
+    const getHeader = (name: string) => headers.find((h: any) => h.name.toLowerCase() === name.toLowerCase())?.value || "";
+
+    return {
+      ok: true,
+      live: true,
+      operation: "read_message",
+      messageId: r.data.id,
+      threadId: r.data.threadId,
+      from: getHeader("From"),
+      to: getHeader("To"),
+      subject: getHeader("Subject"),
+      date: getHeader("Date"),
+      snippet: r.data.snippet,
+      labelIds: r.data.labelIds,
+    };
+  }
+
+  return { ok: false, error: `Unknown Gmail operation: ${op}` };
 }
