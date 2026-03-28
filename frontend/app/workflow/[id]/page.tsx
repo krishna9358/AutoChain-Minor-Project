@@ -44,6 +44,8 @@ import {
   ArrowLeft,
   Save,
   Loader2,
+  FileDown,
+  FileUp,
   Sparkles,
   CheckCircle2,
   XCircle,
@@ -393,6 +395,48 @@ function WorkflowInner() {
 
   const viewingRunIdRef = useRef<string | null>(null);
   const savedSnapshotRef = useRef<string>("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const exportWorkflow = useCallback(() => {
+    import("js-yaml").then((yaml) => {
+      const exportData = {
+        name: wfName,
+        description: wfDesc,
+        nodes: useWorkflowStore.getState().nodes,
+        edges: useWorkflowStore.getState().edges,
+      };
+      const yamlStr = yaml.dump(exportData, { indent: 2, lineWidth: 120, noRefs: true, sortKeys: false });
+      const blob = new Blob([yamlStr], { type: "text/yaml" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${wfName.replace(/\s+/g, "_") || "workflow"}.yaml`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+  }, [wfName, wfDesc]);
+
+  const importWorkflow = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const yaml = await import("js-yaml");
+      const parsed = yaml.load(text) as any;
+      if (parsed.nodes && parsed.edges) {
+        setWfName(parsed.name || "Imported Workflow");
+        if (parsed.description) setWfDesc(parsed.description);
+        setNodes(parsed.nodes);
+        setEdges(parsed.edges);
+        toast({ title: "Workflow imported", description: "Successfully imported workflow from file." });
+      } else {
+        toast({ title: "Import failed", description: "Invalid workflow format", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Import failed", description: "Failed to parse YAML file." , variant: "destructive" });
+    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }, [setNodes, setEdges, setWfName, setWfDesc, toast]);
 
   const { screenToFlowPosition } = useReactFlow();
 
@@ -1261,6 +1305,23 @@ function WorkflowInner() {
 
         {/* Right: actions */}
         <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"
+            style={{ color: "var(--text-muted)" }}
+            title="Import from YAML"
+          >
+            <FileUp className="w-4 h-4" />
+          </button>
+          <input ref={fileInputRef} type="file" accept=".yaml,.yml" onChange={importWorkflow} className="hidden" />
+          <button
+            onClick={exportWorkflow}
+            className="p-1.5 rounded-lg hover:bg-white/5 transition-colors mr-1"
+            style={{ color: "var(--text-muted)" }}
+            title="Export as YAML"
+          >
+            <FileDown className="w-4 h-4" />
+          </button>
           <button
             onClick={toggleTheme}
             className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"

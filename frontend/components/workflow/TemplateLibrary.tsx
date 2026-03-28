@@ -151,33 +151,34 @@ function buildPreviewFlow(template: TemplatePreview): { nodes: Node[]; edges: Ed
   return { nodes, edges };
 }
 
-/** Non-interactive React Flow mini preview */
 function MiniFlowPreview({ template }: { template: TemplatePreview }) {
   const { nodes, edges } = useMemo(() => buildPreviewFlow(template), [template]);
 
   return (
-    <div className="w-full h-[120px] rounded-lg overflow-hidden" style={{ background: "var(--bg-primary, #000)" }}>
-      <ReactFlowProvider>
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          fitView
-          fitViewOptions={{ padding: 0.3 }}
-          panOnDrag={false}
-          zoomOnScroll={false}
-          zoomOnPinch={false}
-          zoomOnDoubleClick={false}
-          nodesDraggable={false}
-          nodesConnectable={false}
-          elementsSelectable={false}
-          preventScrolling={false}
-          proOptions={{ hideAttribution: true }}
-          minZoom={0.1}
-          maxZoom={1}
-        >
-          <Background color="var(--border-subtle, #222)" gap={16} size={0.5} />
-        </ReactFlow>
-      </ReactFlowProvider>
+    <div className="w-full h-[120px] overflow-hidden border-b" style={{ background: "var(--bg-elevated)", borderColor: "var(--border-subtle)" }}>
+      <div className="w-full h-full transition-transform duration-700 ease-out group-hover:scale-110 pointer-events-none">
+        <ReactFlowProvider>
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            fitView
+            fitViewOptions={{ padding: 0.3 }}
+            panOnDrag={false}
+            zoomOnScroll={false}
+            zoomOnPinch={false}
+            zoomOnDoubleClick={false}
+            nodesDraggable={false}
+            nodesConnectable={false}
+            elementsSelectable={false}
+            preventScrolling={false}
+            proOptions={{ hideAttribution: true }}
+            minZoom={0.1}
+            maxZoom={1}
+          >
+            <Background color="var(--text-muted)" gap={16} size={0.5} />
+          </ReactFlow>
+        </ReactFlowProvider>
+      </div>
     </div>
   );
 }
@@ -352,7 +353,7 @@ const TemplateLibrary: React.FC<TemplateLibraryProps> = ({
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ duration: 0.2 }}
                 onClick={() => setSelectedTemplate(template)}
-                className="group cursor-pointer rounded-xl border overflow-hidden transition-all hover:border-[var(--primary)]"
+                className="group cursor-pointer rounded-xl border overflow-hidden transition-all hover:border-primary"
                 style={{ background: "var(--bg-card)", borderColor: "var(--border-subtle)" }}
               >
                 <MiniFlowPreview template={template} />
