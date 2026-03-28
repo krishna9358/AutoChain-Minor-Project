@@ -791,6 +791,7 @@ async function simulateExecution(runId: string, nodes: any[], edges: any[]) {
     if (visited.has(nodeId)) {
       // Queue children of already-completed nodes (needed for resume after approval)
       const nextNodes = adjacency.get(nodeId) || [];
+      console.log(`[BFS] Node ${nodeId} already visited, queuing ${nextNodes.length} children: ${nextNodes.join(", ")}`);
       for (const next of nextNodes) {
         if (!visited.has(next)) queue.push(next);
       }
@@ -2190,11 +2191,14 @@ export async function resumeAfterApproval(runId: string, approvedNodeId: string)
     return;
   }
 
-  // Resume execution — simulateExecution starts from the trigger, but we need
-  // to continue from specific nodes. We re-run the full BFS but pre-mark
-  // all already-completed nodes as visited so only remaining nodes execute.
-  simulateExecution(runId, nodesWithSecrets, workflow.edges).catch(async (err) => {
-    console.error(`Resumed workflow run ${runId} failed:`, err);
+  // Resume execution — re-run BFS, pre-marking completed nodes as visited.
+  // Also mark the just-approved node as COMPLETED so BFS skips it and processes its children.
+  console.log(`[resumeAfterApproval] Resuming run ${runId} after node ${approvedNodeId}, children: ${childNodeIds.join(", ")}`);
+  try {
+    await simulateExecution(runId, nodesWithSecrets, workflow.edges);
+    console.log(`[resumeAfterApproval] Run ${runId} resumed successfully`);
+  } catch (err: any) {
+    console.error(`[resumeAfterApproval] Resumed run ${runId} failed:`, err);
     await prisma.workflowRun.update({
       where: { id: runId },
       data: {
@@ -2203,7 +2207,7 @@ export async function resumeAfterApproval(runId: string, approvedNodeId: string)
         completedAt: new Date(),
       },
     }).catch(() => {});
-  });
+  }
 }
 
 export const executionRouter = router;
