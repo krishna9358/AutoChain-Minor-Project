@@ -636,7 +636,6 @@ export class ConnectionManager {
     }
 
     try {
-      // TODO: Implement real OAuth refresh per provider
       const refreshedToken = await this.performOAuthRefresh(connection);
 
       await this.updateConnection(connection_id, {
@@ -663,18 +662,51 @@ export class ConnectionManager {
   }
 
   /**
-   * Perform OAuth token refresh
-   * TODO: Implement real OAuth refresh per provider instead of returning mock data
+   * Perform OAuth token refresh via the provider's token endpoint
    */
   private async performOAuthRefresh(connection: Connection): Promise<{
     access_token: string;
     refresh_token?: string;
     expires_in: number;
   }> {
+    const tokenEndpoints: Record<string, string> = {
+      google: "https://oauth2.googleapis.com/token",
+      github: "https://github.com/login/oauth/access_token",
+      slack: "https://slack.com/api/oauth.v2.access",
+      hubspot: "https://api.hubapi.com/oauth/v1/token",
+      salesforce: "https://login.salesforce.com/services/oauth2/token",
+    };
+
+    const tokenUrl = (connection.credentials as any).token_endpoint
+      || tokenEndpoints[connection.type]
+      || (connection.base_url ? `${connection.base_url}/oauth/token` : null);
+
+    if (!tokenUrl) {
+      throw new Error(`No token endpoint configured for connection type: ${connection.type}`);
+    }
+
+    if (!connection.credentials.client_id || !connection.credentials.client_secret) {
+      throw new Error("OAuth refresh requires client_id and client_secret");
+    }
+
+    const { default: axios } = await import("axios");
+    const params = new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: connection.credentials.refresh_token!,
+      client_id: connection.credentials.client_id,
+      client_secret: connection.credentials.client_secret,
+    });
+
+    const response = await axios.post(tokenUrl, params.toString(), {
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      timeout: 10000,
+    });
+
+    const data = response.data;
     return {
-      access_token: "new_access_token_" + Date.now(),
-      refresh_token: connection.credentials.refresh_token,
-      expires_in: 3600,
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+      expires_in: data.expires_in || 3600,
     };
   }
 
