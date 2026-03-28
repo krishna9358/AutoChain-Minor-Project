@@ -58,6 +58,7 @@ const GOOGLE_CLOUD_NODE_IDS = [
   "google-meet",
   "google-docs",
   "google-sheets",
+  "gmail",
 ] as const;
 
 async function executeIntegrationNode(
@@ -249,6 +250,17 @@ function validateNodeConfigs(nodes: any[]): { nodeId: string; nodeLabel: string;
   return null;
 }
 
+/** True if this node is a sub-node (chat-model, memory, tool) — not an executable step. */
+function isSubNode(n: any): boolean {
+  const ntype = (n.nodeType || "").toLowerCase().replace(/_/g, "-");
+  const compId = ((n.metadata as any)?.componentId || "").toLowerCase();
+  return (
+    ntype === "chat-model" || compId === "chat-model" ||
+    ntype === "agent-memory" || compId === "agent-memory" ||
+    ntype === "agent-tool" || compId === "agent-tool"
+  );
+}
+
 /** True if this node is the workflow entry / trigger (catalog or legacy). */
 function isEntryTriggerNode(n: any): boolean {
   const cat = (n.category || "").toLowerCase();
@@ -284,13 +296,25 @@ function isArtifactWriterNode(node: any): boolean {
   );
 }
 
+/** True if the edge is a sub-node connection (chat-model, memory, tool handles). */
+function isSubNodeEdge(edge: any, nodes: any[]): boolean {
+  if (edge.sourceHandle || edge.targetHandle) return true;
+  const src = nodes.find((n: any) => n.id === edge.sourceNodeId);
+  if (src && isSubNode(src)) return true;
+  const tgt = nodes.find((n: any) => n.id === edge.targetNodeId);
+  if (tgt && isSubNode(tgt)) return true;
+  return false;
+}
+
 function buildParentMap(
   edges: any[],
   nodeIds: Set<string>,
+  nodes: any[],
 ): Map<string, string[]> {
   const parents = new Map<string, string[]>();
   for (const edge of edges) {
     if (!nodeIds.has(edge.sourceNodeId) || !nodeIds.has(edge.targetNodeId)) continue;
+    if (isSubNodeEdge(edge, nodes)) continue;
     const arr = parents.get(edge.targetNodeId) || [];
     arr.push(edge.sourceNodeId);
     parents.set(edge.targetNodeId, arr);
@@ -432,9 +456,10 @@ router.post(
         },
       });
 
-      // Create pending steps for each node in a single transaction
+      // Create pending steps for each node (skip sub-nodes like chat-model, memory, tool)
+      const executableNodes = nodesWithSecrets.filter((n: any) => !isSubNode(n));
       await prisma.$transaction(
-        workflow.nodes.map((node) =>
+        executableNodes.map((node: any) =>
           prisma.runStep.create({
             data: {
               runId: run.id,
@@ -685,7 +710,8 @@ async function simulateExecution(runId: string, nodes: any[], edges: any[]) {
   const nodeIds = new Set(nodes.map((n) => n.id));
   const adjacency = new Map<string, string[]>();
   for (const edge of edges) {
-    if (!nodeIds.has(edge.sourceNodeId) || !nodeIds.has(edge.targetNodeId)) continue; // skip orphaned edges
+    if (!nodeIds.has(edge.sourceNodeId) || !nodeIds.has(edge.targetNodeId)) continue;
+    if (isSubNodeEdge(edge, nodes)) continue; // skip sub-node connections
     const sources = adjacency.get(edge.sourceNodeId) || [];
     sources.push(edge.targetNodeId);
     adjacency.set(edge.sourceNodeId, sources);
@@ -723,7 +749,7 @@ async function simulateExecution(runId: string, nodes: any[], edges: any[]) {
     return;
   }
 
-  const parents = buildParentMap(edges, nodeIds);
+  const parents = buildParentMap(edges, nodeIds, nodes);
   const outputMap = new Map<string, unknown>();
 
   // On resume after approval, pre-populate visited set and outputMap
@@ -775,14 +801,36 @@ async function simulateExecution(runId: string, nodes: any[], edges: any[]) {
     const node = nodes.find((n) => n.id === nodeId);
     if (!node) continue;
 
+    // Skip sub-nodes (chat-model, memory, tool) — they are config, not executable
+    if (isSubNode(node)) {
+      visited.add(nodeId);
+      const nextNodes = adjacency.get(nodeId) || [];
+      for (const next of nextNodes) {
+        if (!visited.has(next)) queue.push(next);
+      }
+      continue;
+    }
+
     // Check for approval nodes
     if (node.nodeType === "APPROVAL" || node.nodeType === "approval" || node.metadata?.componentId === "approval") {
+      // Gather context from parent nodes
+      const parentIds = parents.get(nodeId) || [];
+      const approvalContext: Record<string, any> = {};
+      for (const pid of parentIds) {
+        const prevOutput = outputMap.get(pid);
+        if (prevOutput) approvalContext[pid] = prevOutput;
+      }
+
+      const cfg = (node.config || {}) as Record<string, any>;
+      const approverEmail = cfg.approvers || cfg.assigned_to || "";
+      const approvalMessage = cfg.message || "Workflow step requires your approval";
+
       await prisma.runStep.updateMany({
         where: { runId, nodeId },
         data: {
           status: "WAITING_APPROVAL",
           startedAt: new Date(),
-          inputPayload: { message: "Waiting for human approval" },
+          inputPayload: { message: approvalMessage, context: approvalContext },
         },
       });
 
@@ -791,7 +839,7 @@ async function simulateExecution(runId: string, nodes: any[], edges: any[]) {
           runId,
           nodeId,
           status: "PENDING",
-          data: node.config,
+          data: { ...cfg, context: approvalContext },
         },
       });
 
@@ -799,6 +847,49 @@ async function simulateExecution(runId: string, nodes: any[], edges: any[]) {
         where: { id: runId },
         data: { status: "WAITING_APPROVAL" },
       });
+
+      // Send email notification to approver if Resend API key is available
+      if (approverEmail) {
+        const resendKey = await (async () => {
+          if (!workspaceId) return null;
+          const sMap = await getWorkspaceSecretsMap(workspaceId);
+          return sMap.RESEND_API_KEY || sMap.RESEND_MAIL_SERVICE || null;
+        })();
+        if (resendKey) {
+          try {
+            const { Resend } = await import("resend");
+            const resend = new Resend(resendKey);
+            const wfName = runRecord?.workflow?.name || "Workflow";
+            const approvalUrl = `${process.env.FRONTEND_URL || "http://localhost:3000"}/workflow/${runRecord?.workflowId}`;
+            await resend.emails.send({
+              from: "AutoChain <onboarding@resend.dev>",
+              to: Array.isArray(approverEmail) ? approverEmail : [approverEmail],
+              subject: `Approval Required: ${wfName}`,
+              html: `
+                <h2>Approval Required</h2>
+                <p><strong>${wfName}</strong> needs your approval to continue.</p>
+                <p>${approvalMessage}</p>
+                <br/>
+                <a href="${approvalUrl}" style="background:#10b981;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;">Review & Approve</a>
+                <br/><br/>
+                <p style="color:#888;font-size:12px;">Run ID: ${runId}</p>
+              `,
+            });
+            console.log(`[approval] Email sent to ${approverEmail}`);
+          } catch (emailErr: any) {
+            console.warn(`[approval] Failed to send email: ${emailErr.message}`);
+          }
+        }
+      }
+
+      broadcastRunUpdate({
+        type: "step_started",
+        runId,
+        nodeId,
+        nodeLabel: node.label || "Approval",
+        timestamp: new Date().toISOString(),
+      });
+
       return; // Pause execution
     }
 
@@ -863,6 +954,96 @@ async function simulateExecution(runId: string, nodes: any[], edges: any[]) {
           },
         };
 
+        // Map catalog camelCase config fields to executor snake_case fields
+        const cfg = (node.config || {}) as Record<string, any>;
+        const mappedConfig: Record<string, any> = { ...cfg };
+
+        // AI Agent field mapping: catalog → executor
+        if (executorKey === "agent" || executorKey === "ai-agent") {
+          // Find connected Chat Model sub-node:
+          // 1. Via explicit chatModel handle edge (new workflows)
+          // 2. Via source node type detection (old workflows without handle info)
+          let chatModelConfig: Record<string, any> = {};
+          for (const edge of edges) {
+            if (edge.targetNodeId !== nodeId) continue;
+            // Match by handle
+            if (edge.targetHandle === "chatModel") {
+              const chatModelNode = nodes.find((n: any) => n.id === edge.sourceNodeId);
+              if (chatModelNode) {
+                chatModelConfig = (chatModelNode.config || {}) as Record<string, any>;
+              }
+              break;
+            }
+            // Match by source node type (fallback for edges without handle info)
+            const sourceNode = nodes.find((n: any) => n.id === edge.sourceNodeId);
+            if (sourceNode) {
+              const sType = (sourceNode.nodeType || "").toLowerCase().replace(/_/g, "-");
+              const sComp = ((sourceNode.metadata as any)?.componentId || "").toLowerCase();
+              if (sType === "chat-model" || sComp === "chat-model") {
+                chatModelConfig = (sourceNode.config || {}) as Record<string, any>;
+                break;
+              }
+            }
+          }
+
+          mappedConfig.agent_type = cfg.agentType || cfg.agent_type || "executor";
+          mappedConfig.goal = cfg.systemPrompt || cfg.goal || "Process the input";
+          mappedConfig.tools_allowed = cfg.toolsAllowed || cfg.tools_allowed || [];
+
+          // Build model_config from Chat Model sub-node (secret-resolved) — no env fallback
+          const apiKey = chatModelConfig.apiKey || cfg.apiKey || cfg.api_key || "";
+          const baseUrl = chatModelConfig.baseUrl || cfg.baseUrl || cfg.base_url || "";
+          const model = chatModelConfig.model || cfg.model || "llama-3.3-70b-versatile";
+          const provider = chatModelConfig.provider || cfg.provider || "groq";
+          const temperature = chatModelConfig.temperature ?? cfg.temperature ?? 0.7;
+
+          // Map provider names to base URLs
+          const providerUrls: Record<string, string> = {
+            groq: "https://api.groq.com/openai/v1",
+            openrouter: "https://openrouter.ai/api/v1",
+            openai: "https://api.openai.com/v1",
+          };
+          const resolvedBaseUrl = baseUrl || providerUrls[provider] || "https://api.groq.com/openai/v1";
+
+          if (!apiKey) {
+            throw new Error(
+              `AI Agent "${node.label || nodeId}" has no API key configured. ` +
+              `Add your API key to the Secret Library (e.g. key: AI_API_KEY) ` +
+              `and set the Chat Model node's API Key field to {{secrets.AI_API_KEY}}.`
+            );
+          }
+
+          mappedConfig.model_config = {
+            provider: provider === "groq" || provider === "openrouter" ? "custom" : provider,
+            model,
+            api_key: apiKey,
+            baseURL: resolvedBaseUrl,
+            temperature,
+          };
+          mappedConfig.tool_connections = cfg.tool_connections || {};
+          // Ensure tools_allowed is always an array (empty = no tool calls)
+          if (!Array.isArray(mappedConfig.tools_allowed)) mappedConfig.tools_allowed = [];
+          if (cfg.userPromptTemplate) mappedConfig.user_prompt_template = cfg.userPromptTemplate;
+          if (cfg.responseFormat) mappedConfig.response_format = cfg.responseFormat;
+          if (cfg.maxIterations) mappedConfig.max_iterations = cfg.maxIterations;
+        }
+
+        // Switch/Router field mapping: catalog → executor
+        if (executorKey === "switch-case" || executorKey === "orchestrator.switch") {
+          mappedConfig.value_expression = cfg.valuePath || cfg.switchField || cfg.value_expression || "";
+          mappedConfig.default_branch = cfg.defaultBranch || cfg.default_branch || "default";
+          mappedConfig.cases = cfg.cases || [];
+        }
+
+        // If/Else field mapping: catalog → executor
+        if (executorKey === "if-condition" || executorKey === "orchestrator.conditional") {
+          mappedConfig.condition = cfg.leftPath || cfg.condition || "";
+          mappedConfig.true_branch = cfg.trueBranch || cfg.true_branch || "then";
+          mappedConfig.false_branch = cfg.falseBranch || cfg.false_branch || "else";
+          mappedConfig.operator = cfg.operator || "equals";
+          mappedConfig.right_value = cfg.rightValue || cfg.right_value || "";
+        }
+
         // Map flat workflow node to BaseNode shape expected by executors
         const baseNode: any = {
           node_id: nodeId,
@@ -872,19 +1053,16 @@ async function simulateExecution(runId: string, nodes: any[], edges: any[]) {
           timeout_ms: 30000,
           metadata: node.metadata || {},
           config: node.config || {},
-          // Spread all node properties so typed executors can access their fields
           ...node,
-          ...node.config,
+          ...mappedConfig,
         };
 
         try {
           const result = await NodeExecutorFactory.executeNode(baseNode, execContext);
           if (result.status === "error") {
             const errMsg = result.error?.message || "Executor error";
-            // Check for fallback edge before treating as a soft error
             const fallbackEdge = findFallbackEdge(edges, nodeId);
             if (fallbackEdge && nodeIds.has(fallbackEdge.targetNodeId)) {
-              // Throw so the catch block handles fallback routing uniformly
               throw new Error(errMsg);
             }
             output = { error: errMsg, ...result.output };
@@ -892,13 +1070,25 @@ async function simulateExecution(runId: string, nodes: any[], edges: any[]) {
             output = result.output;
           }
         } catch (execErr: any) {
-          // If there is a fallback edge, re-throw to reach the outer catch handler
           const fb = findFallbackEdge(edges, nodeId);
           if (fb && nodeIds.has(fb.targetNodeId)) {
             throw execErr;
           }
-          // No fallback - fall back to mock output (original behavior)
-          console.warn(`[execution] Executor for "${executorKey}" threw, falling back to mock: ${execErr.message}`);
+          // Real execution errors should fail the node, not silently mock
+          const errMsg = (execErr as Error).message || "Executor error";
+          const isRealError =
+            errMsg.includes("Missing required fields") ||
+            errMsg.includes("Invalid API Key") ||
+            errMsg.includes("API key") ||
+            errMsg.includes("No AI API key") ||
+            errMsg.includes("Authentication") ||
+            errMsg.includes("401") ||
+            errMsg.includes("403");
+          if (isRealError) {
+            throw execErr;
+          }
+          // Non-critical errors — fall back to mock output for demo compatibility
+          console.warn(`[execution] Executor for "${executorKey}" threw, falling back to mock: ${errMsg}`);
           output = generateNodeOutput(node);
         }
       } else {
@@ -1100,7 +1290,7 @@ async function resumeExecution(runId: string, nodes: any[], edges: any[], startN
   const workflowIdForArtifact = runRecord?.workflowId;
 
   const nodeIds = new Set(nodes.map((n) => n.id));
-  const parents = buildParentMap(edges, nodeIds);
+  const parents = buildParentMap(edges, nodeIds, nodes);
   const adjacency = new Map<string, string[]>();
   for (const edge of edges) {
     if (!nodeIds.has(edge.sourceNodeId) || !nodeIds.has(edge.targetNodeId)) continue;
@@ -1369,6 +1559,15 @@ function generateNodeOutput(node: any): any {
         ["Alice", "92"],
       ],
       note: "Simulated Sheets values. Use spreadsheets.values.* for production.",
+    },
+    gmail: {
+      ok: true,
+      simulated: true,
+      operation: node.config?.operation || "send_email",
+      messageId: `msg-${Date.now()}`,
+      to: node.config?.to || "user@example.com",
+      subject: node.config?.subject || "Workflow notification",
+      note: "Simulated Gmail response. Connect Google account for live emails.",
     },
   };
 

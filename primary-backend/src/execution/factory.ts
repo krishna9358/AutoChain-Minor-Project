@@ -93,7 +93,7 @@ export class NodeExecutorFactory {
     );
 
     // Catalog-format aliases (kebab-case componentCatalog IDs → same executors)
-    this.executorMap.set("entry-point", WebhookTriggerExecutor);
+    // entry-point is handled by BFS trigger logic, not an executor
     this.executorMap.set("http-request", HttpToolExecutor);
     this.executorMap.set("slack-send", SlackToolExecutor);
     this.executorMap.set("email-send", EmailToolExecutor);
