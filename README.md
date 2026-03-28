@@ -1,120 +1,99 @@
-# AutoChain AI — Enterprise Workflow Automation Platform
+# AutoChain AI -- Enterprise Workflow Automation Platform
 
 > Multi-agent AI system for autonomous enterprise workflows with self-healing execution, decision audit trails, and SLA monitoring.
 
+Built for **ET AI Hackathon 2026**
+
+---
+
 ## Problem Statement
 
-Design a multi-agent system that takes ownership of complex, multi-step enterprise processes. It should detect failures, self-correct, and complete the job with minimal human involvement — while keeping an auditable trail of every decision it makes.
+Enterprises run hundreds of multi-step processes daily -- customer support, employee onboarding, invoice processing, sales outreach. These involve multiple teams, tools, and handoffs. When something breaks, it takes hours to detect. There's no audit trail of why decisions were made.
+
+**AutoChain AI** solves this by letting you build visual workflows where AI agents handle each step autonomously. The system self-heals when things go wrong, maintains a complete decision audit trail, and supports human-in-the-loop approval gates -- all with minimal human involvement.
 
 ## Key Features
 
-### Multi-Agent Workflow Engine
-- Visual drag-and-drop workflow builder with React Flow
-- AI-powered workflow generation from natural language descriptions
-- 30+ pre-built node types (AI agents, tools, orchestrators, triggers)
-- Sequential and parallel execution with conditional branching
-
-### Self-Healing Execution
-- Automatic fallback routing when nodes fail after retries
-- Configurable retry policies with exponential/linear/fixed backoff
-- Error classification and intelligent recovery paths
-- Full audit trail of self-healing decisions
-
-### Decision Audit Trail
-- Every AI agent decision logged with reasoning summary
-- Timeline visualization of agent decisions per workflow run
-- Self-healed and failed steps highlighted for review
-- Input/output inspection for full transparency
-
-### SLA Monitoring
-- Per-node execution time tracking vs expected durations
-- Health dashboard with breach detection and warnings
-- Historical performance analysis across runs
-
-### Enterprise Features
-- Workspace isolation with RBAC (Admin/Editor/Viewer)
-- Encrypted secret management (AES-256)
-- API key management with scoped permissions
-- Google OAuth integration (Calendar, Docs, Sheets, Meet)
-- Human-in-the-loop approval gates
-- Real-time execution streaming via WebSocket
+- **Visual Workflow Builder** -- Drag-and-drop canvas with 30+ node types, powered by React Flow
+- **Real AI Execution** -- AI agent nodes call LLMs in real-time for classification, reasoning, and decision-making
+- **Self-Healing Execution** -- Configurable retry policies with automatic fallback routing on failure
+- **Decision Audit Trail** -- Every AI decision logged with reasoning, input/output, and timestamps
+- **Human-in-the-Loop** -- Approval gates with configurable timeouts that pause workflow execution
+- **SLA Monitoring** -- Per-node execution tracking with breach detection and alerts
+- **AI Workflow Generation** -- Describe what you want in natural language, get a complete workflow
+- **Enterprise Security** -- Workspace isolation, AES-256 encrypted secrets, RBAC, scoped API keys
+- **Real-time Updates** -- WebSocket streaming of execution progress to the UI
+- **LLM-Agnostic** -- Works with any OpenAI-compatible provider (Groq, OpenAI, OpenRouter, Ollama)
 
 ## Architecture
 
 ```
-┌─────────────┐     ┌──────────────┐     ┌───────────┐
-│   Frontend   │────▶│   Backend    │────▶│ PostgreSQL│
-│  (Next.js)   │     │  (Express)   │     │           │
-│  Port 3000   │     │  Port 3001   │     │ Port 5432 │
-└─────────────┘     └──────┬───────┘     └───────────┘
-                           │
-                    ┌──────▼───────┐
-                    │    Kafka     │
-                    │  Port 9094   │
-                    └──────┬───────┘
-                           │
-              ┌────────────┼────────────┐
-              │            │            │
-        ┌─────▼────┐ ┌────▼─────┐ ┌───▼──────┐
-        │ Processor │ │  Worker  │ │  Hooks   │
-        │ (Outbox)  │ │(Consumer)│ │(Webhooks)│
-        └──────────┘ └──────────┘ │ Port 3002│
-                                  └──────────┘
+                    +----------------------------+
+                    |         Frontend           |
+                    |   Next.js 14 + React Flow  |
+                    |      (Port 3000)           |
+                    +-----------+----------------+
+                                |
+                       REST API + WebSocket
+                                |
+                    +-----------v----------------+
+                    |      Primary Backend       |
+                    |   Express.js + TypeScript  |
+                    |  (API + Execution Engine)  |
+                    |      (Port 3001)           |
+                    +-----------+----------------+
+                                |
+                    +-----------v----------------+
+                    |      PostgreSQL 16         |
+                    |      (Port 5432)           |
+                    +----------------------------+
 ```
 
-**Event Flow:** Trigger --> Backend --> Outbox Table --> Processor --> Kafka --> Worker --> Execute Actions
+**Execution Flow:** User triggers workflow --> Backend validates nodes --> Execution engine processes nodes via BFS --> AI agents call LLM in real-time --> Results stored in PostgreSQL --> WebSocket broadcasts progress to frontend
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | Next.js 14, React Flow, shadcn/ui, Tailwind CSS, Framer Motion |
-| Backend | Express.js, Prisma ORM, TypeScript |
+| Frontend | Next.js 14 (App Router), React Flow, shadcn/ui, Tailwind CSS, Framer Motion, Zustand |
+| Backend | Express.js, TypeScript, Prisma ORM, JWT Auth |
 | Database | PostgreSQL 16 |
-| Messaging | Apache Kafka (Confluent 7.6) |
-| AI/LLM | Vercel AI SDK (any OpenAI-compatible provider) |
-| Infrastructure | Docker, Docker Compose |
+| AI/LLM | Vercel AI SDK (any OpenAI-compatible provider -- Groq, OpenAI, OpenRouter, Ollama) |
+| Real-time | WebSocket (execution progress streaming) |
+| Security | AES-256 encryption, RBAC, scoped API keys |
+| Infrastructure | Docker, Docker Compose (3 services) |
 
 ## Quick Start
 
 ### Prerequisites
 - Docker & Docker Compose
-- Node.js 18+ (for manual setup only)
-- An API key for any OpenAI-compatible provider (e.g., [Groq](https://console.groq.com), [OpenRouter](https://openrouter.ai), OpenAI, or a local Ollama instance)
+- An API key for any OpenAI-compatible provider (e.g., [Groq](https://console.groq.com) -- free tier available)
 
 ### 1. Clone & Configure
 
 ```bash
-# Clone and start everything
-# Note: It needs docker to be running. Before running the script, make sure you have docker and it is running. 
 git clone <your-repo-url>
 cd minor-project
-```
 
-Copy each service's example env file:
-
-```bash
+# Copy environment files
 cp .env.example .env
 cp primary-backend/.env.example primary-backend/.env
 cp frontend/.env.local.example frontend/.env.local
-cp hooks/.env.example hooks/.env
-cp processor/.env.example processor/.env
-cp worker/.env.example worker/.env
 ```
 
-Edit `primary-backend/.env` and add your LLM API key:
+Edit `primary-backend/.env` and set your AI API key:
 
 ```env
-DATABASE_URL=postgresql://postgres:autochain_dev@localhost:5432/autochain
-JWT_SECRET=autochain-dev-secret-key-change-in-production
-ENCRYPTION_KEY=autochain-dev-encryption-key-32ch
-AI_API_KEY=your-api-key-here
+AI_API_KEY=your-groq-api-key-here
 AI_BASE_URL=https://api.groq.com/openai/v1
 AI_MODEL=llama-3.3-70b-versatile
-# Works with any OpenAI-compatible API — just change the base URL and model:
-# AI_BASE_URL=https://openrouter.ai/api/v1
-# AI_BASE_URL=http://localhost:11434/v1  (Ollama)
 ```
+
+Works with any OpenAI-compatible API -- just change the base URL:
+- **Groq (recommended, free):** `https://api.groq.com/openai/v1`
+- **OpenRouter:** `https://openrouter.ai/api/v1`
+- **OpenAI:** `https://api.openai.com/v1`
+- **Ollama (local):** `http://localhost:11434/v1`
 
 ### 2. Start with Docker Compose
 
@@ -122,9 +101,9 @@ AI_MODEL=llama-3.3-70b-versatile
 docker compose up -d
 ```
 
-This starts all 7 services: **PostgreSQL, Kafka, Zookeeper, Backend (3001), Frontend (3000), Processor, Worker, Hooks (3002)**.
+This starts **3 services**: PostgreSQL, Backend (port 3001), Frontend (port 3000).
 
-The backend automatically runs Prisma migrations and seeds demo data on first start.
+The backend automatically runs Prisma migrations and seeds demo templates on first start.
 
 ### 3. Access the Application
 
@@ -133,256 +112,185 @@ The backend automatically runs Prisma migrations and seeds demo data on first st
 | Frontend | http://localhost:3000 |
 | Backend API | http://localhost:3001 |
 | Health Check | http://localhost:3001/health |
-| Webhooks | http://localhost:3002 |
 
-**Dev Mode** (enabled by default): Auto-creates a demo user (`dev@autochain.ai` / `dev123`) with an Admin workspace -- no signup required.
+**Dev Mode** (enabled by default): Auto-creates a demo user -- no signup required.
+- **Email:** `dev@autochain.ai`
+- **Password:** `dev123`
 
 ### Manual Setup (without Docker)
 
-Requires PostgreSQL and Kafka running locally.
+Requires PostgreSQL running locally.
 
 ```bash
 # Install dependencies
 cd primary-backend && yarn install && cd ..
 cd frontend && yarn install && cd ..
-cd processor && npm install && cd ..
-cd worker && npm install && cd ..
-cd hooks && yarn install && cd ..
 
 # Setup database
 cd primary-backend
 npx prisma generate
 npx prisma db push
-npx prisma db seed   # Seeds templates including Employee Onboarding demo
+npx prisma db seed   # Seeds templates
 cd ..
 
 # Start services (each in its own terminal)
 cd primary-backend && yarn dev
 cd frontend && yarn dev
-cd processor && npm run dev
-cd worker && npm run dev
-cd hooks && yarn dev
 ```
 
-## Node Categories
+## Node Types
 
-| Category | Types |
-|----------|-------|
-| Triggers | Webhook, Schedule, File Upload, API |
-| AI Agents | Extraction, Summarization, Classification, Reasoning, Decision, Verification, Compliance |
-| Logic | If/Else, Switch, Loop, Parallel |
-| Actions | Slack, Email, HTTP, API Call, Database |
-| Control | Delay, Approval, Retry, Error Handler |
+| Category | Types | Description |
+|----------|-------|-------------|
+| **Triggers** | Webhook, Schedule, Event, API | How workflows get started |
+| **AI Agents** | Extraction, Summarization, Classification, Reasoning, Decision, Verification | LLM-powered intelligence (real AI calls) |
+| **Integrations** | Slack, Email, HTTP, Database, GitHub, Google (Calendar/Docs/Sheets/Meet) | Connect to external services |
+| **Logic** | If/Else, Switch, Loop, Parallel | Control flow and branching |
+| **Control** | Delay, Approval, Retry, Error Handler, SLA Monitor | Process management |
+| **Output** | Artifact Writer, Document Generator, Audit Log, Webhook Response | Produce deliverables |
 
-## Demo Workflow: Enterprise Employee Onboarding
+See [docs/NODES.md](docs/NODES.md) for the full node reference.
 
-The platform includes a showcase template demonstrating multi-agent collaboration:
+## Pre-Built Templates
 
-1. **New Hire Entry** -- Webhook receives hire data
-2. **Data Validation Agent** -- Validates completeness, enriches missing fields
-3. **Background Verification Agent** -- Runs identity/employment/education checks
-4. **IT Provisioning Agent** -- Creates email, Slack, GitHub accounts by role
-5. **HR Compliance Agent** -- Verifies tax forms, NDAs, benefits enrollment
-6. **Manager Approval** -- Human-in-the-loop review gate
-7. **Notification Agent** -- Sends welcome email, Slack intro, calendar invites
-8. **Onboarding Audit Agent** -- Produces comprehensive decision audit trail
+| Template | Nodes | Difficulty | Description |
+|----------|-------|------------|-------------|
+| Customer Support Ticket Automation | 6 | Beginner | Classify tickets, generate responses, escalate when needed |
+| Meeting Intelligence Automation | 7 | Beginner | Extract action items from meeting transcripts |
+| Sales Lead Qualification & Outreach | 6 | Beginner | Enrich leads, score quality, automate outreach |
+| Invoice Processing & Approval | 6 | Intermediate | Extract data, validate, route for approval |
+| Enterprise Employee Onboarding | 10 | Advanced | Full onboarding pipeline with self-healing fallbacks |
 
-**Self-Healing Paths:**
-- Background check failure --> Routes to Manual Review (approval node)
-- IT provisioning failure --> Routes to IT Helpdesk Escalation (email notification)
+See [docs/TEMPLATES.md](docs/TEMPLATES.md) for detailed template documentation with sample inputs.
+
+## Demo: Customer Support Ticket Automation
+
+The **Customer Support** template is the quickest way to see real AI execution:
+
+1. **Open** http://localhost:3000 (auto-logged in as dev user)
+2. **Go to Templates** and select "Customer Support Ticket Automation"
+3. **Click "Use Template"** to load it onto the canvas
+4. **Run the workflow** with this sample input:
+
+```json
+{
+  "customer_name": "Sarah Johnson",
+  "customer_email": "sarah@acme.com",
+  "subject": "Cannot access billing dashboard",
+  "description": "I keep getting a 403 error trying to access billing. This is urgent -- I need invoices for our quarterly review tomorrow.",
+  "priority": "high"
+}
+```
+
+5. **Watch the execution** -- nodes light up in real-time via WebSocket as each AI agent processes
+6. **Check the approval gate** -- the AI escalated it due to high urgency and frustrated sentiment
+7. **Approve it** and watch the workflow complete
+8. **View the audit trail** -- see the reasoning behind every AI decision
+
+For a full demo walkthrough with talking points, see [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md).
 
 ## API Endpoints
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/v1/user/signup` | Create account |
-| POST | `/api/v1/user/login` | Authenticate |
-| GET | `/api/v1/user/me` | Get current user profile |
-| GET | `/api/v1/workflows` | List workflows |
-| POST | `/api/v1/workflows` | Create workflow |
-| GET | `/api/v1/workflows/:id` | Get workflow details |
-| PUT | `/api/v1/workflows/:id` | Update workflow |
-| DELETE | `/api/v1/workflows/:id` | Delete workflow |
-| POST | `/api/v1/execution/run/:id` | Execute workflow |
-| GET | `/api/v1/execution/run/:id` | Get run details |
-| GET | `/api/v1/execution/runs` | List all runs |
-| GET | `/api/v1/execution/runs/:runId/decisions` | Decision audit trail |
-| GET | `/api/v1/execution/sla-health` | SLA health metrics |
-| POST | `/api/v1/generate/workflow` | AI-generate workflow from prompt |
-| GET | `/api/v1/templates` | List workflow templates |
-| GET | `/api/v1/audit` | Audit logs |
-| POST | `/api/v1/approvals/:id` | Approve or reject gate |
-| GET | `/api/v1/workspaces` | List workspaces |
-| POST | `/api/v1/secrets` | Manage encrypted secrets |
-| POST | `/api/v1/api-keys` | Manage API keys |
-| GET | `/api/v1/integrations/google` | Google OAuth flows |
-| GET | `/api/v1/components` | Component catalog |
+| `POST` | `/api/v1/user/signup` | Create account |
+| `POST` | `/api/v1/user/login` | Authenticate (returns JWT) |
+| `GET` | `/api/v1/user/me` | Current user profile |
+| `GET/POST` | `/api/v1/workflows` | List / create workflows |
+| `GET/PUT/DELETE` | `/api/v1/workflows/:id` | Get / update / delete workflow |
+| `POST` | `/api/v1/execution/run/:id` | Execute workflow |
+| `GET` | `/api/v1/execution/runs` | List all runs |
+| `GET` | `/api/v1/execution/runs/:runId/decisions` | Decision audit trail |
+| `GET` | `/api/v1/execution/sla-health` | SLA health metrics |
+| `POST` | `/api/v1/generate/workflow` | AI-generate workflow from prompt |
+| `GET` | `/api/v1/templates` | List workflow templates |
+| `POST` | `/api/v1/templates/:id/clone` | Create workflow from template |
+| `POST` | `/api/v1/approvals/:id` | Approve or reject gate |
+| `GET` | `/api/v1/audit` | Audit logs |
+| `POST` | `/api/v1/secrets` | Manage encrypted secrets |
+| `POST` | `/api/v1/api-keys` | Manage API keys |
+| `GET` | `/api/v1/components` | Component catalog |
 
 ## Project Structure
 
 ```
 minor-project/
-├── frontend/            # Next.js 14 app (React Flow canvas, dashboards)
-│   ├── app/             #   App Router pages
-│   ├── components/      #   UI components (workflow builder, providers)
-│   ├── lib/             #   API client, auth helpers
-│   ├── store/           #   Zustand state management
-│   └── hooks/           #   Custom React hooks
-├── primary-backend/     # Express API server
-│   ├── prisma/          #   Database schema, migrations & seed
+├── frontend/                # Next.js 14 app (port 3000)
+│   ├── app/                 #   App Router pages (dashboard, workflows, login)
+│   ├── components/          #   UI components (workflow builder, node forms)
+│   ├── hooks/               #   Custom hooks (useExecutionStream for WebSocket)
+│   ├── lib/                 #   API client, auth helpers
+│   ├── store/               #   Zustand state management (with undo/redo)
+│   └── templates/           #   Workflow template YAML files
+├── primary-backend/         # Express API server (port 3001)
+│   ├── prisma/              #   Database schema, migrations & seed
 │   └── src/
-│       ├── router/      #   Route handlers (user, workflow, execution, etc.)
-│       ├── execution/   #   Workflow execution engine & factory
-│       ├── nodes/       #   Node type executors (agents, tools, orchestrators)
-│       ├── encryption/  #   AES-256 secret management
-│       ├── connections/ #   Third-party integration manager
-│       └── middleware/  #   Auth middleware
-├── processor/           # Outbox processor (PostgreSQL --> Kafka)
-├── worker/              # Kafka consumer (executes workflow actions)
-├── hooks/               # Webhook receiver service
-├── docker-compose.yml   # Full-stack orchestration (7 services)
-└── .env.example         # Root environment template
+│       ├── router/          #   Route handlers (workflows, execution, auth, integrations)
+│       ├── execution/       #   Node executor factory + integration executors
+│       ├── nodes/           #   Node type executors (AI agents, tools, orchestrators)
+│       ├── encryption/      #   AES-256 secret management
+│       ├── connections/     #   Third-party credential manager
+│       ├── utils/           #   WebSocket broadcast, AI provider setup
+│       └── middleware/      #   JWT auth middleware
+├── docs/                    # Documentation
+│   ├── ARCHITECTURE.md      #   System architecture deep-dive
+│   ├── NODES.md             #   Complete node reference guide
+│   ├── TEMPLATES.md         #   Template documentation with sample inputs
+│   └── DEMO_SCRIPT.md      #   Demo video script & end-to-end setup guide
+├── docker-compose.yml       # 3 services: PostgreSQL, Backend, Frontend
+└── .env.example             # Root environment template
 ```
+
+## Environment Variables
+
+### Required
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql://postgres:pass@localhost:5432/autochain` |
+| `JWT_SECRET` | Token signing key | Any secure random string |
+| `ENCRYPTION_KEY` | AES-256 key (32 characters) | Any 32-character string |
+| `AI_API_KEY` | LLM provider API key | Your Groq/OpenAI key |
+| `AI_BASE_URL` | LLM provider base URL | `https://api.groq.com/openai/v1` |
+| `AI_MODEL` | Model name | `llama-3.3-70b-versatile` |
+
+### Optional
+
+| Variable | Description |
+|----------|-------------|
+| `GOOGLE_OAUTH_CLIENT_ID` | Google OAuth client ID (or configure per-workspace in UI) |
+| `GOOGLE_OAUTH_CLIENT_SECRET` | Google OAuth client secret |
+| `FRONTEND_URL` | Frontend URL for OAuth redirects |
 
 ## Troubleshooting
 
-### Services won't start
-```bash
-docker compose ps          # Check service status
-docker compose logs -f     # Stream all logs
-docker compose down -v     # Reset everything (removes volumes)
-docker compose up -d       # Start fresh
-```
-
-### Database connection issues
-```bash
-docker exec autochain-db pg_isready -U postgres
-docker restart autochain-db
-```
-
-### Kafka connection issues
-```bash
-docker restart autochain-kafka autochain-zookeeper
-docker logs autochain-kafka -f
-```
-
-### Port conflicts
-```bash
-lsof -i :3000   # Frontend
-lsof -i :3001   # Backend
-lsof -i :3002   # Hooks
-lsof -i :5432   # PostgreSQL
-lsof -i :9094   # Kafka
-```
+| Problem | Solution |
+|---------|----------|
+| Services won't start | `docker compose down -v && docker compose up -d` |
+| Database connection issues | `docker exec autochain-db pg_isready -U postgres` |
+| Port conflicts | `lsof -i :3000` / `lsof -i :3001` / `lsof -i :5432` |
+| No templates showing | `docker exec autochain-backend npx prisma db seed` |
+| AI nodes failing | Check `AI_API_KEY` is set correctly in `primary-backend/.env` |
+| Nodes don't light up | Refresh the page (WebSocket reconnects automatically) |
 
 ## Impact Model
 
-| Metric | Manual Process | With AutoChain |
-|--------|---------------|----------------|
+| Metric | Manual Process | With AutoChain AI |
+|--------|---------------|-------------------|
 | Onboarding time | 4-8 hours | 15-30 minutes |
 | Human touchpoints | 12+ per process | 1-2 (approval gates only) |
 | Error detection | ~70% (human review) | ~95% (AI verification) |
 | Cost per workflow | $200-400 (labor) | $5-10 (API costs) |
 | Weekly savings (50 workflows) | -- | **$15,000+** |
 
-## Team
+## Documentation
 
-Built for ET AI Hackathon 2026
+- [Architecture Deep-Dive](docs/ARCHITECTURE.md) -- System design, execution engine, data flow
+- [Node Reference](docs/NODES.md) -- All 30+ node types with configuration
+- [Template Guide](docs/TEMPLATES.md) -- Pre-built templates with sample JSON inputs
+- [Demo Script](docs/DEMO_SCRIPT.md) -- Video script with step-by-step setup from zero
+- [Workflow Engine](primary-backend/WORKFLOW_SYSTEM_README.md) -- Backend execution engine docs
 
 ## License
 
-# Hooks
-curl http://localhost:3002/health
-
-# Frontend
-curl http://localhost:3000
-```
-
-### Metrics
-
-- Workflow execution metrics
-- Performance tracking
-- Error rates
-- Custom metrics via Prometheus (optional)
-
-### Logs
-
-Logs are available via:
-- `./dev logs` - All services
-- Docker logs per service
-- Database audit logs
-
-## 🎨 Tech Stack
-
-### Frontend
-- Next.js 14 (App Router)
-- React Flow (Workflow visualization)
-- shadcn/ui (UI components)
-- Tailwind CSS (Styling)
-- Framer Motion (Animations)
-- Vercel AI SDK (AI integration)
-
-### Backend
-- Express.js (API)
-- PostgreSQL (Database)
-- Kafka (Event streaming)
-- Prisma (ORM)
-- Vercel AI SDK + OpenAI-compatible providers (LLM routing for generation and AI recovery paths)
-- JWT (Authentication)
-
-### Infrastructure
-- Docker (Containerization)
-- Docker Compose (Orchestration)
-- Nginx (Reverse proxy - production)
-
-## 🚀 Deployment
-
-### Production Build
-
-```bash
-# Build all services
-./dev build
-
-# Start production containers
-docker compose -f docker-compose.prod.yml up -d
-```
-
-### Environment Variables
-
-Required for production:
-- `DATABASE_URL` - PostgreSQL connection string
-- `JWT_SECRET` - Secure random string
-- `AI_API_KEY` - API key for any OpenAI-compatible provider
-- `AI_BASE_URL` - Provider API base URL (e.g., `https://api.groq.com/openai/v1`)
-- `AI_MODEL` - Model name (e.g., `llama-3.3-70b-versatile`, `gpt-4o-mini`)
-- `KAFKA_BROKER` - Kafka broker URL
-
-**Google user OAuth (Calendar / Meet / Docs / Sheets “Connected account” in workflows):**
-- **Recommended (no .env):** Workspace **admins and editors** save the OAuth Web client in the app: **Dashboard → Integrations → Google** (stored per workspace, client secret encrypted in the database).
-- **Optional fallback:** `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_REDIRECT_URI` — used when workspace credentials are not set (e.g. single-tenant hosting).
-- Optional: `FRONTEND_URL` or `NEXT_PUBLIC_APP_URL` — Used after OAuth callback to redirect to `/dashboard/integrations/google`
-- Optional: `API_PUBLIC_URL` or `PUBLIC_BACKEND_URL` — Hint for the default redirect URI shown in the UI (defaults to `http://localhost:PORT`)
-
-After changing the Prisma schema, run `npx prisma db push` (or a migration) and `npx prisma generate` in `primary-backend`.
-
-## 📄 License
-
-MIT License - see LICENSE file for details
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run `./dev` to test
-5. Submit a pull request
-
-## 📞 Support
-
-- Documentation: https://docs.autochain.ai
-- Issues: https://github.com/autochain/autochain/issues
-- Email: support@autochain.ai
-
----
-
-**Built with ❤️ by the AutoChain AI team**
+MIT
